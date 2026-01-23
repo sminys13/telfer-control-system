@@ -587,7 +587,6 @@ void uiDrawMenuItem(uint8_t x, uint8_t y, const MenuItem *item, bool selected, b
     ui.display->setDrawColor(COLOR_BLACK);
 }
 
-
 /**
  * @brief Отрисовка прогресс-бара
  */
@@ -845,24 +844,25 @@ void uiDrawAutoModeScreen(void)
     // Получение данных
     extern SystemStatus systemStatus;
     extern ProgramSettings programs[MAX_PROGRAMS];
-    extern uint8_t currentProgram;
-    extern uint8_t currentZone;
+    // extern uint8_t currentProgram;
+    // extern uint8_t currentZone;
+    extern SystemData SystemData;
     extern bool isPaused;
     extern unsigned long dipStartTime;
 
     uint8_t y = MENU_START_Y;
 
     // Информация о программе
-    if (currentProgram < MAX_PROGRAMS)
+    if (SystemData.currentProgram < MAX_PROGRAMS)
     {
         snprintf(textBuffer, sizeof(textBuffer), "Программа: %s",
-                 programs[currentProgram].name);
+                 programs[SystemData.currentProgram].name);
         ui.display->drawStr(0, y, textBuffer);
         y += 12;
 
         snprintf(textBuffer, sizeof(textBuffer), "Зона: %d/%d",
-                 currentZone + 1,
-                 programs[currentProgram].zoneCount);
+                 SystemData.currentZone + 1,
+                 programs[SystemData.currentProgram].zoneCount);
         ui.display->drawStr(0, y, textBuffer);
         y += 12;
     }
@@ -880,9 +880,9 @@ void uiDrawAutoModeScreen(void)
     }
 
     // Прогресс текущей зоны
-    if (currentZone < programs[currentProgram].zoneCount)
+    if (SystemData.currentZone < programs[SystemData.currentProgram].zoneCount)
     {
-        ZoneSettings *zone = &programs[currentProgram].zones[currentZone];
+        ZoneSettings *zone = &programs[SystemData.currentProgram].zones[SystemData.currentZone];
 
         // Прогресс движения
         int progress = (systemStatus.avgHorizontalPos * 100) / zone->position;
@@ -929,7 +929,8 @@ void uiDrawCalibrationScreen(void)
     uiDrawHeader("КАЛИБРОВКА");
 
     extern SystemStatus systemStatus;
-    extern uint8_t currentZone;
+    // extern uint8_t currentZone;
+    extern SystemData SystemData;
 
     uint8_t y = MENU_START_Y;
 
@@ -947,7 +948,7 @@ void uiDrawCalibrationScreen(void)
 
     // Текущая зона
     snprintf(textBuffer, sizeof(textBuffer), "Зона калибровки: %d",
-             currentZone + 1);
+             SystemData.currentZone + 1);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
@@ -1408,18 +1409,19 @@ void uiDrawZoneEditScreen(void)
 {
     uiDrawHeader("РЕДАКТИРОВАНИЕ ЗОНЫ");
 
-    extern uint8_t currentProgram;
-    extern uint8_t currentZone;
+    // extern uint8_t currentProgram;
+    // extern uint8_t currentZone;
+    extern SystemData SystemData;
     extern ProgramSettings programs[MAX_PROGRAMS];
     extern SystemStatus systemStatus;
 
-    if (currentProgram >= MAX_PROGRAMS || currentZone >= MAX_ZONES_PER_PROGRAM)
+    if (SystemData.currentProgram >= MAX_PROGRAMS || SystemData.currentZone >= MAX_ZONES_PER_PROGRAM)
     {
         ui.display->drawStr(0, MENU_START_Y, "Ошибка данных");
         return;
     }
 
-    ZoneSettings *zone = &programs[currentProgram].zones[currentZone];
+    ZoneSettings *zone = &programs[SystemData.currentProgram].zones[SystemData.currentZone];
 
     uint8_t y = MENU_START_Y;
 
