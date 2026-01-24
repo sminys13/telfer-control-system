@@ -5,7 +5,6 @@
  */
 
 #include "../include/utils.h"
-#include "../include/common_definitions.h"
 #include <Arduino.h>
 #include <math.h>
 #include <string.h>

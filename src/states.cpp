@@ -11,11 +11,14 @@
 #include "../include/storage.h"
 #include "../include/sensors.h"
 #include "../include/utils.h"
-#include "../include/common_definitions.h"
 #include <Arduino.h>
 
 extern SystemStatus systemStatus;
 extern SystemFlags systemFlags;
+extern SystemData systemData;
+extern UserSettings userSettings;
+extern ProgramSettings programs[MAX_PROGRAMS];
+extern DiagnosticsResult diagnosticsResults[MAX_DIAGNOSTIC_TESTS];
 
 // ========== ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 
@@ -574,10 +577,7 @@ void stateEnterAutoRunning(void)
     uiSetScreen(uiDrawAutoModeScreen, uiHandleAutoModeInput, 50);
 
     // Проверка наличия выбранной программы
-    extern SystemData SystemData;
-    extern ProgramSettings programs[MAX_PROGRAMS];
-
-    if (SystemData.currentProgram >= MAX_PROGRAMS || programs[SystemData.currentProgram].zoneCount == 0)
+    if (systemData.currentProgram >= MAX_PROGRAMS || programs[systemData.currentProgram].zoneCount == 0)
     {
         Serial.println(F("ОШИБКА: Нет выбранной программы"));
         uiShowError("Нет программы!");
@@ -586,18 +586,18 @@ void stateEnterAutoRunning(void)
     }
 
     // Сброс счетчиков программы
-    programs[SystemData.currentProgram].currentRepeat = 0;
+    programs[systemData.currentProgram].currentRepeat = 0;
 
     // Запуск программы
     Serial.print(F("Запуск программы: "));
-    Serial.println(programs[SystemData.currentProgram].name);
+    Serial.println(programs[systemData.currentProgram].name);
 
     // Звуковое подтверждение
     beepSequence(2, 1000, 200);
 
     // Запись в лог
     char logMsg[64];
-    snprintf(logMsg, sizeof(logMsg), "Запуск программы: %s", programs[SystemData.currentProgram].name);
+    snprintf(logMsg, sizeof(logMsg), "Запуск программы: %s", programs[systemData.currentProgram].name);
     // logMessage(LOG_PROGRAM_START, logMsg, currentProgram);
 }
 
@@ -606,42 +606,34 @@ void stateEnterAutoRunning(void)
  */
 void stateProcessAutoRunning(void)
 {
-    // extern uint8_t currentZone;
     static uint32_t zoneStartTime = 0;
     static bool movingToZone = false;
     static bool dipping = false;
 
-    extern ProgramSettings programs[MAX_PROGRAMS];
-    // extern uint8_t currentProgram;
-    extern SystemData SystemData;
-    // extern SystemStatus systemStatus;
-
     uint32_t currentTime = millis();
 
-    if (SystemData.currentProgram >= MAX_PROGRAMS)
+    if (systemData.currentProgram >= MAX_PROGRAMS)
     {
         statesChangeState(STATE_ERROR, TRANSITION_IMMEDIATE, 0);
         return;
     }
 
-    ProgramSettings *program = &programs[SystemData.currentProgram];
-
     // Если программа завершена
-    if (SystemData.currentZone >= program->zoneCount)
+    if (systemData.currentZone >= programs->zoneCount)
     {
         Serial.println(F("Программа завершена"));
 
         // Проверка необходимости повторения
-        program->currentRepeat++;
-        if (program->repeatEnabled &&
-            (program->repeatCount == 0 || program->currentRepeat < program->repeatCount))
+        programs->currentRepeat++;
+        if (programs->repeatEnabled &&
+            (programs->repeatCount == 0 || programs->currentRepeat < programs->repeatCount))
         {
             Serial.print(F("Повторение "));
-            Serial.print(program->currentRepeat);
+            Serial.print(programs->currentRepeat);
             Serial.print(F(" из "));
-            Serial.println(program->repeatCount);
+            Serial.println(programs->repeatCount);
 
-            SystemData.currentZone = 0;
+            systemData.currentZone = 0;
             movingToZone = false;
             dipping = false;
 
@@ -658,13 +650,13 @@ void stateProcessAutoRunning(void)
         }
     }
 
-    ZoneSettings *zone = &program->zones[SystemData.currentZone];
+    ZoneSettings *zone = &programs->zones[systemData.currentZone];
 
     if (!movingToZone && !dipping)
     {
         // Начало движения к зоне
         Serial.print(F("Движение к зоне "));
-        Serial.print(SystemData.currentZone + 1);
+        Serial.print(systemData.currentZone + 1);
         Serial.print(F(": "));
         Serial.print(zone->position);
         Serial.println(F(" мм"));
@@ -724,9 +716,9 @@ void stateProcessAutoRunning(void)
             delay(zone->waitTime);
 
             // Переход к следующей зоне
-            SystemData.currentZone++;
+            systemData.currentZone++;
             Serial.print(F("Переход к зоне "));
-            Serial.println(SystemData.currentZone + 1);
+            Serial.println(systemData.currentZone + 1);
         }
     }
 
@@ -772,11 +764,12 @@ void stateEnterManualControl(void)
     // Включение режима ручного управления в модуле моторов
     // (если есть такая функция)
     // enableManualMode(true);
+    systemFlags.manualMode = true;
 
     // Сброс текущих целевых позиций
-    extern int32_t manualTargetHorizontal, manualTargetVertical;
-    manualTargetHorizontal = systemStatus.avgHorizontalPos;
-    manualTargetVertical = systemStatus.avgHeight;
+    // extern int32_t manualTargetHorizontal, manualTargetVertical;
+    // manualTargetHorizontal = systemStatus.avgHorizontalPos;
+    // manualTargetVertical = systemStatus.avgHeight;
 
     // Звуковое подтверждение
     beep(800, 200);
@@ -861,9 +854,9 @@ void stateEnterCalibration(void)
     // Загрузка экрана калибровки
     uiSetScreen(uiDrawCalibrationScreen, uiHandleCalibrationInput, 100);
 
-    // Сброс калибровочных данных
-    extern uint8_t calibrationStep;
-    calibrationStep = 0;
+    // // Сброс калибровочных данных
+    // extern uint8_t calibrationStep;
+    // calibrationStep = 0;
 
     // Сохранение текущей позиции как начальной
     extern SystemCalibration calibration;
@@ -941,7 +934,6 @@ void stateEnterSettings(void)
     uiSetScreen(uiDrawSettingsScreen, uiHandleSettingsInput, 100);
 
     // Загрузка текущих настроек
-    extern UserSettings userSettings;
     loadUserSettings(&userSettings);
 
     // Звуковое подтверждение
@@ -975,7 +967,6 @@ void stateExitSettings(void)
     Serial.println(F("Выход из состояния настроек"));
 
     // Сохранение настроек
-    extern UserSettings userSettings;
     if (saveUserSettings(&userSettings))
     {
         Serial.println(F("Настройки сохранены"));
@@ -1022,8 +1013,6 @@ void stateEnterDiagnostics(void)
     bool storageOK = storageCheckIntegrity();
 
     // Сохранение результатов
-    extern DiagnosticsResult diagnosticsResults[MAX_DIAGNOSTIC_TESTS];
-
     diagnosticsResults[0].passed = sensorsOK;
     diagnosticsResults[0].testId = 1;
     strncpy(diagnosticsResults[0].message, "Датчики", 31);
@@ -1103,18 +1092,15 @@ void stateEnterError(void)
     playErrorMelody();
 
     // Получение сообщения об ошибке
-    extern char errorMessage[64];
-    extern ErrorType activeError;
-
     Serial.print(F("Ошибка: "));
-    Serial.print(getErrorMessage(activeError));
+    Serial.print(getErrorMessage(systemData.activeError));
     Serial.print(F(" - "));
-    Serial.println(errorMessage);
+    Serial.println(systemData.errorMessage);
 
     // Запись в лог
     char logMsg[128];
-    snprintf(logMsg, sizeof(logMsg), "Ошибка %d: %s", activeError, errorMessage);
-    logMessage(LOG_ERROR, logMsg, activeError);
+    snprintf(logMsg, sizeof(logMsg), "Ошибка %d: %s", systemData.activeError, systemData.errorMessage);
+    logMessage(LOG_ERROR, logMsg, systemData.activeError);
 }
 
 /**
@@ -1133,10 +1119,7 @@ void stateProcessError(void)
     }
 
     // Проверка условий для сброса ошибки
-    // extern ErrorType activeError;
-    extern bool errorAutoReset;
-
-    if (errorAutoReset)
+    if (systemFlags.errorAutoReset)
     {
         // Автоматический сброс через 10 секунд
         if (stateContext.stateDuration > 10000)
@@ -1183,13 +1166,11 @@ void stateEnterProgramSelection(void)
     digitalWrite(LED_STATUS_PIN, HIGH);
 
     // Создание меню программ
-    extern ProgramSettings programs[MAX_PROGRAMS];
-    extern uint8_t programCount;
-
+    
     // Создание пунктов меню для программ
     static MenuItem programMenuItems[MAX_PROGRAMS + 1];
 
-    for (uint8_t i = 0; i < programCount; i++)
+    for (uint8_t i = 0; i < systemData.programCount; i++)
     {
         programMenuItems[i].text = programs[i].name;
         programMenuItems[i].id = i;
@@ -1204,19 +1185,19 @@ void stateEnterProgramSelection(void)
     }
 
     // Добавление пункта "Назад"
-    programMenuItems[programCount].text = "<- Назад";
-    programMenuItems[programCount].id = 255;
-    programMenuItems[programCount].enabled = true;
-    programMenuItems[programCount].hasSubmenu = false;
-    programMenuItems[programCount].action = NULL;
-    programMenuItems[programCount].value = NULL;
-    programMenuItems[programCount].minValue = 0;
-    programMenuItems[programCount].maxValue = 0;
-    programMenuItems[programCount].options = NULL;
-    programMenuItems[programCount].optionCount = 0;
+    programMenuItems[systemData.programCount].text = "<- Назад";
+    programMenuItems[systemData.programCount].id = 255;
+    programMenuItems[systemData.programCount].enabled = true;
+    programMenuItems[systemData.programCount].hasSubmenu = false;
+    programMenuItems[systemData.programCount].action = NULL;
+    programMenuItems[systemData.programCount].value = NULL;
+    programMenuItems[systemData.programCount].minValue = 0;
+    programMenuItems[systemData.programCount].maxValue = 0;
+    programMenuItems[systemData.programCount].options = NULL;
+    programMenuItems[systemData.programCount].optionCount = 0;
 
     // Создание меню
-    uiCreateMenu(programMenuItems, programCount + 1, "ВЫБОР ПРОГРАММЫ", 1);
+    uiCreateMenu(programMenuItems, systemData.programCount + 1, "ВЫБОР ПРОГРАММЫ", 1);
 
     // Звуковое подтверждение
     beep(1000, 150);
@@ -1250,18 +1231,15 @@ void stateExitProgramSelection(void)
 
     if (selectedId < 255) // Не пункт "Назад"
     {
-        // extern uint8_t currentProgram;
-        extern SystemData SystemData;
-        SystemData.currentProgram = selectedId;
+        systemData.currentProgram = selectedId;
 
         Serial.print(F("Выбрана программа: "));
-        extern ProgramSettings programs[MAX_PROGRAMS];
-        Serial.println(programs[SystemData.currentProgram].name);
+        Serial.println(programs[systemData.currentProgram].name);
 
         // Запись в лог
         char logMsg[64];
-        snprintf(logMsg, sizeof(logMsg), "Выбрана программа: %s", programs[SystemData.currentProgram].name);
-        logMessage(LOG_INFO, logMsg, SystemData.currentProgram);
+        snprintf(logMsg, sizeof(logMsg), "Выбрана программа: %s", programs[systemData.currentProgram].name);
+        logMessage(LOG_INFO, logMsg, systemData.currentProgram);
     }
 
     // Выключение светодиода
@@ -1284,14 +1262,10 @@ void stateEnterProgramEdit(void)
     uiSetScreen(uiDrawProgramEditScreen, uiHandleProgramEditInput, 100);
 
     // Получение текущей программы
-    // extern uint8_t currentProgram;
-    extern SystemData SystemData;
-    extern ProgramSettings programs[MAX_PROGRAMS];
-
-    if (SystemData.currentProgram < MAX_PROGRAMS)
+    if (systemData.currentProgram < MAX_PROGRAMS)
     {
         Serial.print(F("Редактирование программы: "));
-        Serial.println(programs[SystemData.currentProgram].name);
+        Serial.println(programs[systemData.currentProgram].name);
     }
 
     // Звуковое подтверждение
@@ -1322,11 +1296,7 @@ void stateExitProgramEdit(void)
     Serial.println(F("Выход из состояния редактирования программы"));
 
     // Сохранение изменений программы
-    // extern uint8_t currentProgram;
-    extern SystemData SystemData;
-    extern ProgramSettings programs[MAX_PROGRAMS];
-
-    if (saveProgram(&programs[SystemData.currentProgram], SystemData.currentProgram))
+    if (saveProgram(&programs[systemData.currentProgram], systemData.currentProgram))
     {
         Serial.println(F("Программа сохранена"));
         beep(1500, 100);
@@ -1357,15 +1327,10 @@ void stateEnterZoneEdit(void)
     uiSetScreen(uiDrawZoneEditScreen, uiHandleZoneEditInput, 100);
 
     // Получение текущей зоны
-    // extern uint8_t currentZone;
-    // extern uint8_t currentProgram;
-    extern SystemData SystemData;
-    extern ProgramSettings programs[MAX_PROGRAMS];
-
-    if (SystemData.currentProgram < MAX_PROGRAMS && SystemData.currentZone < programs[SystemData.currentProgram].zoneCount)
+    if (systemData.currentProgram < MAX_PROGRAMS && systemData.currentZone < programs[systemData.currentProgram].zoneCount)
     {
         Serial.print(F("Редактирование зоны: "));
-        Serial.println(programs[SystemData.currentProgram].zones[SystemData.currentZone].name);
+        Serial.println(programs[systemData.currentProgram].zones[systemData.currentZone].name);
     }
 
     // Звуковое подтверждение
@@ -1434,14 +1399,14 @@ void stateEnterMonitor(void)
  */
 void stateProcessMonitor(void)
 {
-    extern SystemTiming timing;
+    extern SystemTiming systemTiming;
 
     // Обновление данных с датчиков
     updateAllSensors(&systemStatus);
 
     // Обновление статистики мониторинга
     // extern PerformanceStats monitorStats;
-    updatePerformanceStats(micros() - timing.lastDisplayUpdate);
+    updatePerformanceStats(micros() - systemTiming.lastDisplayUpdate);
 
     // Обновление дисплея
     uiUpdateScreen();

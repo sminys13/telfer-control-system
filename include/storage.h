@@ -218,6 +218,14 @@ uint16_t storageGetFreeSpace(void);
 bool storageIsFull(void);
 void storagePrintMap(void);
 
+
+
+bool storageReadProgram(ProgramSettings* program, uint8_t index);
+bool storageSaveProgram(const ProgramSettings* program, uint8_t index);
+bool storageGetProgramInfo(uint8_t index, char* name, uint8_t* zoneCount);
+uint8_t storageGetProgramCount();
+
+
 // Отладка
 #ifdef DEBUG_STORAGE
 void printStorageStats(void);
@@ -229,7 +237,5 @@ void printCalibrationInfo(void);
 // Объявление внешних переменных
 extern SystemCalibration calibration;
 extern ProgramSettings programs[];
-
-extern uint8_t programCount;
 
 #endif // STORAGE_H

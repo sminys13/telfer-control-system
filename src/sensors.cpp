@@ -5,7 +5,6 @@
  */
 
 #include "../include/sensors.h"
-#include "../include/common_definitions.h"
 #include <Arduino.h>
 #include <HardwareSerial.h>
 

@@ -8,11 +8,18 @@
 #include "../include/utils.h"
 #include "../include/config.h"
 #include "../include/storage.h"
-#include "../include/common_definitions.h"
 #include <Arduino.h>
 
 //  Макрос-помощник
 #define FMT_FLOAT(f) ((double)(f))
+#define FMT_INT(i) ((int)(i))
+
+
+extern SystemFlags systemFlags;
+extern SystemStatus systemStatus;
+extern SystemData systemData;
+extern SystemTiming systemTiming;
+extern ProgramSettings programs[MAX_PROGRAMS];
 
 // ========== ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 
@@ -772,21 +779,17 @@ void uiDrawTextTruncated(uint8_t x, uint8_t y, uint8_t maxWidth, const char *tex
 void uiDrawMainMenuScreen(void)
 {
     uiDrawMenu(&ui.currentMenu);
-
     // Статус бар внизу
-    extern bool systemInitialized;
-    extern bool isEmergency;
-    extern uint32_t systemStartTime;
-
-    uint32_t uptime = (millis() - systemStartTime) / 1000;
+    
+    uint32_t uptime = (millis() - systemTiming.stateStartTime) / 1000;
     uint8_t hours = uptime / 3600;
     uint8_t minutes = (uptime % 3600) / 60;
     uint8_t seconds = uptime % 60;
 
     snprintf(textBuffer, sizeof(textBuffer), "%02d:%02d:%02d", hours, minutes, seconds);
     uiDrawStatusBar(SCREEN_HEIGHT - 8,
-                    systemInitialized ? "ГОТОВ" : "ИНИЦ...",
-                    isEmergency ? "АВАРИЯ" : "",
+                    systemFlags.systemInitialized ? "ГОТОВ" : "ИНИЦ...",
+                    systemFlags.isEmergency ? "АВАРИЯ" : "",
                     textBuffer);
 }
 
@@ -798,24 +801,23 @@ void uiDrawManualControlScreen(void)
     uiDrawHeader("РУЧНОЕ УПРАВЛЕНИЕ");
 
     // Получение данных из других модулей
-    extern SystemStatus systemStatus;
     extern SystemCalibration calibration;
 
     uint8_t y = MENU_START_Y;
 
     // Позиции тельферов
     uiDrawTelferPositions(systemStatus.telfer1Pos,
-                          systemStatus.telfer2Pos,
+                        systemStatus.telfer2Pos,
                           0, // Нет целевой позиции в ручном режиме
-                          calibration.maxHorizontalTravel);
+                        calibration.maxHorizontalTravel);
 
     y += 50;
 
     // Высоты груза
     uiDrawCargoHeights(systemStatus.cargoHeight1,
-                       systemStatus.cargoHeight2,
-                       0,
-                       calibration.maxVerticalTravel);
+                        systemStatus.cargoHeight2,
+                        0,
+                        calibration.maxVerticalTravel);
 
     // Индикатор наклона
     if (abs(systemStatus.cargoHeight1 - systemStatus.cargoHeight2) > 10)
@@ -842,33 +844,30 @@ void uiDrawAutoModeScreen(void)
     uiDrawHeader("АВТОМАТИЧЕСКИЙ РЕЖИМ");
 
     // Получение данных
-    extern SystemStatus systemStatus;
-    extern ProgramSettings programs[MAX_PROGRAMS];
-    // extern uint8_t currentProgram;
-    // extern uint8_t currentZone;
-    extern SystemData SystemData;
-    extern bool isPaused;
-    extern unsigned long dipStartTime;
-
     uint8_t y = MENU_START_Y;
 
+    // ProgramSettings *program = ProgramManager::getCurrentProgram();
+    // if (ProgramManager::getCurrentProgramIndex() != systemData.currentProgram) {
+    //     ProgramManager::loadProgram(systemData.currentProgram);
+    // }
+
     // Информация о программе
-    if (SystemData.currentProgram < MAX_PROGRAMS)
+    if (systemData.currentProgram < MAX_PROGRAMS)
     {
         snprintf(textBuffer, sizeof(textBuffer), "Программа: %s",
-                 programs[SystemData.currentProgram].name);
+                programs[systemData.currentProgram].name);
         ui.display->drawStr(0, y, textBuffer);
         y += 12;
 
         snprintf(textBuffer, sizeof(textBuffer), "Зона: %d/%d",
-                 SystemData.currentZone + 1,
-                 programs[SystemData.currentProgram].zoneCount);
+                systemData.currentZone + 1,
+                programs[systemData.currentProgram].zoneCount);
         ui.display->drawStr(0, y, textBuffer);
         y += 12;
     }
 
     // Статус выполнения
-    if (isPaused)
+    if (systemFlags.isPaused)
     {
         ui.display->drawStr(0, y, "ПАУЗА");
         y += 12;
@@ -880,9 +879,9 @@ void uiDrawAutoModeScreen(void)
     }
 
     // Прогресс текущей зоны
-    if (SystemData.currentZone < programs[SystemData.currentProgram].zoneCount)
+    if (systemData.currentZone < programs[systemData.currentProgram].zoneCount)
     {
-        ZoneSettings *zone = &programs[SystemData.currentProgram].zones[SystemData.currentZone];
+        ZoneSettings *zone = &programs[systemData.currentProgram].zones[systemData.currentZone];
 
         // Прогресс движения
         int progress = (systemStatus.avgHorizontalPos * 100) / zone->position;
@@ -894,9 +893,9 @@ void uiDrawAutoModeScreen(void)
         y += 12;
 
         // Время погружения
-        if (dipStartTime > 0)
+        if (systemTiming.dipStartTime > 0)
         {
-            uint32_t elapsed = (millis() - dipStartTime) / 1000;
+            uint32_t elapsed = (millis() - systemTiming.dipStartTime) / 1000;
             uint32_t remaining = max(0, (zone->dipTime / 1000) - elapsed);
 
             snprintf(textBuffer, sizeof(textBuffer), "Погружение: %luс", remaining);
@@ -915,7 +914,7 @@ void uiDrawAutoModeScreen(void)
     ui.display->drawStr(10, y + 14, "СТОП");
 
     ui.display->drawFrame(43, y, 42, 20);
-    ui.display->drawStr(isPaused ? 53 : 50, y + 14, isPaused ? "ПУСК" : "ПАУЗА");
+    ui.display->drawStr(systemFlags.isPaused ? 53 : 50, y + 14, systemFlags.isPaused ? "ПУСК" : "ПАУЗА");
 
     ui.display->drawFrame(86, y, 42, 20);
     ui.display->drawStr(96, y + 14, "МЕНЮ");
@@ -928,10 +927,6 @@ void uiDrawCalibrationScreen(void)
 {
     uiDrawHeader("КАЛИБРОВКА");
 
-    extern SystemStatus systemStatus;
-    // extern uint8_t currentZone;
-    extern SystemData SystemData;
-
     uint8_t y = MENU_START_Y;
 
     // Инструкция
@@ -942,13 +937,13 @@ void uiDrawCalibrationScreen(void)
 
     // Текущая позиция
     snprintf(textBuffer, sizeof(textBuffer), "Позиция: %ld мм",
-             systemStatus.avgHorizontalPos);
+            systemStatus.avgHorizontalPos);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
     // Текущая зона
     snprintf(textBuffer, sizeof(textBuffer), "Зона калибровки: %d",
-             SystemData.currentZone + 1);
+            systemData.currentZone + 1);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
@@ -1026,8 +1021,6 @@ void uiDrawMonitorScreen(void)
 {
     uiDrawHeader("МОНИТОРИНГ СИСТЕМЫ");
 
-    extern SystemStatus systemStatus;
-    extern SystemFlags systemFlags;
     extern PerformanceStats perfStats;
 
     uint8_t y = MENU_START_Y;
@@ -1107,7 +1100,6 @@ void uiDrawDiagnosticsScreen(void)
     uiDrawHeader("ДИАГНОСТИКА");
 
     extern DiagnosticsResult diagnosticsResults[MAX_DIAGNOSTIC_TESTS];
-    extern uint32_t diagnosticsTime;
 
     uint8_t y = MENU_START_Y;
 
@@ -1171,7 +1163,9 @@ void uiDrawDiagnosticsScreen(void)
     y += 16;
 
     // Время выполнения диагностики
-    uint32_t elapsed = (millis() - diagnosticsTime) / 1000;
+    uint32_t elapsed = (millis() - (diagnosticsResults[0].diagnosticsTime +
+                                    diagnosticsResults[1].diagnosticsTime +
+                                    diagnosticsResults[2].diagnosticsTime )) / 1000;
     snprintf(textBuffer, sizeof(textBuffer), "Время: %lu с", elapsed);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
@@ -1197,7 +1191,7 @@ void uiDrawDiagnosticsScreen(void)
     {
         uint8_t progress = (elapsed * 100) / 5;
         uiDrawProgressBar(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 6,
-                          progress, 0, 100, "Выполнение...", false);
+                    progress, 0, 100, "Выполнение...", false);
     }
 
     // Инструкция внизу
@@ -1271,28 +1265,24 @@ void uiDrawErrorScreen(void)
 {
     uiDrawHeader("ОШИБКА СИСТЕМЫ");
 
-    extern ErrorType activeError;
-    extern char errorMessage[64];
-
     uint8_t y = MENU_START_Y;
 
     // Код ошибки
-    snprintf(textBuffer, sizeof(textBuffer), "Код: %d", activeError);
+    snprintf(textBuffer, sizeof(textBuffer), "Код: %d", systemData.activeError);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
     // Описание ошибки
-    const char *errorDesc = getErrorMessage(activeError);
+    const char *errorDesc = getErrorMessage(systemData.activeError);
     ui.display->drawStr(0, y, errorDesc);
     y += 12;
 
     // Сообщение об ошибке
-    uiDrawMultilineText(0, y, 10, errorMessage);
+    uiDrawMultilineText(0, y, 10, systemData.errorMessage);
 
     // Время возникновения ошибки
     y = SCREEN_HEIGHT - 24;
-    extern uint32_t errorTime;
-    uint32_t elapsed = (millis() - errorTime) / 1000;
+    uint32_t elapsed = (millis() - systemTiming.errorTime) / 1000;
     snprintf(textBuffer, sizeof(textBuffer), "Прошло: %lu с", elapsed);
     ui.display->drawStr(0, y, textBuffer);
 
@@ -1318,16 +1308,13 @@ void uiDrawProgramEditScreen(void)
 {
     uiDrawHeader("РЕДАКТИРОВАНИЕ ПРОГРАММЫ");
 
-    extern uint8_t currentProgram;
-    extern ProgramSettings programs[MAX_PROGRAMS];
-
-    if (currentProgram >= MAX_PROGRAMS)
+    if (systemData.currentProgram >= MAX_PROGRAMS)
     {
         ui.display->drawStr(0, MENU_START_Y, "Нет программы");
         return;
     }
 
-    ProgramSettings *program = &programs[currentProgram];
+    ProgramSettings *program = &programs[systemData.currentProgram];
 
     uint8_t y = MENU_START_Y;
 
@@ -1343,7 +1330,7 @@ void uiDrawProgramEditScreen(void)
 
     // Повторение
     snprintf(textBuffer, sizeof(textBuffer), "Повтор: %s",
-             program->repeatEnabled ? "Да" : "Нет");
+            program->repeatEnabled ? "Да" : "Нет");
     ui.display->drawStr(0, y, textBuffer);
 
     if (program->repeatEnabled)
@@ -1360,7 +1347,7 @@ void uiDrawProgramEditScreen(void)
     uint8_t seconds = totalSeconds % 60;
 
     snprintf(textBuffer, sizeof(textBuffer), "Время: %02d:%02d:%02d",
-             hours, minutes, seconds);
+            hours, minutes, seconds);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
@@ -1371,8 +1358,8 @@ void uiDrawProgramEditScreen(void)
     for (uint8_t i = 0; i < min(3, program->zoneCount); i++)
     {
         ZoneSettings *zone = &program->zones[i];
-        snprintf(textBuffer, sizeof(textBuffer), "%d. %s: %ld мм",
-                 i + 1, zone->name, zone->position);
+        snprintf(textBuffer, sizeof(textBuffer), "%d. %s: %d мм",
+                i + 1, zone->name, zone->position);
         uiDrawTextTruncated(0, y, SCREEN_WIDTH - 10, textBuffer);
         y += 10;
     }
@@ -1409,19 +1396,13 @@ void uiDrawZoneEditScreen(void)
 {
     uiDrawHeader("РЕДАКТИРОВАНИЕ ЗОНЫ");
 
-    // extern uint8_t currentProgram;
-    // extern uint8_t currentZone;
-    extern SystemData SystemData;
-    extern ProgramSettings programs[MAX_PROGRAMS];
-    extern SystemStatus systemStatus;
-
-    if (SystemData.currentProgram >= MAX_PROGRAMS || SystemData.currentZone >= MAX_ZONES_PER_PROGRAM)
+    if (systemData.currentProgram >= MAX_PROGRAMS || systemData.currentZone >= MAX_ZONES_PER_PROGRAM)
     {
         ui.display->drawStr(0, MENU_START_Y, "Ошибка данных");
         return;
     }
 
-    ZoneSettings *zone = &programs[SystemData.currentProgram].zones[SystemData.currentZone];
+    ZoneSettings *zone = &programs[systemData.currentProgram].zones[systemData.currentZone];
 
     uint8_t y = MENU_START_Y;
 
@@ -1431,7 +1412,7 @@ void uiDrawZoneEditScreen(void)
     y += 12;
 
     // Позиция
-    snprintf(textBuffer, sizeof(textBuffer), "Позиция: %ld мм", zone->position);
+    snprintf(textBuffer, sizeof(textBuffer), "Позиция: %d мм", zone->position);
     ui.display->drawStr(0, y, textBuffer);
 
     // Индикатор текущей позиции
@@ -1441,7 +1422,7 @@ void uiDrawZoneEditScreen(void)
     y += 12;
 
     // Высота
-    snprintf(textBuffer, sizeof(textBuffer), "Высота: %ld мм", zone->targetHeight);
+    snprintf(textBuffer, sizeof(textBuffer), "Высота: %d мм", zone->targetHeight);
     ui.display->drawStr(0, y, textBuffer);
 
     // Текущая высота
@@ -1631,8 +1612,8 @@ void uiDrawMessageBox(const char *title, const char *message, uint8_t type)
         break;
     case 1: // Предупреждение
         ui.display->drawTriangle(boxX + 15, boxY + 32,
-                                 boxX + 7, boxY + 48,
-                                 boxX + 23, boxY + 48);
+                                boxX + 7, boxY + 48,
+                                boxX + 23, boxY + 48);
         ui.display->drawStr(boxX + 13, boxY + 44, "!");
         break;
     case 2: // Успех

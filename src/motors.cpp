@@ -6,7 +6,6 @@
 
 #include "../include/motors.h"
 #include "../include/modbus.h"
-#include "../include/common_definitions.h"
 #include <HardwareSerial.h>
 
 // ========== ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========

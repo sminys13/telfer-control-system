@@ -5,10 +5,12 @@
  */
 
 #include "../include/storage.h"
-#include "../include/common_definitions.h"
+#include "../include/config.h"
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <stdarg.h>
+
+extern SystemData systemData;
 
 // ========== ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 
@@ -206,8 +208,9 @@ bool storageFormat(bool force)
     saveDefaultCalibration();
 
     // Сброс счетчика программ
-    uint8_t programCount = 0;
-    storageWrite(ADDR_PROGRAM_COUNT, &programCount, sizeof(programCount));
+    uint8_t progCount = 0;
+    systemData.programCount = progCount;
+    storageWrite(ADDR_PROGRAM_COUNT, &progCount, sizeof(systemData.programCount));
 
     // Сброс статистики
     SystemStatistics stats = {0};
@@ -572,27 +575,27 @@ bool loadDefaultSettings(SystemCalibration* cal, ProgramSettings* progs, unsigne
     strncpy(progs[0].zones[0].name, "Зона 1", MAX_ZONE_NAME_LENGTH - 1);
     progs[0].zones[0].position = 1000;
     progs[0].zones[0].targetHeight = 500;
-    progs[0].zones[0].dipTime = 5000;
+    progs[0].zones[0].dipTime = 360; 
     progs[0].zones[0].tiltAngle = 0;
-    progs[0].zones[0].waitTime = 1000;
+    progs[0].zones[0].waitTime = 60; // 1 минута
     progs[0].zones[0].enabled = true;
     progs[0].zones[0].motorSpeed = DEFAULT_HORIZONTAL_SPEED;
 
     strncpy(progs[0].zones[1].name, "Зона 2", MAX_ZONE_NAME_LENGTH - 1);
     progs[0].zones[1].position = 2000;
     progs[0].zones[1].targetHeight = 600;
-    progs[0].zones[1].dipTime = 6000;
+    progs[0].zones[1].dipTime = 360;
     progs[0].zones[1].tiltAngle = 10;
-    progs[0].zones[1].waitTime = 1500;
+    progs[0].zones[1].waitTime = 60; // 1 минута
     progs[0].zones[1].enabled = true;
     progs[0].zones[1].motorSpeed = DEFAULT_HORIZONTAL_SPEED;
 
     strncpy(progs[0].zones[2].name, "Зона 3", MAX_ZONE_NAME_LENGTH - 1);
     progs[0].zones[2].position = 3000;
     progs[0].zones[2].targetHeight = 700;
-    progs[0].zones[2].dipTime = 7000;
+    progs[0].zones[2].dipTime = 360;
     progs[0].zones[2].tiltAngle = 20;
-    progs[0].zones[2].waitTime = 2000;
+    progs[0].zones[2].waitTime = 60; // 1 минута
     progs[0].zones[2].enabled = true;
     progs[0].zones[2].motorSpeed = DEFAULT_HORIZONTAL_SPEED;
 
@@ -614,18 +617,18 @@ bool loadDefaultSettings(SystemCalibration* cal, ProgramSettings* progs, unsigne
     strncpy(progs[1].zones[0].name, "Точка А", MAX_ZONE_NAME_LENGTH - 1);
     progs[1].zones[0].position = 1500;
     progs[1].zones[0].targetHeight = 400;
-    progs[1].zones[0].dipTime = 4000;
+    progs[1].zones[0].dipTime = 360;
     progs[1].zones[0].tiltAngle = 5;
-    progs[1].zones[0].waitTime = 800;
+    progs[1].zones[0].waitTime = 60;
     progs[1].zones[0].enabled = true;
     progs[1].zones[0].motorSpeed = 40;
 
     strncpy(progs[1].zones[1].name, "Точка Б", MAX_ZONE_NAME_LENGTH - 1);
     progs[1].zones[1].position = 2500;
     progs[1].zones[1].targetHeight = 450;
-    progs[1].zones[1].dipTime = 4500;
+    progs[1].zones[1].dipTime = 360;
     progs[1].zones[1].tiltAngle = 15;
-    progs[1].zones[1].waitTime = 1200;
+    progs[1].zones[1].waitTime = 60;
     progs[1].zones[1].enabled = true;
     progs[1].zones[1].motorSpeed = 60;
 

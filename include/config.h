@@ -117,30 +117,30 @@
 /**
  * @brief Параметры зоны обработки
  */
-typedef struct
+typedef struct __attribute__((packed))
 {
     char name[MAX_ZONE_NAME_LENGTH]; // Название зоны
-    int32_t position;                // Горизонтальная позиция (мм)
-    int32_t targetHeight;            // Целевая высота (мм)
-    uint32_t dipTime;                // Время погружения (мс)
+    int16_t position;                // Горизонтальная позиция (мм)
+    int16_t targetHeight;            // Целевая высота (мм)
+    uint32_t dipTime;                // Время погружения (сек) !(мс)
     uint8_t tiltAngle;               // Угол наклона (0-100%)
-    uint32_t waitTime;               // Время ожидания после подъема (мс)
-    bool enabled;                    // Зона включена
+    uint8_t waitTime;                // Время ожидания после подъема (сек) !(мс)
     uint8_t motorSpeed;              // Скорость движения к зоне (%)
+    bool enabled;                    // Зона включена
 } ZoneSettings;
 
 /**
  * @brief Настройки программы
  */
-typedef struct
+typedef struct __attribute__((packed))
 {
     char name[MAX_PROGRAM_NAME_LENGTH];        // Название программы
     ZoneSettings zones[MAX_ZONES_PER_PROGRAM]; // Массив зон
     uint8_t zoneCount;                         // Количество зон
     uint8_t zoneOrder[MAX_ZONES_PER_PROGRAM];  // Порядок прохождения зон
     bool repeatEnabled;                        // Повтор программы
-    uint16_t repeatCount;                      // Количество повторений (0 = бесконечно)
-    uint16_t currentRepeat;                    // Текущее повторение
+    uint8_t repeatCount;                       // Количество повторений (0 = бесконечно)
+    uint8_t currentRepeat;                     // Текущее повторение
     uint32_t totalRuntime;                     // Общее время выполнения (мс)
 } ProgramSettings;
 
@@ -195,7 +195,32 @@ typedef struct
     bool sensorsActive;      // Датчики активны
     bool programRunning;     // Программа выполняется
     bool manualMode;         // Ручной режим
+    bool errorAutoReset;     // Атоматический сброс ошибок
 } SystemFlags;
+
+/**
+ * @brief Типы ошибок системы
+ */
+typedef enum
+{
+    ERROR_NONE = 0,           // Нет ошибок
+    ERROR_SENSOR_LASER1,      // Ошибка лазерного датчика 1
+    ERROR_SENSOR_LASER2,      // Ошибка лазерного датчика 2
+    ERROR_SENSOR_US1,         // Ошибка УЗ датчика 1
+    ERROR_SENSOR_US2,         // Ошибка УЗ датчика 2
+    ERROR_MOTOR_H1,           // Ошибка горизонтального двигателя 1
+    ERROR_MOTOR_H2,           // Ошибка горизонтального двигателя 2
+    ERROR_MOTOR_V1,           // Ошибка вертикального двигателя 1
+    ERROR_MOTOR_V2,           // Ошибка вертикального двигателя 2
+    ERROR_RS485_COMM,         // Ошибка связи RS-485
+    ERROR_OVERLOAD,           // Перегрузка
+    ERROR_LIMIT_SWITCH,       // Концевой выключатель
+    ERROR_POSITION_DEVIATION, // Отклонение позиции
+    ERROR_EMERGENCY_STOP,     // Аварийная остановка
+    ERROR_MEMORY,             // Ошибка памяти
+    ERROR_DISPLAY,            // Ошибка дисплея
+    ERROR_COUNT               // Количество ошибок
+} ErrorType;
 
 /**
  * @brief Данные системы
@@ -207,7 +232,7 @@ typedef struct
     uint8_t programCount;   // Количество программ
     uint8_t menuIndex;      // Индекс в меню
     uint8_t menuScroll;     // Смещение прокрутки меню
-    uint8_t activeError;    // Активная ошибка
+    ErrorType activeError;    // Активная ошибка
     char errorMessage[64];  // Сообщение об ошибке
 } SystemData;
 
@@ -220,6 +245,7 @@ typedef struct
     uint32_t stateStartTime;    // Время начала текущего состояния
     uint32_t dipStartTime;      // Время начала погружения
     uint32_t pauseStartTime;    // Время начала паузы
+    uint32_t errorTime;         // Время возникновения ошибки
     uint32_t lastSensorUpdate;  // Последнее обновление датчиков
     uint32_t lastDisplayUpdate; // Последнее обновление дисплея
     uint32_t lastEncoderCheck;  // Последняя проверка энкодера
@@ -251,29 +277,6 @@ typedef enum
     STATE_COUNT              // Количество состояний
 } SystemState;
 
-/**
- * @brief Типы ошибок системы
- */
-typedef enum
-{
-    ERROR_NONE = 0,           // Нет ошибок
-    ERROR_SENSOR_LASER1,      // Ошибка лазерного датчика 1
-    ERROR_SENSOR_LASER2,      // Ошибка лазерного датчика 2
-    ERROR_SENSOR_US1,         // Ошибка УЗ датчика 1
-    ERROR_SENSOR_US2,         // Ошибка УЗ датчика 2
-    ERROR_MOTOR_H1,           // Ошибка горизонтального двигателя 1
-    ERROR_MOTOR_H2,           // Ошибка горизонтального двигателя 2
-    ERROR_MOTOR_V1,           // Ошибка вертикального двигателя 1
-    ERROR_MOTOR_V2,           // Ошибка вертикального двигателя 2
-    ERROR_RS485_COMM,         // Ошибка связи RS-485
-    ERROR_OVERLOAD,           // Перегрузка
-    ERROR_LIMIT_SWITCH,       // Концевой выключатель
-    ERROR_POSITION_DEVIATION, // Отклонение позиции
-    ERROR_EMERGENCY_STOP,     // Аварийная остановка
-    ERROR_MEMORY,             // Ошибка памяти
-    ERROR_DISPLAY,            // Ошибка дисплея
-    ERROR_COUNT               // Количество ошибок
-} ErrorType;
 
 /**
  * @brief Уровни меню
@@ -348,7 +351,7 @@ typedef struct {
     uint8_t testId;        // ID теста
     bool passed;           // Результат (успех/неудача)
     char message[32];      // Сообщение
-    uint32_t timestamp;    // Время проведения теста
+    uint32_t diagnosticsTime;    // Время проведения теста
 } DiagnosticsResult;
 
 

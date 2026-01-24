@@ -4,7 +4,6 @@
  */
 
 #include "../include/config.h"
-#include "../include/common_definitions.h"
 #include "../include/ui.h"
 #include "../include/states.h"
 #include "../include/storage.h"

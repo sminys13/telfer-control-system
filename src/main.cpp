@@ -24,7 +24,6 @@
 #include "../include/ui.h"
 #include "../include/states.h"
 #include "../include/utils.h"
-#include "../include/common_definitions.h"
 
 // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 
@@ -42,6 +41,7 @@ SystemFlags systemFlags = {
     .sensorsActive = false,
     .programRunning = false,
     .manualMode = false,
+    .errorAutoReset = false
 };
 
 // Текущие позиции и настройки
@@ -56,11 +56,12 @@ SystemData systemData = {
 };
 
 // Временные метки
-SystemTiming timing = {
+SystemTiming systemTiming = {
     .startupTime = 0,
     .stateStartTime = 0,
     .dipStartTime = 0,
     .pauseStartTime = 0,
+    .errorTime = 0,
     .lastSensorUpdate = 0,
     .lastDisplayUpdate = 0,
     .lastEncoderCheck = 0,
@@ -71,8 +72,9 @@ SystemTiming timing = {
 SystemStatus systemStatus = {0};
 SystemCalibration calibration = {0};
 ProgramSettings programs[MAX_PROGRAMS] = {0};
+// ProgramManager programManager;
 UserSettings userSettings = {0};
-
+DiagnosticsResult diagnosticsResults[MAX_DIAGNOSTIC_TESTS] = {0};
 // Статистика
 SystemStatistics systemStats = {0};
 PerformanceStats perfStats = {0};
@@ -176,7 +178,9 @@ void systemInitialize()
   {
     Serial.println(F("ОШИБКА: Не удалось инициализировать хранилище"));
   }
-
+  
+  // programManager.init();
+  // programManager.loadProgram(0); // Загрузить первую программу
   // 7. Загрузка настроек из EEPROM
   if (!loadSettings(&calibration, programs, &systemData.programCount))
   {
@@ -213,7 +217,7 @@ void systemInitialize()
   }
 
   // 11. Установка начального состояния
-  timing.startupTime = millis();
+  systemTiming.startupTime = millis();
   systemFlags.systemInitialized = true;
   // currentState = STATE_IDLE;
 
@@ -237,7 +241,7 @@ void loop()
   uint32_t loopStartTime = micros();
 
   // Обновление времени работы системы
-  systemStatus.uptime = millis() - timing.startupTime;
+  systemStatus.uptime = millis() - systemTiming.startupTime;
 
   // ===== ШАГ 1: ПРОВЕРКА АВАРИЙНОЙ КНОПКИ =====
   if (digitalRead(EMERGENCY_STOP_PIN) == LOW && !systemFlags.isEmergency)
@@ -247,28 +251,28 @@ void loop()
   }
 
   // ===== ШАГ 2: ОБНОВЛЕНИЕ ДАТЧИКОВ =====
-  if (millis() - timing.lastSensorUpdate > SENSOR_UPDATE_INTERVAL)
+  if (millis() - systemTiming.lastSensorUpdate > SENSOR_UPDATE_INTERVAL)
   {
     updateAllSensors(&systemStatus);
-    timing.lastSensorUpdate = millis();
+    systemTiming.lastSensorUpdate = millis();
   }
 
   // ===== ШАГ 3: ОБРАБОТКА ВВОДА =====
-  if (millis() - timing.lastEncoderCheck > ENCODER_DEBOUNCE_TIME)
+  if (millis() - systemTiming.lastEncoderCheck > ENCODER_DEBOUNCE_TIME)
   {
     handleEncoderInput(&rotaryEncoder, ENCODER_SW_PIN);
-    timing.lastEncoderCheck = millis();
+    systemTiming.lastEncoderCheck = millis();
   }
 
   // ===== ШАГ 4: ПРОВЕРКА БЕЗОПАСНОСТИ =====
-  if (millis() - timing.lastSafetyCheck > SAFETY_CHECK_INTERVAL)
+  if (millis() - systemTiming.lastSafetyCheck > SAFETY_CHECK_INTERVAL)
   {
     if (!systemFlags.isEmergency && !checkSafetyLimits(&systemStatus, &calibration))
     {
       emergencyStop();
       statesPostEvent(EVENT_EMERGENCY_STOP, 0, NULL);
     }
-    timing.lastSafetyCheck = millis();
+    systemTiming.lastSafetyCheck = millis();
   }
 
   // ===== ШАГ 5: ОБНОВЛЕНИЕ УПРАВЛЕНИЯ =====
@@ -281,10 +285,10 @@ void loop()
 
   // ===== ШАГ 7: ОБНОВЛЕНИЕ ДИСПЛЕЯ =====
   if (systemFlags.displayInitialized &&
-      millis() - timing.lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL)
+      millis() - systemTiming.lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL)
   {
     uiUpdateScreen();
-    timing.lastDisplayUpdate = millis();
+    systemTiming.lastDisplayUpdate = millis();
   }
 
   // ===== ШАГ 8: СЕРВИСНЫЕ ОПЕРАЦИИ =====
