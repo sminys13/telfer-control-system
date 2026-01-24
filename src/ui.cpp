@@ -9,11 +9,14 @@
 #include "../include/config.h"
 #include "../include/storage.h"
 #include <Arduino.h>
+#include <avr/pgmspace.h>
 
 //  Макрос-помощник
 #define FMT_FLOAT(f) ((double)(f))
 #define FMT_INT(i) ((int)(i))
 
+// Создаем макрос для строк в PROGMEM
+#define STR_PROGMEM(str) (reinterpret_cast<const __FlashStringHelper*>(str))
 
 extern SystemFlags systemFlags;
 extern SystemStatus systemStatus;
@@ -27,7 +30,7 @@ extern ProgramSettings programs[MAX_PROGRAMS];
 static UserInterface ui;
 
 // Буферы для текста
-static char textBuffer[64];
+static char textBuffer[32];
 static char valueBuffer[16];
 // static char unitBuffer[8];
 
@@ -38,6 +41,51 @@ static char valueBuffer[16];
 // static Menu settingsMenu;
 // static Menu calibrationMenu;
 // static Menu programMenu;
+
+const char str_main_menu[] PROGMEM = "ГЛАВНОЕ МЕНЮ";
+const char str_system_telfers[] PROGMEM = "ТЕЛЬФЕРЫ";
+const char str_control[] PROGMEM = "УПРАВЛЕНИЕ";
+const char str_manual_mode[] PROGMEM = "РУЧНОЕ УПРАВЛЕНИЕ";
+const char str_auto_mode[] PROGMEM = "АВТОМАТИЧЕСКИЙ РЕЖИМ";
+const char str_edit[] PROGMEM = "ИЗМ";
+const char str_func[] PROGMEM = "НАЗ";
+const char str_pause[] PROGMEM = "ПАУЗА";
+const char str_start[] PROGMEM = "ПУСК";
+const char str_stop[] PROGMEM = "СТОП";
+const char str_menu[] PROGMEM = "СТОП";
+const char str_reset[] PROGMEM = "СБРОС";
+const char str_ignor[] PROGMEM = "ИГНОР";
+const char str_capture[] PROGMEM = "ЗАХВАТ";
+const char str_save[] PROGMEM = "СОХРАНИТЬ";
+const char str_cancel[] PROGMEM = "ОТМЕНА";
+const char str_ok[] PROGMEM = "OK";
+const char str_error[] PROGMEM = "ОШИБКА";
+const char str_confirm[] PROGMEM = "ПОДТВЕРЖДЕНИЕ";
+const char str_on[] PROGMEM = "ВКЛ";
+const char str_off[] PROGMEM = "ОТКЛ";
+const char str_yes[] PROGMEM = "ДА";
+const char str_no[] PROGMEM = "НЕТ";
+const char str_calibration[] PROGMEM = "КАЛИБРОВКА";
+const char str_diagnostic[] PROGMEM = "ДИАГНОСТИКА";
+const char str_processing[] PROGMEM = "ВЫПОЛНЕНИЕ...";
+const char str_system_monitoring[] PROGMEM = "МОНИТОРИНГ СИСТЕМЫ";
+const char str_edit_prog[] PROGMEM = "РЕДАКТИРОВАНИЕ ПРОГРАММЫ";
+const char str_edit_zone[] PROGMEM = "РЕДАКТИРОВАНИЕ ЗОНЫ";
+const char str_version[] PROGMEM = "Версия 4.0";
+const char str_copyright[] PROGMEM = "© 2026";
+const char str_ready[] PROGMEM = "ГОТОВ";
+const char str_init[] PROGMEM = "ИНИЦ...";
+const char str_use_encoder[] PROGMEM = "Используйте энкодер";
+const char str_for_move[] PROGMEM = "для перемещения";
+const char str_no_prog[] PROGMEM = "Нет программы";
+const char str_data_error[] PROGMEM = "Ошибка данных";
+const char str_tests_results[] PROGMEM = "Результаты тестов:";
+const char str_press_to_exit[] PROGMEM = "Нажмите для выхода";
+const char str_cargo_height[] PROGMEM = "Высоты груза:";
+const char str_zones[] PROGMEM = "Зоны:";
+const char str_ZONES[] PROGMEM = "ЗОНЫ";
+const char str_all_tests_completed[] PROGMEM = "ВСЕ ТЕСТЫ ПРОЙДЕНЫ";
+const char str_wich_error[] PROGMEM = "ЕСТЬ ОШИБКИ!";
 
 // Элементы главного меню
 MenuItem mainMenuItems[] = {
@@ -111,10 +159,11 @@ bool uiInit(U8G2 *display)
 
     // Установка шрифта по умолчанию
     uiSetFontMedium();
-
+    
+    strcpy_P(textBuffer, str_main_menu);
     // Инициализация меню
     uiCreateMenu(mainMenuItems, sizeof(mainMenuItems) / sizeof(MenuItem),
-                 "ГЛАВНОЕ МЕНЮ", 0);
+                 textBuffer, 0);
 
     // Инициализация экрана
     ui.currentScreen.drawFunction = uiDrawSplashScreen;
@@ -234,11 +283,19 @@ void uiUpdateScreen(void)
         }
 
         // Вызов функции отрисовки если требуется
+        // if (ui.needsRedraw && ui.currentScreen.drawFunction)
+        // {
+        //     ui.display->clearBuffer();
+        //     ui.currentScreen.drawFunction();
+        //     ui.display->sendBuffer();
+        //     ui.needsRedraw = false;
+        // }
         if (ui.needsRedraw && ui.currentScreen.drawFunction)
         {
-            ui.display->clearBuffer();
-            ui.currentScreen.drawFunction();
-            ui.display->sendBuffer();
+            ui.display->firstPage();
+            do {
+                ui.currentScreen.drawFunction();
+            } while (ui.display->nextPage());
             ui.needsRedraw = false;
         }
 
@@ -481,7 +538,7 @@ void uiDrawScrollIndicator(uint8_t scrollOffset, uint8_t totalItems, uint8_t vis
     sliderHeight = max(sliderHeight, 4);
 
     uint8_t sliderY = indicatorY + (scrollOffset * (indicatorHeight - sliderHeight)) /
-                                       (totalItems - visibleItems);
+                                        (totalItems - visibleItems);
 
     // Ползунок
     ui.display->setDrawColor(0);
@@ -506,8 +563,8 @@ void uiDrawMenu(const Menu *menu)
     uint8_t y = MENU_START_Y;
 
     for (uint8_t i = menu->scrollOffset;
-         i < min(menu->itemCount, menu->scrollOffset + MENU_MAX_VISIBLE);
-         i++)
+        i < min(menu->itemCount, menu->scrollOffset + MENU_MAX_VISIBLE);
+        i++)
     {
 
         bool selected = (i == menu->selectedIndex);
@@ -553,8 +610,8 @@ void uiDrawMenuItem(uint8_t x, uint8_t y, const MenuItem *item, bool selected, b
     if (selected)
     {
         ui.display->drawTriangle(textX - 6, y + 3,
-                                 textX - 6, y + MENU_ITEM_HEIGHT - 3,
-                                 textX - 2, y + MENU_ITEM_HEIGHT / 2);
+                                textX - 6, y + MENU_ITEM_HEIGHT - 3,
+                                textX - 2, y + MENU_ITEM_HEIGHT / 2);
     }
 
     // Текст пункта
@@ -798,7 +855,8 @@ void uiDrawMainMenuScreen(void)
  */
 void uiDrawManualControlScreen(void)
 {
-    uiDrawHeader("РУЧНОЕ УПРАВЛЕНИЕ");
+    strcpy_P(textBuffer, str_manual_mode);
+    uiDrawHeader(textBuffer);
 
     // Получение данных из других модулей
     extern SystemCalibration calibration;
@@ -841,7 +899,8 @@ void uiDrawManualControlScreen(void)
  */
 void uiDrawAutoModeScreen(void)
 {
-    uiDrawHeader("АВТОМАТИЧЕСКИЙ РЕЖИМ");
+    strcpy_P(textBuffer, str_auto_mode);
+    uiDrawHeader(textBuffer);
 
     // Получение данных
     uint8_t y = MENU_START_Y;
@@ -869,12 +928,14 @@ void uiDrawAutoModeScreen(void)
     // Статус выполнения
     if (systemFlags.isPaused)
     {
-        ui.display->drawStr(0, y, "ПАУЗА");
+        strcpy_P(textBuffer, str_pause);
+        ui.display->drawStr(0, y, textBuffer);
         y += 12;
     }
     else
     {
-        ui.display->drawStr(0, y, "ВЫПОЛНЕНИЕ...");
+        strcpy_P(textBuffer, str_processing);
+        ui.display->drawStr(0, y, textBuffer);
         y += 12;
     }
 
@@ -911,13 +972,16 @@ void uiDrawAutoModeScreen(void)
     // Кнопки управления
     y = SCREEN_HEIGHT - 24;
     ui.display->drawFrame(0, y, 42, 20);
-    ui.display->drawStr(10, y + 14, "СТОП");
+    strcpy_P(textBuffer, str_stop);
+    ui.display->drawStr(10, y + 14, textBuffer);
 
     ui.display->drawFrame(43, y, 42, 20);
-    ui.display->drawStr(systemFlags.isPaused ? 53 : 50, y + 14, systemFlags.isPaused ? "ПУСК" : "ПАУЗА");
+    systemFlags.isPaused ? strcpy_P(textBuffer, str_start) : strcpy_P(textBuffer, str_pause);
+    ui.display->drawStr(systemFlags.isPaused ? 53 : 50, y + 14, textBuffer);
 
     ui.display->drawFrame(86, y, 42, 20);
-    ui.display->drawStr(96, y + 14, "МЕНЮ");
+    strcpy_P(textBuffer, str_menu);
+    ui.display->drawStr(96, y + 14, textBuffer);
 }
 
 /**
@@ -925,14 +989,17 @@ void uiDrawAutoModeScreen(void)
  */
 void uiDrawCalibrationScreen(void)
 {
-    uiDrawHeader("КАЛИБРОВКА");
+    strcpy_P(textBuffer, str_calibration);
+    uiDrawHeader(textBuffer);
 
     uint8_t y = MENU_START_Y;
 
     // Инструкция
-    ui.display->drawStr(0, y, "Используйте энкодер");
+    strcpy_P(textBuffer, str_use_encoder);
+    ui.display->drawStr(0, y, textBuffer);
     y += 12;
-    ui.display->drawStr(0, y, "для перемещения");
+    strcpy_P(textBuffer, str_for_move);
+    ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
     // Текущая позиция
@@ -950,10 +1017,12 @@ void uiDrawCalibrationScreen(void)
     // Кнопки
     y = SCREEN_HEIGHT - 24;
     ui.display->drawFrame(0, y, 64, 20);
-    ui.display->drawStr(15, y + 14, "СОХРАНИТЬ");
+    strcpy_P(textBuffer, str_save);
+    ui.display->drawStr(15, y + 14, textBuffer);
 
     ui.display->drawFrame(65, y, 63, 20);
-    ui.display->drawStr(75, y + 14, "ОТМЕНА");
+    strcpy_P(textBuffer, str_cancel);
+    ui.display->drawStr(75, y + 14, textBuffer);
 
     // Индикатор точности
     int32_t diff = abs(systemStatus.telfer1Pos - systemStatus.telfer2Pos);
@@ -991,15 +1060,19 @@ void uiDrawSplashScreen(void)
 
     // Название системы
     uiSetFontLarge();
-    uiDrawTextCentered(15, "ТЕЛЬФЕРЫ");
-    uiDrawTextCentered(35, "УПРАВЛЕНИЕ");
+    strcpy_P(textBuffer, str_system_telfers);
+    uiDrawTextCentered(15, textBuffer);
+    strcpy_P(textBuffer, str_control);
+    uiDrawTextCentered(35, textBuffer);
 
     // Версия
     uiSetFontSmall();
-    uiDrawTextCentered(50, "Версия 4.0");
+    strcpy_P(textBuffer, str_version);
+    uiDrawTextCentered(50, textBuffer);
 
     // Автор
-    uiDrawTextCentered(SCREEN_HEIGHT - 10, "© 2024");
+    strcpy_P(textBuffer, str_copyright);
+    uiDrawTextCentered(SCREEN_HEIGHT - 10, textBuffer);
 
     // Индикатор загрузки
     if (elapsed < 2000)
@@ -1019,7 +1092,8 @@ void uiDrawSplashScreen(void)
  */
 void uiDrawMonitorScreen(void)
 {
-    uiDrawHeader("МОНИТОРИНГ СИСТЕМЫ");
+    strcpy_P(textBuffer, str_system_monitoring);
+    uiDrawHeader(textBuffer);
 
     extern PerformanceStats perfStats;
 
@@ -1050,13 +1124,15 @@ void uiDrawMonitorScreen(void)
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
+    systemStatus.sensorsValid ? strcpy_P(textBuffer, str_ok) : strcpy_P(textBuffer, str_error);
     // Статус датчиков
-    snprintf(textBuffer, sizeof(textBuffer), "Датчики: %s", systemStatus.sensorsValid ? "OK" : "ОШИБКА");
+    snprintf(textBuffer, sizeof(textBuffer), "Датчики: %s", textBuffer);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
+    systemFlags.motorsEnabled ? strcpy_P(textBuffer, str_on) : strcpy_P(textBuffer, str_off);
     // Статус двигателей
-    snprintf(textBuffer, sizeof(textBuffer), "Двигатели: %s", systemFlags.motorsEnabled ? "ВКЛ" : "ВЫКЛ");
+    snprintf(textBuffer, sizeof(textBuffer), "Двигатели: %s", textBuffer);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
@@ -1097,14 +1173,16 @@ void uiDrawMonitorScreen(void)
  */
 void uiDrawDiagnosticsScreen(void)
 {
-    uiDrawHeader("ДИАГНОСТИКА");
+    strcpy_P(textBuffer, str_diagnostic);
+    uiDrawHeader(textBuffer);
 
     extern DiagnosticsResult diagnosticsResults[MAX_DIAGNOSTIC_TESTS];
 
     uint8_t y = MENU_START_Y;
 
     // Результаты тестов
-    ui.display->drawStr(0, y, "Результаты тестов:");
+    strcpy_P(textBuffer, str_tests_results);
+    ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
     // Датчики
@@ -1177,12 +1255,14 @@ void uiDrawDiagnosticsScreen(void)
 
     ui.display->setFont(u8g2_font_7x14B_tf);
     if (allTestsPassed)
-    {
-        ui.display->drawStr(0, y, "ВСЕ ТЕСТЫ ПРОЙДЕНЫ");
+    {   
+        strcpy_P(textBuffer, str_all_tests_completed);
+        ui.display->drawStr(0, y, textBuffer);
     }
     else
     {
-        ui.display->drawStr(0, y, "ЕСТЬ ОШИБКИ!");
+        strcpy_P(textBuffer, str_all_tests_completed);
+        ui.display->drawStr(0, y, textBuffer);
     }
     uiSetFontMedium();
 
@@ -1190,14 +1270,16 @@ void uiDrawDiagnosticsScreen(void)
     if (elapsed < 5) // Диагностика еще выполняется
     {
         uint8_t progress = (elapsed * 100) / 5;
+        strcpy_P(textBuffer, str_processing);
         uiDrawProgressBar(0, SCREEN_HEIGHT - 20, SCREEN_WIDTH, 6,
-                    progress, 0, 100, "Выполнение...", false);
+                    progress, 0, 100, textBuffer, false);
     }
 
     // Инструкция внизу
+    strcpy_P(textBuffer, str_press_to_exit);
     uiDrawStatusBar(SCREEN_HEIGHT - 8,
                     "",
-                    "Нажмите для выхода",
+                    textBuffer,
                     "");
 }
 
@@ -1288,15 +1370,18 @@ void uiDrawErrorScreen(void)
 
     // Кнопки
     y = SCREEN_HEIGHT - 10;
-    ui.display->drawStr(0, y, "СБРОС");
-    ui.display->drawStr(SCREEN_WIDTH - 30, y, "ИГНОР");
+    strcpy_P(textBuffer, str_reset);
+    ui.display->drawStr(0, y, textBuffer);
+    strcpy_P(textBuffer, str_ignor);
+    ui.display->drawStr(SCREEN_WIDTH - 30, y, textBuffer);
 
     // Индикатор мигания для кнопки сброса
     if (ui.blinkState)
     {
         ui.display->drawBox(0, SCREEN_HEIGHT - 12, 30, 10);
         ui.display->setDrawColor(COLOR_WHITE);
-        ui.display->drawStr(5, SCREEN_HEIGHT - 3, "СБРОС");
+        strcpy_P(textBuffer, str_reset);
+        ui.display->drawStr(5, SCREEN_HEIGHT - 3, textBuffer);
         ui.display->setDrawColor(COLOR_BLACK);
     }
 }
@@ -1306,11 +1391,13 @@ void uiDrawErrorScreen(void)
  */
 void uiDrawProgramEditScreen(void)
 {
-    uiDrawHeader("РЕДАКТИРОВАНИЕ ПРОГРАММЫ");
+    strcpy_P(textBuffer, str_edit_prog);
+    uiDrawHeader(textBuffer);
 
     if (systemData.currentProgram >= MAX_PROGRAMS)
     {
-        ui.display->drawStr(0, MENU_START_Y, "Нет программы");
+        strcpy_P(textBuffer, str_no_prog);
+        ui.display->drawStr(0, MENU_START_Y, textBuffer);
         return;
     }
 
@@ -1352,7 +1439,8 @@ void uiDrawProgramEditScreen(void)
     y += 12;
 
     // Список зон (первые несколько)
-    ui.display->drawStr(0, y, "Зоны:");
+    strcpy_P(textBuffer, str_zones);
+    ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
     for (uint8_t i = 0; i < min(3, program->zoneCount); i++)
@@ -1378,14 +1466,17 @@ void uiDrawProgramEditScreen(void)
 
     // Кнопка "Изменить"
     ui.display->drawFrame(spacing, y, buttonWidth, 20);
-    ui.display->drawStr(spacing + 5, y + 14, "ИЗМ");
+    strcpy(textBuffer, str_edit);
+    ui.display->drawStr(spacing + 5, y + 14, textBuffer);
 
     // Кнопка "Зоны"
     ui.display->drawFrame(spacing * 2 + buttonWidth, y, buttonWidth, 20);
+    strcpy(textBuffer, str_ZONES);
     ui.display->drawStr(spacing * 2 + buttonWidth + 8, y + 14, "ЗОНЫ");
 
     // Кнопка "Назад"
     ui.display->drawFrame(spacing * 3 + buttonWidth * 2, y, buttonWidth, 20);
+    strcpy(textBuffer, str_func);
     ui.display->drawStr(spacing * 3 + buttonWidth * 2 + 5, y + 14, "НАЗ");
 }
 
@@ -1394,11 +1485,13 @@ void uiDrawProgramEditScreen(void)
  */
 void uiDrawZoneEditScreen(void)
 {
-    uiDrawHeader("РЕДАКТИРОВАНИЕ ЗОНЫ");
+    strcpy_P(textBuffer, str_edit_zone);
+    uiDrawHeader(textBuffer);
 
     if (systemData.currentProgram >= MAX_PROGRAMS || systemData.currentZone >= MAX_ZONES_PER_PROGRAM)
     {
-        ui.display->drawStr(0, MENU_START_Y, "Ошибка данных");
+        strcpy_P(textBuffer, str_data_error);
+        ui.display->drawStr(0, MENU_START_Y, textBuffer);
         return;
     }
 
@@ -1431,7 +1524,7 @@ void uiDrawZoneEditScreen(void)
     y += 12;
 
     // Время погружения
-    snprintf(textBuffer, sizeof(textBuffer), "Время погруж: %lu мс", zone->dipTime);
+    snprintf(textBuffer, sizeof(textBuffer), "Время погруж: %d мс", zone->dipTime);
     ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
@@ -1453,11 +1546,13 @@ void uiDrawZoneEditScreen(void)
 
     // Кнопка "Захват позиции"
     ui.display->drawFrame(5, y, buttonWidth, 20);
-    ui.display->drawStr(10, y + 14, "ЗАХВАТ");
+    strcpy_P(textBuffer, str_capture);
+    ui.display->drawStr(10, y + 14, textBuffer);
 
     // Кнопка "Сохранение"
     ui.display->drawFrame(70, y, buttonWidth, 20);
-    ui.display->drawStr(75, y + 14, "СОХР");
+    strcpy_P(textBuffer, str_save);
+    ui.display->drawStr(75, y + 14, textBuffer);
 }
 
 // ========== ОБРАБОТЧИКИ ВВОДА ==========
@@ -1553,8 +1648,9 @@ void uiShowError(const char *error)
     }
 
     // Установка экрана ошибки
+    strcpy_P(textBuffer, str_error);
     uiSetScreen([]()
-                { uiDrawMessageBox("ОШИБКА", lastError, 0); }, NULL, 100);
+                { uiDrawMessageBox(textBuffer, lastError, 0); }, NULL, 100);
 
     // Через 3 секунды вернуться
     static uint32_t errorStartTime = 0;
@@ -1679,7 +1775,8 @@ void uiDrawCargoHeights(int32_t height1, int32_t height2, int32_t targetHeight, 
     uint8_t y = MENU_START_Y + 50; // После позиций тельферов
 
     // Заголовок
-    ui.display->drawStr(0, y, "Высоты груза:");
+    strcpy(textBuffer, str_cargo_height);
+    ui.display->drawStr(0, y, textBuffer);
     y += 12;
 
     // Высота 1
@@ -1791,7 +1888,8 @@ void uiDrawConfirmDialog(const char *question, bool *result)
 
     // Вопрос
     uiSetFontMedium();
-    uiDrawTextCentered(dialogY + 12, "ПОДТВЕРЖДЕНИЕ");
+    strcpy_P(textBuffer, str_confirm);
+    uiDrawTextCentered(dialogY + 12, textBuffer);
 
     // Разделитель
     ui.display->drawHLine(dialogX + 5, dialogY + 20, dialogWidth - 10);
@@ -1805,11 +1903,13 @@ void uiDrawConfirmDialog(const char *question, bool *result)
 
     // Кнопка "Да"
     ui.display->drawFrame(dialogX + 10, buttonY, 40, 16);
-    ui.display->drawStr(dialogX + 20, buttonY + 12, "ДА");
+    strcpy_P(textBuffer, str_yes);
+    ui.display->drawStr(dialogX + 20, buttonY + 12, textBuffer);
 
     // Кнопка "Нет"
     ui.display->drawFrame(dialogX + dialogWidth - 50, buttonY, 40, 16);
-    ui.display->drawStr(dialogX + dialogWidth - 40, buttonY + 12, "НЕТ");
+    strcpy_P(textBuffer, str_no);
+    ui.display->drawStr(dialogX + dialogWidth - 40, buttonY + 12, textBuffer);
 
     // Выбор кнопки (мигание)
     if (ui.blinkState)
@@ -1819,7 +1919,8 @@ void uiDrawConfirmDialog(const char *question, bool *result)
             ui.display->setDrawColor(COLOR_BLACK);
             ui.display->drawBox(dialogX + dialogWidth - 50, buttonY, 40, 16);
             ui.display->setDrawColor(COLOR_WHITE);
-            ui.display->drawStr(dialogX + dialogWidth - 40, buttonY + 12, "НЕТ");
+            strcpy_P(textBuffer, str_no);
+            ui.display->drawStr(dialogX + dialogWidth - 40, buttonY + 12, textBuffer);
             ui.display->setDrawColor(COLOR_BLACK);
         }
         else
@@ -1827,7 +1928,8 @@ void uiDrawConfirmDialog(const char *question, bool *result)
             ui.display->setDrawColor(COLOR_BLACK);
             ui.display->drawBox(dialogX + 10, buttonY, 40, 16);
             ui.display->setDrawColor(COLOR_WHITE);
-            ui.display->drawStr(dialogX + 20, buttonY + 12, "ДА");
+            strcpy_P(textBuffer, str_yes);
+            ui.display->drawStr(dialogX + 20, buttonY + 12, textBuffer);
             ui.display->setDrawColor(COLOR_BLACK);
         }
     }

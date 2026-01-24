@@ -81,7 +81,7 @@ PerformanceStats perfStats = {0};
 
 // Объекты оборудования
 U8G2_ST7565_EA_DOGM128_F_4W_SW_SPI u8g2(
-    U8G2_R2,
+    U8G2_R1,
     DISPLAY_SCL_PIN,
     DISPLAY_SDA_PIN,
     DISPLAY_CS_PIN,

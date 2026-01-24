@@ -12,13 +12,16 @@
 // ========== ШРИФТЫ С ПОДДЕРЖКОЙ КИРИЛЛИЦЫ ==========
 
 // Мелкий шрифт (6x13 пикселей, кириллица)
-#define FONT_SMALL u8g2_font_6x12_t_cyrillic
+// #define FONT_SMALL u8g2_font_6x12_t_cyrillic
+#define FONT_SMALL u8g2_font_5x7_t_cyrillic
 
 // Средний шрифт (7x14 пикселей, кириллица)
-#define FONT_MEDIUM u8g2_font_7x13_t_cyrillic
+// #define FONT_MEDIUM u8g2_font_7x13_t_cyrillic
+#define FONT_MEDIUM u8g2_font_6x12_t_cyrillic
 
 // Крупный шрифт (10x20 пикселей, кириллица)
-#define FONT_LARGE u8g2_font_10x20_t_cyrillic
+// #define FONT_LARGE u8g2_font_10x20_t_cyrillic
+#define FONT_LARGE u8g2_font_7x13_t_cyrillic
 
 // Жирный шрифт (7x14 пикселей, жирный, кириллица)
 #define FONT_BOLD u8g2_font_6x13B_t_cyrillic

@@ -605,38 +605,38 @@ bool loadDefaultSettings(SystemCalibration* cal, ProgramSettings* progs, unsigne
         progs[0].zoneOrder[i] = i;
     }
 
-    // Программа 2
-    strncpy(progs[1].name, "Программа 2", MAX_PROGRAM_NAME_LENGTH - 1);
-    progs[1].zoneCount = 2;
-    progs[1].repeatEnabled = false;
-    progs[1].repeatCount = 1;
-    progs[1].currentRepeat = 0;
-    progs[1].totalRuntime = 120000; // 2 минуты
+    // // Программа 2
+    // strncpy(progs[1].name, "Программа 2", MAX_PROGRAM_NAME_LENGTH - 1);
+    // progs[1].zoneCount = 2;
+    // progs[1].repeatEnabled = false;
+    // progs[1].repeatCount = 1;
+    // progs[1].currentRepeat = 0;
+    // progs[1].totalRuntime = 120000; // 2 минуты
 
-    // Зоны для программы 2
-    strncpy(progs[1].zones[0].name, "Точка А", MAX_ZONE_NAME_LENGTH - 1);
-    progs[1].zones[0].position = 1500;
-    progs[1].zones[0].targetHeight = 400;
-    progs[1].zones[0].dipTime = 360;
-    progs[1].zones[0].tiltAngle = 5;
-    progs[1].zones[0].waitTime = 60;
-    progs[1].zones[0].enabled = true;
-    progs[1].zones[0].motorSpeed = 40;
+    // // Зоны для программы 2
+    // strncpy(progs[1].zones[0].name, "Точка А", MAX_ZONE_NAME_LENGTH - 1);
+    // progs[1].zones[0].position = 1500;
+    // progs[1].zones[0].targetHeight = 400;
+    // progs[1].zones[0].dipTime = 360;
+    // progs[1].zones[0].tiltAngle = 5;
+    // progs[1].zones[0].waitTime = 60;
+    // progs[1].zones[0].enabled = true;
+    // progs[1].zones[0].motorSpeed = 40;
 
-    strncpy(progs[1].zones[1].name, "Точка Б", MAX_ZONE_NAME_LENGTH - 1);
-    progs[1].zones[1].position = 2500;
-    progs[1].zones[1].targetHeight = 450;
-    progs[1].zones[1].dipTime = 360;
-    progs[1].zones[1].tiltAngle = 15;
-    progs[1].zones[1].waitTime = 60;
-    progs[1].zones[1].enabled = true;
-    progs[1].zones[1].motorSpeed = 60;
+    // strncpy(progs[1].zones[1].name, "Точка Б", MAX_ZONE_NAME_LENGTH - 1);
+    // progs[1].zones[1].position = 2500;
+    // progs[1].zones[1].targetHeight = 450;
+    // progs[1].zones[1].dipTime = 360;
+    // progs[1].zones[1].tiltAngle = 15;
+    // progs[1].zones[1].waitTime = 60;
+    // progs[1].zones[1].enabled = true;
+    // progs[1].zones[1].motorSpeed = 60;
 
-    // Порядок зон для программы 2
-    for (int i = 0; i < progs[1].zoneCount; i++)
-    {
-        progs[1].zoneOrder[i] = i;
-    }
+    // // Порядок зон для программы 2
+    // for (int i = 0; i < progs[1].zoneCount; i++)
+    // {
+    //     progs[1].zoneOrder[i] = i;
+    // }
 
     Serial.println(F("Загружены настройки по умолчанию"));
     return true;

@@ -37,7 +37,7 @@
 #define TARGET_LOOP_TIME_US 10000  // Целевое время цикла 10 мс (100 Гц)
 
 // Лимиты системы
-#define MAX_PROGRAMS 3             // Максимальное количество программ
+#define MAX_PROGRAMS 1             // Максимальное количество программ
 #define MAX_ZONES_PER_PROGRAM 10   // Максимальное количество зон в программе
 #define MAX_ZONE_NAME_LENGTH 8    // Длина имени зоны
 #define MAX_PROGRAM_NAME_LENGTH 10 // Длина имени программы
@@ -122,7 +122,7 @@ typedef struct __attribute__((packed))
     char name[MAX_ZONE_NAME_LENGTH]; // Название зоны
     int16_t position;                // Горизонтальная позиция (мм)
     int16_t targetHeight;            // Целевая высота (мм)
-    uint32_t dipTime;                // Время погружения (сек) !(мс)
+    uint16_t dipTime;                // Время погружения (сек) !(мс)
     uint8_t tiltAngle;               // Угол наклона (0-100%)
     uint8_t waitTime;                // Время ожидания после подъема (сек) !(мс)
     uint8_t motorSpeed;              // Скорость движения к зоне (%)
@@ -233,7 +233,7 @@ typedef struct
     uint8_t menuIndex;      // Индекс в меню
     uint8_t menuScroll;     // Смещение прокрутки меню
     ErrorType activeError;    // Активная ошибка
-    char errorMessage[64];  // Сообщение об ошибке
+    char errorMessage[32];  // Сообщение об ошибке
 } SystemData;
 
 /**
