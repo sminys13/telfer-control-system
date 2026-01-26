@@ -12,6 +12,14 @@
 
 // ========== КОНСТАНТЫ MODBUS ==========
 
+#ifndef MODBUS_MAX_DATA_BYTES
+#define MODBUS_MAX_DATA_BYTES 64
+#endif
+
+#ifndef MODBUS_MAX_FRAME_BYTES
+#define MODBUS_MAX_FRAME_BYTES (MODBUS_MAX_DATA_BYTES + 8) // адрес+функция+адрес(2)+qty(2)+bytecount+CRC(2)
+#endif
+
 // Адреса устройств
 #define MODBUS_ADDR_BROADCAST 0x00 // Широковещательный адрес
 #define MODBUS_ADDR_H1 0x01        // Горизонтальный левый
@@ -84,7 +92,7 @@ typedef struct
     uint8_t function;   // Функция
     uint16_t startAddr; // Начальный адрес
     uint16_t quantity;  // Количество регистров/коилов
-    uint8_t data[252];  // Данные (для записи)
+    uint8_t data[MODBUS_MAX_DATA_BYTES];  // Данные (для записи)
     uint8_t dataLength; // Длина данных
 } ModbusRequest;
 
@@ -93,7 +101,7 @@ typedef struct
 {
     uint8_t address;    // Адрес устройства
     uint8_t function;   // Функция
-    uint8_t data[252];  // Данные
+    uint8_t data[MODBUS_MAX_DATA_BYTES];  // Данные
     uint8_t dataLength; // Длина данных
     uint8_t error;      // Код ошибки (если function > 0x80)
     bool isValid;       // Валидность ответа

@@ -18,8 +18,8 @@ static uint8_t retryCount = 3;
 static bool initialized = false;
 
 // Буферы для передачи/приема
-static uint8_t txBuffer[256];
-static uint8_t rxBuffer[256];
+static uint8_t txBuffer[MODBUS_MAX_FRAME_BYTES];
+static uint8_t rxBuffer[MODBUS_MAX_FRAME_BYTES];
 static uint8_t rxIndex = 0;
 
 // Состояния устройств
@@ -380,12 +380,18 @@ bool modbusSendRequest(ModbusRequest *request)
         txBuffer[index++] = (request->quantity >> 8) & 0xFF;
         txBuffer[index++] = request->quantity & 0xFF;
     }
+    // else if (request->function == MODBUS_WRITE_SINGLE_REG)
+    // {
+    //     txBuffer[index++] = (request->data[0] >> 8) & 0xFF;
+    //     txBuffer[index++] = request->data[0] & 0xFF;
+    //     txBuffer[index++] = (request->data[1] >> 8) & 0xFF;
+    //     txBuffer[index++] = request->data[1] & 0xFF;
+    // }
     else if (request->function == MODBUS_WRITE_SINGLE_REG)
     {
-        txBuffer[index++] = (request->data[0] >> 8) & 0xFF;
-        txBuffer[index++] = request->data[0] & 0xFF;
-        txBuffer[index++] = (request->data[1] >> 8) & 0xFF;
-        txBuffer[index++] = request->data[1] & 0xFF;
+        // request->data[0] = valueHi, request->data[1] = valueLo
+        txBuffer[index++] = request->data[0];
+        txBuffer[index++] = request->data[1];
     }
     else if (request->function == MODBUS_WRITE_MULTIPLE_REGS)
     {
@@ -507,6 +513,9 @@ bool modbusReceiveResponse(ModbusResponse *response, uint32_t timeout)
             response->function == MODBUS_READ_INPUT_REGS)
         {
             response->dataLength = rxBuffer[2];
+            if (response->dataLength > MODBUS_MAX_DATA_BYTES) {
+                return false;
+            }
             memcpy(response->data, &rxBuffer[3], response->dataLength);
         }
         else if (response->function == MODBUS_WRITE_SINGLE_REG)
