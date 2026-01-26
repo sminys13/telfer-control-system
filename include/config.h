@@ -48,6 +48,26 @@
 #define MIN_SAFE_HEIGHT 100         // Минимальная безопасная высота
 #define MAX_TILT_ANGLE 30           // Максимальный угол наклона (%)
 
+// -------------------- НАКЛОН ГРУЗА (ступенчатый) --------------------
+// Низкая сторона: 0 = V1 (левый), 1 = V2 (правый)  <-- Поменять тут, если перепутали подключение
+#define TILT_LOW_SIDE_IS_V2   0
+
+// Разница высот между сторонами (мм)
+#define TILT_DIFF_MM          100
+
+// Ступени погружения/подъема (мм относительно предыдущего уровня)
+#define DIP_STEP1_MM          60
+#define DIP_STEP2_MM          60
+#define LIFT_STEP1_MM         60
+#define LIFT_STEP2_MM         60
+
+// Паузы (мс)
+#define DIP_FILL_PAUSE_MS     15000   // пауза для заполнения труб
+#define LIFT_DRAIN_PAUSE_MS   45000   // пауза для стекания жидкости
+
+// Сколько ступеней использовать (2 достаточно )
+#define TILT_STEPS_COUNT      2
+
 // Допуски позиционирования (в миллиметрах)
 #define HORIZONTAL_TOLERANCE 10 // Допуск по горизонтали
 #define VERTICAL_TOLERANCE 5    // Допуск по вертикали
@@ -366,6 +386,22 @@ typedef struct {
 //     uint16_t screenTimeout;     // Таймаут экрана (мс)
 //     uint8_t brightness;         // Яркость подсветки
 // } UserSettings;
+
+// 1 = при опускании измеряемое расстояние УЗ уменьшается (частый случай)
+#define US_DISTANCE_DECREASES_WHEN_LOWERING  1
+
+static inline void computeTiltTargets(int32_t baseMm, int32_t &v1Target, int32_t &v2Target)
+{
+#if TILT_LOW_SIDE_IS_V2
+    // V2 ниже => V2 цель "глубже" (или "ниже") на TILT_DIFF_MM
+    v2Target = baseMm;
+    v1Target = baseMm + TILT_DIFF_MM;
+#else
+    // V1 ниже
+    v1Target = baseMm;
+    v2Target = baseMm + TILT_DIFF_MM;
+#endif
+}
 
 // Отладка
 #ifdef DEBUG_MODE
