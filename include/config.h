@@ -93,20 +93,28 @@
 #define DISPLAY_RESET_PIN 9 // Reset
 
 // Пины энкодера (KY-040 или аналогичный)
-#define ENCODER_CLK_PIN 3 // CLK (Channel A)
-#define ENCODER_DT_PIN 4  // DT (Channel B)
-#define ENCODER_SW_PIN 5  // SW (Кнопка)
+#define ENCODER_CLK_PIN 2 // CLK (Channel A)
+#define ENCODER_DT_PIN 3  // DT (Channel B)
+#define ENCODER_SW_PIN 4  // SW (Кнопка)
 
 // Пины безопасности
-#define EMERGENCY_STOP_PIN 2 // Нормально-разомкнутая аварийная кнопка
+#define EMERGENCY_STOP_PIN 21 // Нормально-замкнутая аварийная кнопка (NC, FAIL-SAFE)
+#define EMERGENCY_ACTIVE_LEVEL 1  // digitalRead()==1 значит авария
+
 #define BUZZER_PIN 12        // Пьезоизлучатель
 #define LED_STATUS_PIN 13    // Светодиод статуса
+// Концевики (NC, FAIL-SAFE)
+#define LIMIT_SWITCH_ACTIVE_LEVEL 1
+#define LIMIT_T1_MIN_PIN 22
+#define LIMIT_T1_MAX_PIN 23
+#define LIMIT_T2_MIN_PIN 24
+#define LIMIT_T2_MAX_PIN 25
 
 // Пины ультразвуковых датчиков HC-SR04
-#define US1_TRIG_PIN 22
-#define US1_ECHO_PIN 23
-#define US2_TRIG_PIN 24
-#define US2_ECHO_PIN 25
+#define US1_TRIG_PIN 36
+#define US1_ECHO_PIN 37
+#define US2_TRIG_PIN 38
+#define US2_ECHO_PIN 39
 
 // Пины управления RS-485
 #define RS485_RE_DE_PIN 6 // Управление направлением (RE/DE)
