@@ -1551,6 +1551,22 @@ bool statesPostEvent(EventType type, int32_t data, void *context)
     return true;
 }
 
+
+bool statesClearEventQueue(void)
+{
+    // Полностью сбрасываем очередь событий.
+    stateContext.eventQueueHead = 0;
+    stateContext.eventQueueTail = 0;
+    stateContext.eventCount     = 0;
+
+    // Можно не чистить массив событий целиком (это лишнее время),
+    // но для отладки иногда удобно.
+    memset(stateContext.eventQueue, 0, sizeof(stateContext.eventQueue));
+
+    return true;
+}
+
+
 /**
  * @brief Обработка очереди событий
  * @return true если обработано хотя бы одно событие

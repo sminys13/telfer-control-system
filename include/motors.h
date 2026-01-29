@@ -81,6 +81,7 @@ typedef struct
 {
     MotorState state;         // Текущее состояние
     MotorError error;         // Активная ошибка
+    uint8_t warningCode;      // Код предупреждения
     uint8_t address;          // Адрес Modbus
     int16_t targetSpeed;      // Целевая скорость (-1000..+1000)
     int16_t currentSpeed;     // Текущая скорость (-1000..+1000)
@@ -89,10 +90,14 @@ typedef struct
     int32_t position;         // Текущая позиция (импульсы энкодера)
     int32_t targetPosition;   // Целевая позиция
     float current;            // Ток двигателя (А)
+    float dcVoltage;          // Напряжение DC (В)
+    float frequency;          // Частота двигателя (Гц)
     float temperature;        // Температура (°C)
     uint32_t runtime;         // Время работы (часы)
     uint32_t lastCommandTime; // Время последней команды
     bool enabled;             // Двигатель включен
+    bool running;             // Двигатель в движении
+    bool fault;               // Неиспраность
     bool faultResetPending;   // Ожидание сброса ошибки
 } MotorStatus;
 

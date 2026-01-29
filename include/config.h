@@ -27,6 +27,13 @@
 // #define DEBUG_DISPLAY
 
 // ========== КОНСТАНТЫ СИСТЕМЫ ==========
+#define DISPLAY_CONTRAST 50
+// ===== Дефолты пользовательских (UI) настроек =====
+#define DEFAULT_DISPLAY_CONTRAST        180   // 0..255 (подберём позже по факту)
+#define DEFAULT_DISPLAY_TIMEOUT_MIN     10    // минут до “гашения” (если используешь)
+#define DEFAULT_SOUND_VOLUME           40    // 0..100
+#define DEFAULT_UI_BRIGHTNESS          255   // если подсветка поддерживается
+#define DEFAULT_LOG_RETENTION_DAYS     30
 
 // Временные константы (в миллисекундах)
 #define SENSOR_UPDATE_INTERVAL 100 // Обновление датчиков каждые 100 мс

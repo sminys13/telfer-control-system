@@ -113,10 +113,12 @@ typedef struct
 {
     uint8_t address;        // Адрес устройства
     bool connected;         // Устройство подключено
+    bool running;           // Устройство работает
     uint32_t lastResponse;  // Время последнего ответа
-    uint16_t faultCode;     // Код ошибки
+    uint8_t faultCode;      // Код ошибки
     uint16_t warningCode;   // Код предупреждения
     uint16_t status;        // Статус
+    int16_t outputSpeed;    // Выходная скорость (-1000..+1000)
     float outputFrequency;  // Выходная частота (Гц)
     float outputCurrent;    // Выходной ток (А)
     float dcVoltage;        // Напряжение DC шины (В)

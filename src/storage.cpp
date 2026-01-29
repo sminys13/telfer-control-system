@@ -49,7 +49,7 @@ bool storageInit(void)
     Serial.println(F("Инициализация системы хранения данных..."));
 
     // Инициализация EEPROM
-    EEPROM.begin();
+    // EEPROM.begin();
 
     // Проверка размера EEPROM
     if (EEPROM.length() < EEPROM_SIZE)
@@ -113,6 +113,78 @@ bool storageInit(void)
 
     return true;
 }
+
+
+
+bool saveUserSettings(const UserSettings *settings)
+{
+    if (!settings) return false;
+    return storageWrite(ADDR_USER_SETTINGS, settings, sizeof(UserSettings));
+}
+
+bool loadUserSettings(UserSettings *settings)
+{
+    if (!settings) return false;
+
+    if (!storageRead(ADDR_USER_SETTINGS, settings, sizeof(UserSettings)))
+        return false;
+
+    // Если EEPROM пустая (все 0xFF), считаем “нет данных”
+    const uint8_t *p = (const uint8_t*)settings;
+    bool allFF = true;
+    for (size_t i = 0; i < sizeof(UserSettings); i++)
+    {
+        if (p[i] != 0xFF) { allFF = false; break; }
+    }
+    return !allFF;
+}
+
+void resetUserSettings(UserSettings *settings)
+{
+    if (!settings) return;
+
+    // Сбрасываем всё в нули и выставляем адекватные дефолты.
+    // Это предсказуемо, не раздувает RAM, и легко менять.
+    memset(settings, 0, sizeof(UserSettings));
+
+    settings->displayContrast = DEFAULT_DISPLAY_CONTRAST;
+    settings->displayTimeout  = DEFAULT_DISPLAY_TIMEOUT_MIN;
+
+    settings->soundVolume   = DEFAULT_SOUND_VOLUME;
+    settings->soundEnabled  = true;
+    settings->beepOnAction  = true;
+
+    settings->autoSave   = true;
+    settings->language   = 0; // 0 = RU
+    settings->units      = 0; // 0 = мм
+
+    settings->logRetention   = DEFAULT_LOG_RETENTION_DAYS;
+    settings->logLevel       = LOG_LEVEL_INFO;
+
+    settings->brightness     = DEFAULT_UI_BRIGHTNESS;
+    settings->showHelp       = true;
+    settings->confirmActions = true;
+}
+
+
+bool storageRepair(void)
+{
+    // Идея: если целостность не прошла — форматируем и записываем дефолты.
+    if (storageCheckIntegrity())
+        return true;
+
+    bool ok = storageFormat(true);
+
+    // Запишем дефолтные юзер-настройки:
+    UserSettings us;
+    resetUserSettings(&us);
+    ok = ok && saveUserSettings(&us);
+
+    return ok;
+}
+
+
+
 
 /**
  * @brief Проверка целостности данных в EEPROM

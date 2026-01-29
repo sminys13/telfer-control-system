@@ -16,6 +16,8 @@
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
+
+
 // Размеры шрифтов (в пикселях)
 #define FONT_SMALL_HEIGHT 10
 #define FONT_MEDIUM_HEIGHT 13

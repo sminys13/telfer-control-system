@@ -618,6 +618,76 @@ const char *modbusErrorToString(uint8_t errorCode)
     return "Неизвестная ошибка";
 }
 
+
+
+void modbusResetStats(void)
+{
+    memset(&modbusStats, 0, sizeof(modbusStats));
+}
+
+ModbusStats* modbusGetStats(void)
+{
+    return &modbusStats;
+}
+
+void modbusSetTimeout(uint32_t timeoutMs)
+{
+    responseTimeout = timeoutMs;
+}
+
+void modbusSetRetryCount(uint8_t retries)
+{
+    retryCount = (retries == 0) ? 1 : retries;
+}
+
+bool modbusIsInitialized(void)
+{
+    return initialized;
+}
+
+ModbusDeviceStatus* modbusGetDeviceStatus(uint8_t address)
+{
+    // В текущей реализации deviceStatus имеет фиксированный размер 5.
+    // Если позже сделаешь адреса 1..247 — расширим структуру/мапу.
+    if (address >= 5) return nullptr;
+    return &deviceStatus[address];
+}
+
+bool modbusDriveFaultReset(uint8_t address)
+{
+    // Команда “сброс ошибки” по описанию протокола.
+    return modbusWriteSingleRegister(address, REG_COMMAND_START_STOP, CMD_FAULT_RESET);
+}
+
+bool modbusCheckDeviceConnection(uint8_t address)
+{
+    // Самый дешёвый тест: прочитать статус.
+    ModbusDeviceStatus st;
+    return modbusDriveGetStatus(address, &st);
+}
+
+bool modbusScanDevices(uint8_t *foundAddresses, uint8_t maxCount)
+{
+    if (!foundAddresses || maxCount == 0) return false;
+
+    uint8_t found = 0;
+
+    // Сейчас логика кода рассчитана на небольшое число устройств.
+    // Сканируем 1..4 (типичный случай “4 привода”).
+    for (uint8_t addr = 1; addr <= 4 && found < maxCount; addr++)
+    {
+        if (modbusCheckDeviceConnection(addr))
+        {
+            foundAddresses[found++] = addr;
+        }
+    }
+
+    return (found > 0);
+}
+
+
+
+
 // ========== ОТЛАДКА ==========
 
 #ifdef DEBUG_MODBUS

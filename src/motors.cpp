@@ -311,6 +311,39 @@ bool detectMotors(void)
     return anyMotorDetected;
 }
 
+
+bool readMotorParameters(uint8_t motorID)
+{
+    if (motorID >= MOTOR_COUNT) return false;
+
+    // В проекте motorConfig[] и motorStatus[] обычно уже существуют глобально.
+    // Если имена другие — скажи, я подгоню патч под текущий код.
+    extern MotorConfig motorConfig[MOTOR_COUNT];
+    extern MotorStatus motorStatus[MOTOR_COUNT];
+
+    uint8_t addr = motorConfig[motorID].address;
+    if (addr == 0) return false;
+
+    ModbusDeviceStatus st;
+    if (!modbusDriveGetStatus(addr, &st))
+        return false;
+
+    motorStatus[motorID].current = st.outputCurrent;
+    motorStatus[motorID].frequency = st.outputFrequency;
+    motorStatus[motorID].currentSpeed = st.outputSpeed;
+    motorStatus[motorID].dcVoltage = st.dcVoltage;
+    motorStatus[motorID].error = (MotorError)st.faultCode;
+    motorStatus[motorID].warningCode = st.warningCode;
+
+    // Простейшие флаги:
+    motorStatus[motorID].fault = (st.faultCode != 0);
+    motorStatus[motorID].running = st.running;
+
+    return true;
+}
+
+
+
 // ========== УПРАВЛЕНИЕ ОТДЕЛЬНЫМИ ДВИГАТЕЛЯМИ ==========
 
 /**
@@ -373,6 +406,37 @@ bool setMotorSpeed(uint8_t motorID, int16_t speed, bool direction)
 
     return true;
 }
+
+
+int16_t calculateRampSpeed(int16_t currentSpeed, int16_t targetSpeed, uint16_t rampTimeMs)
+{
+    // rampTimeMs — время, за которое нужно пройти от currentSpeed к targetSpeed.
+    // Обновление моторов обычно идёт раз в SAFETY_CHECK_INTERVAL ( ~100мс).
+
+    if (rampTimeMs == 0) return targetSpeed;
+
+    const uint16_t dtMs = SAFETY_CHECK_INTERVAL;
+    int16_t diff = targetSpeed - currentSpeed;
+
+    if (diff == 0) return currentSpeed;
+
+    // Сколько “единиц скорости” можно изменить за один тик:
+    int32_t step = (int32_t)diff * (int32_t)dtMs / (int32_t)rampTimeMs;
+
+    // Чтобы не застревать на нуле из-за округления:
+    if (step == 0) step = (diff > 0) ? 1 : -1;
+
+    int32_t next = (int32_t)currentSpeed + step;
+
+    // Не перелетаем цель:
+    if ((diff > 0 && next > targetSpeed) || (diff < 0 && next < targetSpeed))
+        next = targetSpeed;
+
+    return (int16_t)next;
+}
+
+
+
 
 /**
  * @brief Установка скорости двигателя в процентах
