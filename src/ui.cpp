@@ -1991,6 +1991,80 @@ void uiShowToast(const char *message, uint16_t duration)
     }
 }
 
+
+// ============================================================================
+// Missing UI API (для линковки + базового поведения)
+// ============================================================================
+
+uint8_t uiGetSelectedId()
+{
+  if (ui.currentMenu.itemCount == 0) return 0;
+  if (ui.currentMenu.selectedIndex >= ui.currentMenu.itemCount) return 0;
+  return ui.currentMenu.items[ui.currentMenu.selectedIndex].id;
+}
+
+void uiStartAnimation(uint8_t totalFrames, uint32_t frameTime, bool loop)
+{
+  ui.animation.active = true;
+  ui.animation.frame = 0;
+  ui.animation.totalFrames = totalFrames;
+  ui.animation.frameTime = frameTime;
+  ui.animation.lastFrameTime = millis();
+  ui.animation.loop = loop;
+  ui.needsRedraw = true;
+}
+
+void uiStopAnimation()
+{
+  ui.animation.active = false;
+  ui.needsRedraw = true;
+}
+
+void uiUpdateAnimation()
+{
+  if (!ui.animation.active) return;
+
+  uint32_t now = millis();
+  if (now - ui.animation.lastFrameTime < ui.animation.frameTime) return;
+
+  ui.animation.lastFrameTime = now;
+  ui.animation.frame++;
+
+  if (ui.animation.frame >= ui.animation.totalFrames)
+  {
+    if (ui.animation.loop) ui.animation.frame = 0;
+    else ui.animation.active = false;
+  }
+
+  ui.needsRedraw = true;
+}
+
+void uiDrawEmergencyScreen()
+{
+  uiDrawMessageBox("АВАРИЯ", "Проверь кнопку/концевики.\nНажми энкодер.", 0);
+}
+
+// Пока обработчики ввода сделаем пустыми.
+// В твоей текущей архитектуре ввод идёт через handleEncoderInput() + statesPostEvent().
+// Эти функции оставляем как точки расширения под кнопки/особые действия.
+void uiHandleZoneEditInput() {}
+void uiHandleProgramEditInput() {}
+void uiHandleEmergencyInput() {}
+void uiHandleAutoModeInput() {}
+void uiHandleCalibrationInput() {}
+void uiHandleManualControlInput() {}
+
+void uiShowWarning(const char *warning)
+{
+  // Предупреждение отображаем как messagebox.
+  // Позже сделаем "оверлей" с авто-возвратом.
+  if (!warning) warning = "Warning";
+  uiDrawMessageBox("ВНИМАНИЕ", warning, 2);
+  ui.needsRedraw = true;
+}
+
+
+
 // ========== ОТЛАДКА ==========
 
 #ifdef DEBUG_UI
