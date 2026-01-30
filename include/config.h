@@ -1,431 +1,216 @@
+\
 /**
  * @file config.h
- * @brief Конфигурация системы управления тельферами
- * @version 4.0
+ * @brief Аппаратная конфигурация и основные типы данных проекта telfer-control-system.
+ *
+ * ВАЖНО:
+ *  - Все значения длин/позиций в проекте хранятся в миллиметрах (mm).
+ *  - Arduino Mega 2560 имеет всего 8 KB RAM → избегаем больших буферов/структур.
+ *  - Все строки для UI стараемся держать во Flash через F("...").
+ *
+ * Подключение (кратко):
+ *  - Дисплей GMG12864-06D (ST7565R, SPI): SCK=52, MOSI=51, CS=10, DC=8, RST=9, питание 3.3V.
+ *  - Энкодер: CLK=3, DT=4, SW=5 (INPUT_PULLUP).
+ *  - RS-485 (MAX485): Serial1 (TX1=18, RX1=19), DE/RE=6.
+ *  - Лазеры (UART 3.3V): Laser1=Serial2 (RX2=17, TX2=16), Laser2=Serial3 (RX3=15, TX3=14).
+ *  - УЗ датчики HC-SR04 (5V): (22/23) и (24/25).
+ *  - Аварийная кнопка E-Stop: pin 2 (лучше NC → INPUT_PULLUP).
+ *  - Концевики горизонтали (NC): 4 входа (36..39).
+ *
+ * Примечание по уровню сигналов:
+ *  - Mega = 5V логика. Лазеры/дисплей = 3.3V.
+ *  - Для линий Mega->3.3V устройств нужен понижающий уровень (делитель/level shifter).
  */
 
-#ifndef CONFIG_H
-#define CONFIG_H
+#pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
 
-// ========== ВЕРСИЯ СИСТЕМЫ ==========
-#define SYSTEM_VERSION_MAJOR 4
-#define SYSTEM_VERSION_MINOR 0
-#define SYSTEM_VERSION_PATCH 0
+// ----------------------------- Общие параметры -----------------------------
 
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-#define SYSTEM_VERSION_STRING TOSTRING(SYSTEM_VERSION_MAJOR) "." TOSTRING(SYSTEM_VERSION_MINOR) "." TOSTRING(SYSTEM_VERSION_PATCH)
+#define FW_VERSION "5.0.0"
+static constexpr uint8_t TELFER_COUNT = 2;
+static constexpr uint8_t MAX_ZONES    = 10;
+static constexpr uint8_t PROGRAM_SLOTS = 4;     // количество слотов программ в EEPROM
 
-// ========== РЕЖИМЫ ОТЛАДКИ ==========
-// Раскомментировать для включения отладочного вывода
-// #define DEBUG_MODE
-// #define DEBUG_SENSORS
-// #define DEBUG_MOTORS
-// #define DEBUG_DISPLAY
+// Интервалы (мс) — подобраны под "быстро и стабильно"
+static constexpr uint16_t UI_TICK_MS       = 50;
+static constexpr uint16_t SENSORS_TICK_MS  = 100;
+static constexpr uint16_t SAFETY_TICK_MS   = 50;
+static constexpr uint16_t MOTORS_TICK_MS   = 50;
 
-// ========== КОНСТАНТЫ СИСТЕМЫ ==========
-#define DISPLAY_CONTRAST 50
-// ===== Дефолты пользовательских (UI) настроек =====
-#define DEFAULT_DISPLAY_CONTRAST        180   // 0..255 (подберём позже по факту)
-#define DEFAULT_DISPLAY_TIMEOUT_MIN     10    // минут до “гашения” (если используешь)
-#define DEFAULT_SOUND_VOLUME           40    // 0..100
-#define DEFAULT_UI_BRIGHTNESS          255   // если подсветка поддерживается
-#define DEFAULT_LOG_RETENTION_DAYS     30
+// ----------------------------- Пины дисплея -------------------------------
+// GMG12864-06D / ST7565R (SPI). U8g2 использует аппаратный SPI.
+static constexpr uint8_t PIN_LCD_CS   = 10;
+static constexpr uint8_t PIN_LCD_DC   = 8;
+static constexpr uint8_t PIN_LCD_RST  = 9;
 
-// Временные константы (в миллисекундах)
-#define SENSOR_UPDATE_INTERVAL 100 // Обновление датчиков каждые 100 мс
-#define DISPLAY_UPDATE_INTERVAL 50 // Обновление дисплея каждые 50 мс (20 FPS)
-#define ENCODER_DEBOUNCE_TIME 50   // Время антидребезга энкодера
-#define MOTOR_COMMAND_INTERVAL 20  // Интервал команд двигателям
-#define SAFETY_CHECK_INTERVAL 100  // Проверка безопасности каждые 100 мс
-#define TARGET_LOOP_TIME_US 10000  // Целевое время цикла 10 мс (100 Гц)
+// ----------------------------- Энкодер ------------------------------------
+static constexpr uint8_t PIN_ENC_CLK  = 3;
+static constexpr uint8_t PIN_ENC_DT   = 4;
+static constexpr uint8_t PIN_ENC_SW   = 5;
 
-// Лимиты системы
-#define MAX_PROGRAMS 1             // Максимальное количество программ
-#define MAX_ZONES_PER_PROGRAM 10   // Максимальное количество зон в программе
-#define MAX_ZONE_NAME_LENGTH 8    // Длина имени зоны
-#define MAX_PROGRAM_NAME_LENGTH 10 // Длина имени программы
+// ----------------------------- Safety --------------------------------------
+// Рекомендуется NC на GND + INPUT_PULLUP (обрыв = авария)
+static constexpr uint8_t PIN_ESTOP    = 2;
+static constexpr bool    ESTOP_ACTIVE_LOW = false;
+static constexpr bool    ENABLE_ESTOP = true;
 
-// Геометрические ограничения (в миллиметрах)
-#define MAX_HORIZONTAL_TRAVEL 10000 // Максимальное горизонтальное перемещение
-#define MAX_VERTICAL_TRAVEL 5000    // Максимальное вертикальное перемещение
-#define MIN_SAFE_HEIGHT 100         // Минимальная безопасная высота
-#define MAX_TILT_ANGLE 30           // Максимальный угол наклона (%)
+// Концевики горизонтали (NC). Если не подключены — можно временно отключить в коде.
+static constexpr uint8_t PIN_LIM_H1_LEFT  = 36;
+static constexpr uint8_t PIN_LIM_H1_RIGHT = 37;
+static constexpr uint8_t PIN_LIM_H2_LEFT  = 38;
+static constexpr uint8_t PIN_LIM_H2_RIGHT = 39;
+static constexpr bool    LIMIT_ACTIVE_LOW = false;
+static constexpr bool    ENABLE_LIMIT_SWITCHES = true;
 
-// -------------------- НАКЛОН ГРУЗА (ступенчатый) --------------------
-// Низкая сторона: 0 = V1 (левый), 1 = V2 (правый)  <-- Поменять тут, если перепутали подключение
-#define TILT_LOW_SIDE_IS_V2   0
+// ----------------------------- УЗ датчики ----------------------------------
+static constexpr uint8_t PIN_US1_TRIG = 22;
+static constexpr uint8_t PIN_US1_ECHO = 23;
+static constexpr uint8_t PIN_US2_TRIG = 24;
+static constexpr uint8_t PIN_US2_ECHO = 25;
 
-// Разница высот между сторонами (мм)
-#define TILT_DIFF_MM          100
+// ----------------------------- RS-485 / Modbus ------------------------------
+static constexpr uint8_t PIN_RS485_DE_RE = 6;
+// TX_ENABLE (pin 7) не обязателен: обычно хватает DE/RE. Оставляем как резерв.
+static constexpr uint8_t PIN_RS485_TX_EN = 7;
 
-// Ступени погружения/подъема (мм относительно предыдущего уровня)
-#define DIP_STEP1_MM          60
-#define DIP_STEP2_MM          60
-#define LIFT_STEP1_MM         60
-#define LIFT_STEP2_MM         60
+static constexpr uint32_t BAUD_RS485  = 9600;
 
-// Паузы (мс)
-#define DIP_FILL_PAUSE_MS     15000   // пауза для заполнения труб
-#define LIFT_DRAIN_PAUSE_MS   45000   // пауза для стекания жидкости
+// ----------------------------- Лазеры --------------------------------------
+// Лазеры питаются 3.3V, UART 9600 8N1.
+// ВНИМАНИЕ: TX Mega (5V) -> RX Лазера (3.3V) через понижение уровня.
+static constexpr uint32_t BAUD_LASER  = 9600;
 
-// Сколько ступеней использовать (2 достаточно )
-#define TILT_STEPS_COUNT      2
+// ----------------------------- Кнопки --------------------------------------
+// Общие
+static constexpr uint8_t PIN_BTN_STOP  = 26;
+static constexpr uint8_t PIN_BTN_START = 27;
 
-// Допуски позиционирования (в миллиметрах)
-#define HORIZONTAL_TOLERANCE 10 // Допуск по горизонтали
-#define VERTICAL_TOLERANCE 5    // Допуск по вертикали
-#define TILT_TOLERANCE 2        // Допуск по наклону
+// Горизонталь "оба вместе" (опционально, как резерв)
+static constexpr uint8_t PIN_BTN_H_BOTH_FWD = 28;
+static constexpr uint8_t PIN_BTN_H_BOTH_BWD = 29;
 
-// Скорости по умолчанию (% от максимальной)
-#define DEFAULT_HORIZONTAL_SPEED 50
-#define DEFAULT_VERTICAL_SPEED 40
-#define DEFAULT_TILT_SPEED 30
-#define MAX_MOTOR_SPEED 100
-#define MIN_MOTOR_SPEED 10 // Минимальная скорость для предотвращения залипания
+// Вертикаль Т1 (оставили на старых пинах)
+static constexpr uint8_t PIN_BTN_V1_UP   = 30;
+static constexpr uint8_t PIN_BTN_V1_DOWN = 31;
 
-// Количество диагностических тестов
-#define MAX_DIAGNOSTIC_TESTS 3
+// Добавленные независимые кнопки (можно изменить под вашу панель)
+static constexpr uint8_t PIN_BTN_H1_FWD = 40;
+static constexpr uint8_t PIN_BTN_H1_BWD = 41;
+static constexpr uint8_t PIN_BTN_H2_FWD = 42;
+static constexpr uint8_t PIN_BTN_H2_BWD = 43;
+static constexpr uint8_t PIN_BTN_V2_UP  = 44;
+static constexpr uint8_t PIN_BTN_V2_DOWN= 45;
 
-// ========== КОНФИГУРАЦИЯ ОБОРУДОВАНИЯ ==========
+// Все кнопки предполагаем как NC/NO? Для удобства делаем активным LOW через INPUT_PULLUP.
+static constexpr bool BUTTON_ACTIVE_LOW = true;
 
-// Пины дисплея GMG12864-06D
-#define DISPLAY_SCL_PIN 52  // SPI Clock
-#define DISPLAY_SDA_PIN 51  // SPI Data
-#define DISPLAY_CS_PIN 10   // Chip Select
-#define DISPLAY_DC_PIN 8    // Data/Command
-#define DISPLAY_RESET_PIN 9 // Reset
+// ----------------------------- Modbus: регистры и команды ------------------
+// По мануалу NE200/300: 0001H команды, 0002H задание (%), 0020H статус, 0021H код ошибки.
+static constexpr uint16_t MB_REG_CMD      = 0x0001;
+static constexpr uint16_t MB_REG_SETPOINT = 0x0002;
+static constexpr uint16_t MB_REG_STATUS   = 0x0020;
+static constexpr uint16_t MB_REG_FAULT    = 0x0021;
 
-// Пины энкодера (KY-040 или аналогичный)
-#define ENCODER_CLK_PIN 2 // CLK (Channel A)
-#define ENCODER_DT_PIN 3  // DT (Channel B)
-#define ENCODER_SW_PIN 4  // SW (Кнопка)
+// Значения регистра команды 0001H
+static constexpr uint16_t MB_CMD_FWD        = 0x0001;
+static constexpr uint16_t MB_CMD_REV        = 0x0002;
+static constexpr uint16_t MB_CMD_STOP       = 0x0003;
+static constexpr uint16_t MB_CMD_COAST_STOP = 0x0004;
+static constexpr uint16_t MB_CMD_RESET_FAULT= 0x0005;
 
-// Пины безопасности
-#define EMERGENCY_STOP_PIN 21 // Нормально-замкнутая аварийная кнопка (NC, FAIL-SAFE)
-#define EMERGENCY_ACTIVE_LEVEL 1  // digitalRead()==1 значит авария
+// Задание 0002H: -10000..10000 (=-100.00..100.00%)
+static constexpr int16_t MB_SETPOINT_MIN = -10000;
+static constexpr int16_t MB_SETPOINT_MAX =  10000;
 
-#define BUZZER_PIN 12        // Пьезоизлучатель
-#define LED_STATUS_PIN 13    // Светодиод статуса
-// Концевики (NC, FAIL-SAFE)
-#define LIMIT_SWITCH_ACTIVE_LEVEL 1
-#define LIMIT_T1_MIN_PIN 22
-#define LIMIT_T1_MAX_PIN 23
-#define LIMIT_T2_MIN_PIN 24
-#define LIMIT_T2_MAX_PIN 25
+// ----------------------------- Логика наклона ------------------------------
+// Какая сторона всегда "ниже" при погружении. 0 = Т1, 1 = Т2.
+// Если монтажник перепутает провода — поменять здесь.
+#define LOW_SIDE_TELFER_INDEX 0
 
-// Пины ультразвуковых датчиков HC-SR04
-#define US1_TRIG_PIN 36
-#define US1_ECHO_PIN 37
-#define US2_TRIG_PIN 38
-#define US2_ECHO_PIN 39
+// ----------------------------- Направления приводов ------------------------
+// По вашему уточнению:
+//   H Forward = вправо
+//   V Forward = вниз
+//
+// Это означает:
+//   - Для горизонтальных приводов: +скорость (forward) → движение вправо.
+//   - Для вертикальных приводов:  +скорость (forward) → движение вниз (опускание).
+//
+// Все функции управления в коде опираются на это правило.
+static constexpr bool H_FORWARD_IS_RIGHT = true;
+static constexpr bool V_FORWARD_IS_DOWN  = true;
 
-// Пины управления RS-485
-#define RS485_RE_DE_PIN 6 // Управление направлением (RE/DE)
-#define RS485_TX_ENABLE 7 // Разрешение передачи (опционально)
+// ----------------------------- Скорости по умолчанию ------------------------
+static constexpr uint8_t DEFAULT_H_SPEED_PCT = 55;   // движение по горизонтали
+static constexpr uint8_t DEFAULT_V_SPEED_PCT = 45;   // подъём/опускание
+static constexpr uint8_t DEFAULT_V_TILT_PCT  = 35;   // наклонный шаг (медленнее для точности)
 
-// Пины дополнительных кнопок управления
-#define BTN_STOP_PIN 26
-#define BTN_START_PIN 27
-#define BTN_FORWARD_PIN 28
-#define BTN_BACKWARD_PIN 29
-#define BTN_UP_PIN 30
-#define BTN_DOWN_PIN 31
+// ----------------------------- Допуски --------------------------------------
+static constexpr int16_t DEFAULT_H_TOL_MM = 10;
+static constexpr int16_t DEFAULT_V_TOL_MM = 8;
 
-// Пины реле/дополнительных выходов
-#define RELAY_1_PIN 32
-#define RELAY_2_PIN 33
-#define OUTPUT_1_PIN 34
-#define OUTPUT_2_PIN 35
-
-// Настройки последовательных портов
-#define SERIAL_DEBUG_BAUD 115200 // Отладочный порт
-#define SERIAL_LASER1_BAUD 9600  // Левый лазерный дальномер
-#define SERIAL_LASER2_BAUD 9600  // Правый лазерный дальномер
-#define SERIAL_RS485_BAUD 9600   // Частотные преобразователи
-
-// ========== СТРУКТУРЫ ДАННЫХ ==========
+// ----------------------------- Структуры данных -----------------------------
 
 /**
- * @brief Параметры зоны обработки
+ * @brief Настройки одной зоны.
+ *
+ * x_mm[0], x_mm[1] — целевые горизонтальные позиции Т1 и Т2 (калибровка по лазерам).
+ * us_target_mm[*] — целевая "высота" по HC-SR04 (калибровка в ручном режиме).
+ *
+ * Для HC-SR04 мы используем "расстояние до груза" (mm).
+ *  - Если груз опускается, расстояние уменьшается.
+ *  - Если груз поднимается, расстояние увеличивается.
  */
-typedef struct __attribute__((packed))
-{
-    char name[MAX_ZONE_NAME_LENGTH]; // Название зоны
-    int16_t position;                // Горизонтальная позиция (мм)
-    int16_t targetHeight;            // Целевая высота (мм)
-    uint16_t dipTime;                // Время погружения (сек) !(мс)
-    uint8_t tiltAngle;               // Угол наклона (0-100%)
-    uint8_t waitTime;                // Время ожидания после подъема (сек) !(мс)
-    uint8_t motorSpeed;              // Скорость движения к зоне (%)
-    bool enabled;                    // Зона включена
-} ZoneSettings;
+struct ZoneConfig {
+  int32_t  x_mm[TELFER_COUNT];         // горизонтальная позиция зоны
+  int32_t  us_target_mm[TELFER_COUNT]; // целевой уровень по УЗ
+  uint16_t dip_time_s;                 // выдержка в жидкости (1..600+)
+  uint16_t tilt_step_mm;               // шаг наклона (mm) для ступени
+  uint16_t step_wait_s;                // пауза после ступени (сек)
+  uint8_t  move_speed_pct;             // скорость движения к зоне
+  uint8_t  v_speed_pct;                // скорость вертикали в зоне
+  bool     enabled;
+};
 
 /**
- * @brief Настройки программы
+ * @brief Программа: до 10 зон + порядок обхода.
  */
-typedef struct __attribute__((packed))
-{
-    char name[MAX_PROGRAM_NAME_LENGTH];        // Название программы
-    ZoneSettings zones[MAX_ZONES_PER_PROGRAM]; // Массив зон
-    uint8_t zoneCount;                         // Количество зон
-    uint8_t zoneOrder[MAX_ZONES_PER_PROGRAM];  // Порядок прохождения зон
-    bool repeatEnabled;                        // Повтор программы
-    uint8_t repeatCount;                       // Количество повторений (0 = бесконечно)
-    uint8_t currentRepeat;                     // Текущее повторение
-    uint32_t totalRuntime;                     // Общее время выполнения (мс)
-} ProgramSettings;
+struct ProgramConfig {
+  char     name[12];                   // короткое имя (ASCII/CP1251 не принципиально)
+  uint8_t  zone_count;                 // активное количество зон (1..10)
+  uint8_t  order[MAX_ZONES];           // порядок индексов зон (0..zone_count-1)
+  ZoneConfig zones[MAX_ZONES];
+};
 
 /**
- * @brief Калибровочные параметры системы
+ * @brief Общие настройки системы, отдельно от программы.
  */
-typedef struct
-{
-    int32_t homePosition;        // Начальная позиция (мм)
-    int32_t maxHorizontalTravel; // Максимальное горизонтальное перемещение (мм)
-    int32_t maxVerticalTravel;   // Максимальное вертикальное перемещение (мм)
-    uint8_t tiltSpeed;           // Скорость наклона (%)
-    uint8_t levelingSpeed;       // Скорость выравнивания (%)
-    uint16_t accelerationTime;   // Время разгона (мс)
-    uint16_t decelerationTime;   // Время торможения (мс)
-    int16_t safetyMargin;        // Запас безопасности (мм)
-    bool manualOverrideAllowed;  // Разрешение ручного управления
-    uint8_t displayContrast;     // Контраст дисплея (0-255)
-    uint16_t sensorFilterTime;   // Время фильтрации датчиков (мс)
-} SystemCalibration;
+struct GlobalSettings {
+  int32_t  home_x_mm[TELFER_COUNT];     // HOME позиция (по лазерам)
+  int32_t  travel_us_mm[TELFER_COUNT];  // транспортная "безопасная" высота по УЗ (mm)
+  int16_t  h_tol_mm;                   // допуск горизонтали
+  int16_t  v_tol_mm;                   // допуск вертикали
+  uint16_t drip_wait_s;                // пауза стекания (сек) - можно использовать как step_wait
+  uint8_t  h_speed_pct;                // скорость горизонтали (по умолчанию)
+  uint8_t  v_speed_pct;                // скорость вертикали (по умолчанию)
+  uint8_t  v_tilt_speed_pct;           // скорость наклонного шага
+  bool     manual_h_sync_default;      // по умолчанию: горизонталь синхронизирована в ручном режиме?
+  bool     reserved[3];                // выравнивание/резерв
+};
 
-/**
- * @brief Состояние системы
- */
-typedef struct
-{
-    int32_t telfer1Pos;       // Позиция тельфера 1 (мм)
-    int32_t telfer2Pos;       // Позиция тельфера 2 (мм)
-    int32_t cargoHeight1;     // Высота груза 1 (мм)
-    int32_t cargoHeight2;     // Высота груза 2 (мм)
-    int32_t avgHorizontalPos; // Средняя горизонтальная позиция
-    int32_t avgHeight;        // Средняя высота
-    int32_t tiltDifference;   // Разница высот (для наклона)
-    uint32_t uptime;          // Время работы системы (мс)
-    float batteryVoltage;     // Напряжение питания (В)
-    int8_t temperature;       // Температура (°C)
-    bool sensorsValid;        // Данные датчиков валидны
-    bool motorsEnabled;       // Двигатели включены
-    bool emergencyActive;     // Аварийная остановка активна
-} SystemStatus;
+// ----------------------------- Ошибки --------------------------------------
 
-/**
- * @brief Флаги состояния системы
- */
-typedef struct
-{
-    bool isPaused;           // Программа на паузе
-    bool isEmergency;        // Аварийный режим
-    bool systemInitialized;  // Система инициализирована
-    bool displayInitialized; // Дисплей инициализирован
-    bool motorsEnabled;      // Двигатели разрешены
-    bool sensorsActive;      // Датчики активны
-    bool programRunning;     // Программа выполняется
-    bool manualMode;         // Ручной режим
-    bool errorAutoReset;     // Атоматический сброс ошибок
-} SystemFlags;
-
-/**
- * @brief Типы ошибок системы
- */
-typedef enum
-{
-    ERROR_NONE = 0,           // Нет ошибок
-    ERROR_SENSOR_LASER1,      // Ошибка лазерного датчика 1
-    ERROR_SENSOR_LASER2,      // Ошибка лазерного датчика 2
-    ERROR_SENSOR_US1,         // Ошибка УЗ датчика 1
-    ERROR_SENSOR_US2,         // Ошибка УЗ датчика 2
-    ERROR_MOTOR_H1,           // Ошибка горизонтального двигателя 1
-    ERROR_MOTOR_H2,           // Ошибка горизонтального двигателя 2
-    ERROR_MOTOR_V1,           // Ошибка вертикального двигателя 1
-    ERROR_MOTOR_V2,           // Ошибка вертикального двигателя 2
-    ERROR_RS485_COMM,         // Ошибка связи RS-485
-    ERROR_OVERLOAD,           // Перегрузка
-    ERROR_LIMIT_SWITCH,       // Концевой выключатель
-    ERROR_POSITION_DEVIATION, // Отклонение позиции
-    ERROR_EMERGENCY_STOP,     // Аварийная остановка
-    ERROR_MEMORY,             // Ошибка памяти
-    ERROR_DISPLAY,            // Ошибка дисплея
-    ERROR_COUNT               // Количество ошибок
-} ErrorType;
-
-/**
- * @brief Данные системы
- */
-typedef struct
-{
-    uint8_t currentZone;    // Текущая зона
-    uint8_t currentProgram; // Текущая программа
-    uint8_t programCount;   // Количество программ
-    uint8_t menuIndex;      // Индекс в меню
-    uint8_t menuScroll;     // Смещение прокрутки меню
-    ErrorType activeError;    // Активная ошибка
-    char errorMessage[32];  // Сообщение об ошибке
-} SystemData;
-
-/**
- * @brief Временные метки системы
- */
-typedef struct
-{
-    uint32_t startupTime;       // Время запуска системы
-    uint32_t stateStartTime;    // Время начала текущего состояния
-    uint32_t dipStartTime;      // Время начала погружения
-    uint32_t pauseStartTime;    // Время начала паузы
-    uint32_t errorTime;         // Время возникновения ошибки
-    uint32_t lastSensorUpdate;  // Последнее обновление датчиков
-    uint32_t lastDisplayUpdate; // Последнее обновление дисплея
-    uint32_t lastEncoderCheck;  // Последняя проверка энкодера
-    uint32_t lastMotorCommand;  // Последняя команда двигателям
-    uint32_t lastSafetyCheck;   // Последняя проверка безопасности
-} SystemTiming;
-
-// ========== ПЕРЕЧИСЛЕНИЯ ==========
-
-/**
- * @brief Состояния системы
- */
-typedef enum
-{
-    STATE_BOOT,              // Загрузка системы
-    STATE_IDLE,              // Ожидание (главный экран)
-    STATE_MENU_NAVIGATION,   // Навигация по меню
-    STATE_PROGRAM_SELECTION, // Выбор программы
-    STATE_PROGRAM_EDIT,      // Редактирование программы
-    STATE_ZONE_EDIT,         // Редактирование зоны
-    STATE_AUTO_RUNNING,      // Автоматическое выполнение
-    STATE_MANUAL_CONTROL,    // Ручное управление
-    STATE_CALIBRATION,       // Калибровка
-    STATE_SETTINGS,          // Настройки системы
-    STATE_MONITOR,           // Мониторинг системы
-    STATE_DIAGNOSTICS,       // Диагностика
-    STATE_ERROR,             // Ошибка системы
-    STATE_EMERGENCY,         // Аварийная остановка
-    STATE_COUNT              // Количество состояний
-} SystemState;
-
-
-/**
- * @brief Уровни меню
- */
-typedef enum
-{
-    MENU_MAIN,        // Главное меню
-    MENU_AUTO_MODE,   // Автоматический режим
-    MENU_MANUAL_MODE, // Ручной режим
-    MENU_PROGRAMS,    // Программы
-    MENU_CALIBRATION, // Калибровка
-    MENU_SETTINGS,    // Настройки
-    MENU_INFO,        // Информация
-    MENU_DIAGNOSTICS, // Диагностика
-    MENU_LEVEL_COUNT  // Количество уровней меню
-} MenuLevel;
-
-/**
- * @brief Типы двигателей
- */
-typedef enum
-{
-    MOTOR_HORIZONTAL_LEFT,  // Горизонтальный левый
-    MOTOR_HORIZONTAL_RIGHT, // Горизонтальный правый
-    MOTOR_VERTICAL_LEFT,    // Вертикальный левый
-    MOTOR_VERTICAL_RIGHT,   // Вертикальный правый
-    MOTOR_COUNT             // Количество двигателей
-} MotorType;
-
-/**
- * @brief Направления движения
- */
-typedef enum
-{
-    DIRECTION_FORWARD,  // Вперед/Вверх
-    DIRECTION_BACKWARD, // Назад/Вниз
-    DIRECTION_STOP      // Стоп
-} Direction;
-
-// ========== ПРОТОТИПЫ ФУНКЦИЙ ==========
-
-// Инициализация
-void initPins(void);
-bool initDisplay(void *display);
-void initSensors(void);
-void initMotors(void);
-void initUI(void);
-bool performSelfTest(void);
-
-// Обработка ошибок
-void setError(ErrorType error, const char *message);
-void clearError(void);
-bool hasError(void);
-const char *getErrorMessage(ErrorType error);
-
-// Безопасность
-void emergencyStop(void);
-bool resetEmergency(void);
-bool checkSafetyLimits(const SystemStatus *status, const SystemCalibration *cal);
-
-// Утилиты
-void beep(uint16_t frequency, uint16_t duration);
-void beepSequence(uint8_t count, uint16_t frequency, uint16_t duration);
-int32_t constrainValue(int32_t value, int32_t minVal, int32_t maxVal);
-float constrainValueF(float value, float minVal, float maxVal);
-int32_t mapValue(int32_t value, int32_t fromMin, int32_t fromMax, int32_t toMin, int32_t toMax);
-
-/**
- * @brief Результат диагностического теста
- */
-typedef struct {
-    uint8_t testId;        // ID теста
-    bool passed;           // Результат (успех/неудача)
-    char message[32];      // Сообщение
-    uint32_t diagnosticsTime;    // Время проведения теста
-} DiagnosticsResult;
-
-
-// /**
-//  * @brief Настройки пользователя
-//  */
-// typedef struct {
-//     uint8_t displayContrast;    // Контраст дисплея (0-255)
-//     bool soundEnabled;          // Звуковые сигналы
-//     uint8_t language;           // Язык интерфейса
-//     bool autoStart;             // Автозапуск программы
-//     uint16_t screenTimeout;     // Таймаут экрана (мс)
-//     uint8_t brightness;         // Яркость подсветки
-// } UserSettings;
-
-// 1 = при опускании измеряемое расстояние УЗ уменьшается (частый случай)
-#define US_DISTANCE_DECREASES_WHEN_LOWERING  1
-
-static inline void computeTiltTargets(int32_t baseMm, int32_t &v1Target, int32_t &v2Target)
-{
-#if TILT_LOW_SIDE_IS_V2
-    // V2 ниже => V2 цель "глубже" (или "ниже") на TILT_DIFF_MM
-    v2Target = baseMm;
-    v1Target = baseMm + TILT_DIFF_MM;
-#else
-    // V1 ниже
-    v1Target = baseMm;
-    v2Target = baseMm + TILT_DIFF_MM;
-#endif
-}
-
-
-// Отладка
-#ifdef DEBUG_MODE
-void debugPrint(const char *format, ...);
-void debugPrintSystemStatus(void);
-#else
-#define debugPrint(...)
-#define debugPrintSystemStatus()
-#endif
-
-#endif // CONFIG_H
+enum class ErrorCode : uint8_t {
+  NONE = 0,
+  ESTOP,
+  LIMIT_SWITCH,
+  MODBUS_COMM,
+  LASER1,
+  LASER2,
+  US1,
+  US2,
+  DRIVE_FAULT,
+};
