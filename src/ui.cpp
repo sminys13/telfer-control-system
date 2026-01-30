@@ -9,6 +9,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <Encoder.h>
+#include <avr/pgmspace.h>
 
 // Используем "_1_" буфер (экономия RAM).
 static U8G2_ST7565_ERC12864_1_4W_HW_SPI u8g2(U8G2_R0, PIN_LCD_CS, PIN_LCD_DC, PIN_LCD_RST);
@@ -17,65 +18,83 @@ static Encoder enc(PIN_ENC_CLK, PIN_ENC_DT);
 static constexpr uint16_t LONG_PRESS_MS = 1200;
 static constexpr uint8_t  MENU_VISIBLE = 4;
 
-// ---- Меню ----
-static const __FlashStringHelper* const MENU_MAIN[] = {
-  F("<-назад"),
-  F("Авто"),
-  F("Ручной режим"),
-  F("Программы"),
-  F("Калибровка"),
-  F("Настройки"),
-  F("Сервис"),
+// ---- Меню (строки в PROGMEM, чтобы не жрать RAM) ----
+// ВАЖНО: нельзя использовать F("...") в глобальных инициализаторах массивов
+// (это даёт ошибки компиляции на AVR). Поэтому строки кладём в PROGMEM явно.
+
+// MAIN
+static const char S_BACK[] PROGMEM = "<-назад";
+static const char S_AUTO[] PROGMEM = "Авто";
+static const char S_MANUAL[] PROGMEM = "Ручной режим";
+static const char S_PROGS[] PROGMEM = "Программы";
+static const char S_CAL[] PROGMEM = "Калибровка";
+static const char S_SET[] PROGMEM = "Настройки";
+static const char S_SRV[] PROGMEM = "Сервис";
+static const char* const MENU_MAIN[] PROGMEM = {
+  S_BACK, S_AUTO, S_MANUAL, S_PROGS, S_CAL, S_SET, S_SRV
 };
 
-static const __FlashStringHelper* const MENU_AUTO[] = {
-  F("<-назад"),
-  F("Старт"),
-  F("Пауза/Прод"),
-  F("Стоп"),
-  F("Домой"),
+// AUTO
+static const char S_START[] PROGMEM = "Старт";
+static const char S_PAUSE[] PROGMEM = "Пауза/Прод";
+static const char S_STOP[] PROGMEM = "Стоп";
+static const char S_HOME[] PROGMEM = "Домой";
+static const char* const MENU_AUTO[] PROGMEM = {
+  S_BACK, S_START, S_PAUSE, S_STOP, S_HOME
 };
 
-static const __FlashStringHelper* const MENU_PROG[] = {
-  F("<-назад"),
-  F("Слот (выбор)"),
-  F("Загрузить слот"),
-  F("Сохранить в слот"),
-  F("Копировать активный"),
-  F("Кол-во зон"),
-  F("Порядок: шаг"),
-  F("Порядок: зона"),
+// PROGRAMS
+static const char S_SLOT_SEL[] PROGMEM = "Слот (выбор)";
+static const char S_SLOT_LOAD[] PROGMEM = "Загрузить слот";
+static const char S_SLOT_SAVE[] PROGMEM = "Сохранить в слот";
+static const char S_SLOT_COPY[] PROGMEM = "Копировать активный";
+static const char S_ZONE_COUNT[] PROGMEM = "Кол-во зон";
+static const char S_ORDER_STEP[] PROGMEM = "Порядок: шаг";
+static const char S_ORDER_ZONE[] PROGMEM = "Порядок: зона";
+static const char* const MENU_PROG[] PROGMEM = {
+  S_BACK, S_SLOT_SEL, S_SLOT_LOAD, S_SLOT_SAVE, S_SLOT_COPY, S_ZONE_COUNT, S_ORDER_STEP, S_ORDER_ZONE
 };
 
-static const __FlashStringHelper* const MENU_CAL[] = {
-  F("<-назад"),
-  F("Зона (выбор)"),
-  F("Зона вкл/выкл"),
-  F("Сохранить X (лазер)"),
-  F("Сохранить высоту (УЗ)"),
-  F("Время погруж. (сек)"),
-  F("Шаг наклона (мм)"),
-  F("Пауза ступень (сек)"),
-  F("Сохранить HOME X"),
-  F("Сохранить TRAVEL"),
+// CALIBRATION
+static const char S_ZONE_SEL[] PROGMEM = "Зона (выбор)";
+static const char S_ZONE_ONOFF[] PROGMEM = "Зона вкл/выкл";
+static const char S_CAP_X[] PROGMEM = "Сохранить X (лазер)";
+static const char S_CAP_H[] PROGMEM = "Сохранить высоту (УЗ)";
+static const char S_DIP_TIME[] PROGMEM = "Время погруж. (сек)";
+static const char S_TILT_STEP[] PROGMEM = "Шаг наклона (мм)";
+static const char S_STEP_WAIT[] PROGMEM = "Пауза ступень (сек)";
+static const char S_CAP_HOME[] PROGMEM = "Сохранить HOME X";
+static const char S_CAP_TRAVEL[] PROGMEM = "Сохранить TRAVEL";
+static const char* const MENU_CAL[] PROGMEM = {
+  S_BACK, S_ZONE_SEL, S_ZONE_ONOFF, S_CAP_X, S_CAP_H, S_DIP_TIME, S_TILT_STEP, S_STEP_WAIT, S_CAP_HOME, S_CAP_TRAVEL
 };
 
-static const __FlashStringHelper* const MENU_SET[] = {
-  F("<-назад"),
-  F("H допуск (мм)"),
-  F("V допуск (мм)"),
-  F("H скорость (%)"),
-  F("V скорость (%)"),
-  F("Tilt скорость (%)"),
-  F("Drip wait (сек)"),
-  F("Ручн H-sync"),
+// SETTINGS
+static const char S_H_TOL[] PROGMEM = "H допуск (мм)";
+static const char S_V_TOL[] PROGMEM = "V допуск (мм)";
+static const char S_H_SPD[] PROGMEM = "H скорость (%)";
+static const char S_V_SPD[] PROGMEM = "V скорость (%)";
+static const char S_TILT_SPD[] PROGMEM = "Tilt скорость (%)";
+static const char S_DRIP[] PROGMEM = "Drip wait (сек)";
+static const char S_HSYNC[] PROGMEM = "Ручн H-sync";
+static const char* const MENU_SET[] PROGMEM = {
+  S_BACK, S_H_TOL, S_V_TOL, S_H_SPD, S_V_SPD, S_TILT_SPD, S_DRIP, S_HSYNC
 };
 
-static const __FlashStringHelper* const MENU_SRV[] = {
-  F("<-назад"),
-  F("Сброс к заводским"),
-  F("Сохранить все"),
+// SERVICE
+static const char S_FACTORY[] PROGMEM = "Сброс к заводским";
+static const char S_SAVE_ALL[] PROGMEM = "Сохранить все";
+static const char* const MENU_SRV[] PROGMEM = {
+  S_BACK, S_FACTORY, S_SAVE_ALL
 };
+
+static void readMenuItem(const char* const* menuPgm, uint8_t idx, char* out, size_t outSize) {
+  // menuPgm находится в PROGMEM → читаем указатель через pgm_read_ptr
+  const char* p = (const char*)pgm_read_ptr(&menuPgm[idx]);
+  if (!p) { out[0] = 0; return; }
+  strncpy_P(out, (PGM_P)p, outSize - 1);
+  out[outSize - 1] = 0;
+}
 
 bool UI::readBtn(uint8_t pin) const {
   return readActiveLow(pin, BUTTON_ACTIVE_LOW);
@@ -166,10 +185,12 @@ static const __FlashStringHelper* errToText(ErrorCode e) {
     case ErrorCode::ESTOP: return F("E-STOP!");
     case ErrorCode::LIMIT_SWITCH: return F("КОНЦЕВИК!");
     case ErrorCode::MODBUS_COMM: return F("RS485/Modbus");
-    case ErrorCode::LASER1: return F("Лазер1");
-    case ErrorCode::LASER2: return F("Лазер2");
-    case ErrorCode::US1: return F("УЗ1");
-    case ErrorCode::US2: return F("УЗ2");
+    case ErrorCode::LASER1_FAIL: return F("Лазер1");
+    case ErrorCode::LASER2_FAIL: return F("Лазер2");
+    case ErrorCode::US1_FAIL: return F("УЗ1");
+    case ErrorCode::US2_FAIL: return F("УЗ2");
+    case ErrorCode::SENSOR_TIMEOUT: return F("Сенсоры тайм");
+    case ErrorCode::INVALID_PROGRAM: return F("Программа");
     case ErrorCode::DRIVE_FAULT: return F("Ошибка ПЧ");
     default: return F("ERR");
   }
@@ -215,7 +236,7 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
 }
 
 void UI::drawMenu(const __FlashStringHelper* title,
-                  const __FlashStringHelper* const* items,
+                  const char* const* itemsPgm,
                   uint8_t itemCount,
                   const char* footerLine1,
                   const char* footerLine2) {
@@ -236,8 +257,10 @@ void UI::drawMenu(const __FlashStringHelper* title,
       if (selected) { u8g2.drawBox(0, y-10, 128, 12); u8g2.setDrawColor(0); }
       else { u8g2.setDrawColor(1); }
 
+      char lineBuf[48];
+      readMenuItem(itemsPgm, idx, lineBuf, sizeof(lineBuf));
       u8g2.setCursor(2, y);
-      u8g2.print(items[idx]);
+      u8g2.print(lineBuf);
 
       u8g2.setDrawColor(1);
     }

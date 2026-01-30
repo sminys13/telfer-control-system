@@ -112,7 +112,7 @@ private:
 
   void drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st);
   void drawMenu(const __FlashStringHelper* title,
-                const __FlashStringHelper* const* items,
+                const char* const* itemsPgm,
                 uint8_t itemCount,
                 const char* footerLine1 = nullptr,
                 const char* footerLine2 = nullptr);
