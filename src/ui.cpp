@@ -102,6 +102,11 @@ bool UI::readBtn(uint8_t pin) const {
 
 void UI::begin() {
   // Пины
+  // ВАЖНО: многие энкодер-модули EC11 имеют лишь «сухие» контакты (S1/S2 замыкают на GND).
+  // Поэтому для стабильной работы ОБЯЗАТЕЛЬНО включаем подтяжку вверх.
+  // (Если на модуле уже стоят внешние подтяжки — это не мешает: получится параллельная подтяжка.)
+  pinMode(PIN_ENC_CLK, INPUT_PULLUP);
+  pinMode(PIN_ENC_DT,  INPUT_PULLUP);
   pinMode(PIN_ENC_SW, INPUT_PULLUP);
 
   pinMode(PIN_BTN_STOP, INPUT_PULLUP);
@@ -131,6 +136,7 @@ void UI::begin() {
   u8g2.begin();
   u8g2.setFont(u8g2_font_6x13_t_cyrillic);
   u8g2.setFontMode(1);
+  u8g2.setContrast(10);
 
   // Очистка мусора после прошивки
   for (uint8_t i=0;i<2;i++) {
