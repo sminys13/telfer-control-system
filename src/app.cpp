@@ -98,10 +98,12 @@ void App::setup() {
   _storage.loadSettings(_rt.settings);
   _storage.loadActiveProgram(_rt.program);
 
-  // Настройка RS485/Modbus и приводов
-  // Параметры RS485/Modbus должны совпадать с настройками ПЧ (группа Fd.xx).
-  // Заводская настройка NE200/300: 9600 бод, even parity (Fd.03=0).
-  _mb.begin(Serial1, PIN_RS485_DE_RE, BAUD_RS485, 120, SERIAL_8E1);
+  // Настройка RS485/Modbus и приводов.
+  // Параметры должны совпадать с настройками ПЧ (группа Fd.xx):
+  //   - адрес (например 1..4),
+  //   - скорость (Fd.02),
+  //   - формат (Fd.03) → в config.h это RS485_SERIAL_CONFIG.
+  _mb.begin(Serial1, PIN_RS485_DE_RE, BAUD_RS485, RS485_TIMEOUT_MS, RS485_SERIAL_CONFIG);
   _drives.begin(_mb);
 
   stopAll();

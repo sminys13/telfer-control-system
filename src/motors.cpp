@@ -21,8 +21,11 @@ void Drives::begin(ModbusMasterRTU& mb) {
 
   for (uint8_t i=0;i<idx(DriveId::COUNT);i++) {
     _st[i] = DriveState{};
-    _tel[i] = DriveTelemetry{0,0,false};
+    _tel[i] = DriveTelemetry{0,0,false,0,0};
   }
+
+  _rrSend = 0;
+  _rrPoll = 0;
 }
 
 void Drives::setSpeed(DriveId id, int16_t speedPct) {
@@ -80,7 +83,7 @@ void Drives::sendCommand(DriveId id, int16_t pct) {
   _st[idx(id)].needStopCmd = false;
 }
 
-void Drives::pollTelemetry(DriveId id) {
+void Drives::pollTelemetry(DriveId id, uint32_t nowMs) {
   if (!_mb) return;
   DriveMap m = _map[idx(id)];
   uint16_t regs[2] = {0,0};
@@ -89,33 +92,57 @@ void Drives::pollTelemetry(DriveId id) {
     _tel[idx(id)].statusReg = regs[0];
     _tel[idx(id)].faultCode = regs[1];
     _tel[idx(id)].connected = true;
+    _tel[idx(id)].lastErr = 0;
+    _tel[idx(id)].lastOkMs = nowMs;
   } else {
     _tel[idx(id)].connected = false;
+    _tel[idx(id)].lastErr = r.error;
   }
 }
 
 void Drives::tick(uint32_t nowMs) {
   if (!_mb) return;
 
+  // Если давно не было успешного ответа — считаем привод офлайн.
   for (uint8_t i=0;i<idx(DriveId::COUNT);i++) {
+    if (_tel[i].connected && (uint32_t)(nowMs - _tel[i].lastOkMs) > 2000) {
+      _tel[i].connected = false;
+    }
+  }
+
+  // 1) Отправка команд: максимум ОДИН привод за тик.
+  // Если привод не на связи, не "долбим" его каждой итерацией — пробуем не чаще 1 раза/сек.
+  for (uint8_t k=0;k<idx(DriveId::COUNT);k++) {
+    const uint8_t i = (uint8_t)((_rrSend + k) % idx(DriveId::COUNT));
     DriveId id = (DriveId)i;
     auto& st = _st[i];
+    const bool online = _tel[i].connected;
+    const uint16_t minGap = online ? MOTORS_TICK_MS : 1000;
+    if ((uint32_t)(nowMs - st.lastSend) < (uint32_t)minGap) continue;
 
-    // отправляем команды не чаще MOTORS_TICK_MS
-    if ((uint32_t)(nowMs - st.lastSend) >= MOTORS_TICK_MS) {
-      if (st.needStopCmd) {
-        sendCommand(id, 0);
-        st.lastSend = nowMs;
-      } else if (st.targetPct != st.sentPct) {
-        sendCommand(id, st.targetPct);
-        st.lastSend = nowMs;
-      }
+    if (st.needStopCmd) {
+      sendCommand(id, 0);
+      st.lastSend = nowMs;
+      _rrSend = (uint8_t)((i + 1) % idx(DriveId::COUNT));
+      break;
     }
+    if (st.targetPct != st.sentPct) {
+      sendCommand(id, st.targetPct);
+      st.lastSend = nowMs;
+      _rrSend = (uint8_t)((i + 1) % idx(DriveId::COUNT));
+      break;
+    }
+  }
 
-    // телеметрию читаем реже (пример: 500 мс)
+  // 2) Телеметрия: максимум ОДИН привод за тик.
+  // Это защищает UI/датчики от "зависания" при отсутствии Modbus.
+  {
+    const uint8_t i = _rrPoll;
+    auto& st = _st[i];
     if ((uint32_t)(nowMs - st.lastPoll) >= 500) {
-      pollTelemetry(id);
+      pollTelemetry((DriveId)i, nowMs);
       st.lastPoll = nowMs;
+      _rrPoll = (uint8_t)((i + 1) % idx(DriveId::COUNT));
     }
   }
 }

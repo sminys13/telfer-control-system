@@ -237,6 +237,14 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     u8g2.print(F("ERR: "));
     u8g2.print(errToText(st.error));
 
+#if USE_KEYPAD
+    // Для быстрой диагностики: видит ли прошивка нажатия.
+    u8g2.print(F(" KP:"));
+    u8g2.print(_kpLastKeyDbg ? _kpLastKeyDbg : '-');
+    u8g2.print(F(" M:"));
+    u8g2.print(_kpMaskDbg, HEX);
+#endif
+
     u8g2.setCursor(0, 40);
     u8g2.print(F("X1="));
     if (sensors.laser[0].valid) { i32toa(sensors.laser[0].mm, b1, sizeof(b1)); u8g2.print(b1); }
@@ -655,6 +663,17 @@ void UI::tick(uint32_t nowMs,
   _kp.tick(nowMs);
   // Одно событие "нажатия" (edge). Для меню нам обычно достаточно одного ключа.
   const char key = _kp.popKey();
+
+  // Debug: маска и последняя клавиша.
+  _kpMaskDbg = _kp.stableMask();
+  if (key != 0) {
+    _kpLastKeyDbg = key;
+    _kpLastKeyMs = nowMs;
+  }
+  // "Стираем" показ последней клавиши спустя 2 секунды, чтобы было видно свежие события.
+  if (_kpLastKeyDbg != 0 && (uint32_t)(nowMs - _kpLastKeyMs) > 2000) {
+    _kpLastKeyDbg = 0;
+  }
 #else
   const char key = 0;
 #endif

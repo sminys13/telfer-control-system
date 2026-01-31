@@ -54,10 +54,25 @@ ModbusResult ModbusMasterRTU::sendRequest(const uint8_t* req, uint8_t reqLen, ui
   _ser->flush();
   txEnable(false);
 
+  // --- IMPORTANT ---
+  // В предыдущих сборках был критический баг:
+  // мы читали "до таймаута" даже если ответ уже пришёл.
+  // На 4 ПЧ это превращало интерфейс в "не реагирует".
+  //
+  // Теперь делаем так:
+  //  - ждём байты до общего timeout,
+  //  - как только набрали expectedMinLen, выходим после короткой паузы без новых байт.
   const uint32_t t0 = millis();
+  uint32_t lastByteMs = t0;
   while ((millis() - t0) < _timeoutMs && respLen < respMax) {
     if (_ser->available()) {
       resp[respLen++] = (uint8_t)_ser->read();
+      lastByteMs = millis();
+      continue;
+    }
+    // Если уже получили минимум кадра и новых байт нет несколько миллисекунд — считаем кадр завершённым.
+    if (respLen >= expectedMinLen && (millis() - lastByteMs) >= 3) {
+      break;
     }
   }
 

@@ -27,10 +27,10 @@ class ModbusMasterRTU {
 public:
   ModbusMasterRTU();
 
-  // serialConfig: SERIAL_8E1 / SERIAL_8N1 и т.п. (см. Fd.03 в мануале ПЧ).
-  // По умолчанию SERIAL_8E1 (even parity) — типичная заводская настройка для NE200/300.
+  // serialConfig: SERIAL_8N1 / SERIAL_8E1 и т.п. (см. Fd.03 в мануале ПЧ).
+  // По умолчанию SERIAL_8N1, потому что в ваших ПЧ сейчас выставлено "1-8-N-1".
   void begin(HardwareSerial& serial, uint8_t deRePin, uint32_t baud,
-            uint16_t timeoutMs = 120, uint16_t serialConfig = SERIAL_8E1);
+            uint16_t timeoutMs = 120, uint16_t serialConfig = SERIAL_8N1);
 
   ModbusResult writeSingleRegister(uint8_t addr, uint16_t reg, uint16_t value);
   ModbusResult readHoldingRegisters(uint8_t addr, uint16_t reg, uint16_t count, uint16_t* outValues);

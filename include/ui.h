@@ -115,6 +115,11 @@ private:
 
 #if USE_KEYPAD
   Keypad4x4 _kp;
+
+  // Отладка клавиатуры: показываем на STATUS последнюю клавишу и маску.
+  char _kpLastKeyDbg = 0;
+  uint16_t _kpMaskDbg = 0;
+  uint32_t _kpLastKeyMs = 0;
 #endif
 
   // временные значения

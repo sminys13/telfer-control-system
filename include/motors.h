@@ -28,6 +28,8 @@ struct DriveTelemetry {
   uint16_t statusReg;  // 0x0020
   uint16_t faultCode;  // 0x0021
   bool connected;
+  uint8_t lastErr;     // 0=ok, 1=timeout, 2=crc, 3=exception, 4=bad_response
+  uint32_t lastOkMs;   // когда последний раз получили валидный ответ
 };
 
 class Drives {
@@ -57,6 +59,10 @@ public:
 private:
   ModbusMasterRTU* _mb = nullptr;
 
+  // Round-robin индексы, чтобы не блокировать loop кучей Modbus-запросов подряд.
+  uint8_t _rrSend = 0;
+  uint8_t _rrPoll = 0;
+
   struct DriveState {
     int16_t targetPct = 0;
     int16_t sentPct   = 0;
@@ -70,7 +76,11 @@ private:
 
   DriveMap _map[(uint8_t)DriveId::COUNT];
 
+  // Круговые индексы, чтобы НЕ блокировать UI, опрашивая все 4 ПЧ в одном loop().
+  uint8_t _rrPoll = 0;
+  uint8_t _rrSend = 0;
+
   void sendCommand(DriveId id, int16_t pct);
-  void pollTelemetry(DriveId id);
+  void pollTelemetry(DriveId id, uint32_t nowMs);
 };
 
