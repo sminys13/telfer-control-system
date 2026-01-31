@@ -52,12 +52,7 @@ public:
 
 private:
   // порядок: row-major (R1..R4, C1..C4)
-  static constexpr char MAP[4][4] = {
-    {'1','2','3','A'},
-    {'4','5','6','B'},
-    {'7','8','9','C'},
-    {'*','0','#','D'}
-  };
+  static const char MAP[4][4] PROGMEM;
 
   uint16_t scanRawMask() const;
   static char maskBitToChar(uint8_t bit);

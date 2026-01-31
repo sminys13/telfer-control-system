@@ -1,6 +1,15 @@
 #include "keypad.h"
 
-// Раскладка хранится в классе (Keypad4x4::MAP).
+// Key mapping stored in flash (PROGMEM) to keep RAM usage minimal.
+const char Keypad4x4::MAP[4][4] PROGMEM = {
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
+};
+
+
+// Key mapping is defined below as Keypad4x4::MAP (PROGMEM).
 
 // Пины rows/cols берём из config.h
 static const uint8_t KP_COLS[4] = { PIN_KP_C1, PIN_KP_C2, PIN_KP_C3, PIN_KP_C4 };
@@ -56,7 +65,7 @@ char Keypad4x4::maskBitToChar(uint8_t bit) {
   uint8_t row = bit / 4;
   uint8_t col = bit % 4;
   if (row >= 4 || col >= 4) return 0;
-  return MAP[row][col];
+  return (char)pgm_read_byte(&MAP[row][col]);
 }
 
 void Keypad4x4::tick(uint32_t nowMs) {
@@ -98,7 +107,7 @@ bool Keypad4x4::isDown(char key) const {
   // Проходим по карте и ищем соответствие.
   for (uint8_t r=0;r<4;r++) {
     for (uint8_t c=0;c<4;c++) {
-      if (MAP[r][c] == key) {
+      if ((char)pgm_read_byte(&MAP[r][c]) == key) {
         uint8_t b = bitIndex(r,c);
         return (_stableMask & (1u << b)) != 0;
       }
