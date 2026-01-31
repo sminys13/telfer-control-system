@@ -136,7 +136,6 @@ void UI::begin() {
   u8g2.begin();
   u8g2.setFont(u8g2_font_6x13_t_cyrillic);
   u8g2.setFontMode(1);
-  u8g2.setContrast(10);
 
   // Очистка мусора после прошивки
   for (uint8_t i=0;i<2;i++) {
@@ -145,7 +144,7 @@ void UI::begin() {
     delay(20);
   }
 
-  _encLast = enc.read() / 4;
+  _encLast = enc.read() / ENCODER_DIV;
   _encBtnLast = readBtn(PIN_ENC_SW);
   _screen = Screen::STATUS;
   _sel = 0; _scroll = 0; _editing = false;
@@ -631,9 +630,17 @@ void UI::tick(uint32_t nowMs,
   }
 
   // --- Энкодер ---
-  long det = enc.read() / 4;
-  int8_t encDelta = (int8_t)(det - _encLast);
+  // Encoder-библиотека может давать "шум"/скачки если входы висят в воздухе.
+  // Поэтому:
+  //  1) делим на ENCODER_DIV (под разные модули)
+  //  2) считаем дельту в long
+  //  3) жёстко ограничиваем шаг за тик (чтобы не улетать в меню от одного глитча)
+  long det = enc.read() / ENCODER_DIV;
+  long d = det - _encLast;
   _encLast = det;
+  if (d > 4) d = 4;
+  if (d < -4) d = -4;
+  int8_t encDelta = (int8_t)d;
 
   bool encPressed = readBtn(PIN_ENC_SW);
   bool click = false, longPress = false;

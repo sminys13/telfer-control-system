@@ -34,8 +34,11 @@ static constexpr uint8_t TELFER_COUNT = 2;
 static constexpr uint8_t MAX_ZONES    = 10;
 static constexpr uint8_t PROGRAM_SLOTS = 4;     // количество слотов программ в EEPROM
 
-// Интервалы (мс) — подобраны под "быстро и стабильно"
-static constexpr uint16_t UI_TICK_MS       = 50;
+// Интервалы (мс)
+// UI опрашивает энкодер и рисует дисплей. Для механического EC11 50 мс часто слишком редко
+// (при повороте импульсы теряются и кажется, что "не листает").
+// Для макетки/стола рекомендуем 10..20 мс.
+static constexpr uint16_t UI_TICK_MS       = 10;
 static constexpr uint16_t SENSORS_TICK_MS  = 100;
 static constexpr uint16_t SAFETY_TICK_MS   = 50;
 static constexpr uint16_t MOTORS_TICK_MS   = 50;
@@ -51,10 +54,22 @@ static constexpr uint8_t PIN_ENC_CLK  = 3;
 static constexpr uint8_t PIN_ENC_DT   = 4;
 static constexpr uint8_t PIN_ENC_SW   = 5;
 
+// У разных EC11/KY-040 модулей количество "тиков" Encoder-библиотеки на один щелчок бывает разным
+// (обычно 4, но встречается 2 и даже 1). Если меню "не листает" или листает слишком медленно —
+// попробуй ENCODER_DIV=2 или ENCODER_DIV=1.
+static constexpr uint8_t ENCODER_DIV  = 4;
+
+// ----------------------------- Режим макетки (стол) ------------------------
+// В реальной машине E-STOP и концевики рекомендуется делать NC (разрыв = авария).
+// На столе часто стоят NO-кнопки или входы вообще не подключены.
+// BENCH_MODE=true включает "удобную" логику: активное состояние = LOW.
+// Перед монтажом в шкаф ОБЯЗАТЕЛЬНО поставь BENCH_MODE=false.
+static constexpr bool BENCH_MODE = true;
+
 // ----------------------------- Safety --------------------------------------
 // Рекомендуется NC на GND + INPUT_PULLUP (обрыв = авария)
 static constexpr uint8_t PIN_ESTOP    = 2;
-static constexpr bool    ESTOP_ACTIVE_LOW = false;
+static constexpr bool    ESTOP_ACTIVE_LOW = BENCH_MODE ? true : false;
 static constexpr bool    ENABLE_ESTOP = true;
 
 // Концевики горизонтали (NC). Если не подключены — можно временно отключить в коде.
@@ -62,7 +77,7 @@ static constexpr uint8_t PIN_LIM_H1_LEFT  = 36;
 static constexpr uint8_t PIN_LIM_H1_RIGHT = 37;
 static constexpr uint8_t PIN_LIM_H2_LEFT  = 38;
 static constexpr uint8_t PIN_LIM_H2_RIGHT = 39;
-static constexpr bool    LIMIT_ACTIVE_LOW = false;
+static constexpr bool    LIMIT_ACTIVE_LOW = BENCH_MODE ? true : false;
 static constexpr bool    ENABLE_LIMIT_SWITCHES = true;
 
 // ----------------------------- УЗ датчики ----------------------------------
