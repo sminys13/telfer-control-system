@@ -1,16 +1,6 @@
 #include "keypad.h"
 
-// Раскладка (стандартная для 4x4):
-// [R1] 1 2 3 A
-// [R2] 4 5 6 B
-// [R3] 7 8 9 C
-// [R4] * 0 # D
-static const char KP_MAP[4][4] = {
-  {'1','2','3','A'},
-  {'4','5','6','B'},
-  {'7','8','9','C'},
-  {'*','0','#','D'}
-};
+// Раскладка хранится в классе (Keypad4x4::MAP).
 
 // Пины rows/cols берём из config.h
 static const uint8_t KP_COLS[4] = { PIN_KP_C1, PIN_KP_C2, PIN_KP_C3, PIN_KP_C4 };
@@ -28,8 +18,9 @@ void Keypad4x4::begin() {
   for (uint8_t r=0;r<4;r++) {
     pinMode(KP_ROWS[r], INPUT_PULLUP);
   }
-  _rawLast = 0;
-  _stable = 0;
+  _rawMask = 0;
+  _stableMask = 0;
+  _prevStableMask = 0;
   _rawChangeMs = 0;
   _eventKey = 0;
 }
@@ -65,27 +56,27 @@ char Keypad4x4::maskBitToChar(uint8_t bit) {
   uint8_t row = bit / 4;
   uint8_t col = bit % 4;
   if (row >= 4 || col >= 4) return 0;
-  return KP_MAP[row][col];
+  return MAP[row][col];
 }
 
 void Keypad4x4::tick(uint32_t nowMs) {
   const uint16_t raw = scanRawMask();
 
-  if (raw != _rawLast) {
-    _rawLast = raw;
+  if (raw != _rawMask) {
+    _rawMask = raw;
     _rawChangeMs = nowMs;
   }
 
   // Дребезг: считаем состояние стабильным, если оно не менялось 30 мс.
   if ((uint32_t)(nowMs - _rawChangeMs) < 30) return;
 
-  if (raw == _stable) return;
+  if (raw == _stableMask) return;
 
-  uint16_t prev = _stable;
-  _stable = raw;
+  uint16_t prev = _stableMask;
+  _stableMask = raw;
 
   // Событие только на нажатие (переход 0->1)
-  uint16_t pressed = (uint16_t)(_stable & ~prev);
+  uint16_t pressed = (uint16_t)(_stableMask & ~prev);
   if (pressed != 0 && _eventKey == 0) {
     // Берём первый бит (самый младший) — этого достаточно для наших задач.
     for (uint8_t b=0;b<16;b++) {
@@ -107,9 +98,9 @@ bool Keypad4x4::isDown(char key) const {
   // Проходим по карте и ищем соответствие.
   for (uint8_t r=0;r<4;r++) {
     for (uint8_t c=0;c<4;c++) {
-      if (KP_MAP[r][c] == key) {
+      if (MAP[r][c] == key) {
         uint8_t b = bitIndex(r,c);
-        return (_stable & (1u << b)) != 0;
+        return (_stableMask & (1u << b)) != 0;
       }
     }
   }

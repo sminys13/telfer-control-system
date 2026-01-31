@@ -60,10 +60,10 @@ private:
   };
 
   uint16_t scanRawMask() const;
-  static int8_t keyToIndex(char k);
+  static char maskBitToChar(uint8_t bit);
 
-  uint16_t _rawMask = 0;
-  uint16_t _stableMask = 0;
+  uint16_t _rawMask = 0;       // последнее сырое чтение
+  uint16_t _stableMask = 0;    // «устойчивое» состояние после антидребезга
   uint16_t _prevStableMask = 0;
   uint32_t _rawChangeMs = 0;
 

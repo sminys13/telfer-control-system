@@ -146,9 +146,10 @@ void UI::begin() {
 
   // Дисплей
   u8g2.begin();
+  // Контраст (пользователь просил, иначе "засвечено")
+  u8g2.setContrast(LCD_CONTRAST);
   u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.setFontMode(1);
-  u8g2.setContrast(10);
 
   // Очистка мусора после прошивки
   for (uint8_t i=0;i<2;i++) {
@@ -160,9 +161,6 @@ void UI::begin() {
 #if USE_ENCODER
   _encLast = enc.read() / ENCODER_DIV;
   _encBtnLast = readBtn(PIN_ENC_SW);
-#else
-  _encLast = 0;
-  _encBtnLast = false;
 #endif
   _screen = Screen::STATUS;
   _sel = 0; _scroll = 0; _editing = false;
@@ -183,6 +181,7 @@ void UI::menuMove(int8_t delta, uint8_t itemCount) {
   if (_sel >= _scroll + MENU_VISIBLE) _scroll = _sel - (MENU_VISIBLE - 1);
 }
 
+#if USE_ENCODER
 void UI::menuClickLogic(bool pressed, bool& click, bool& longPress, uint32_t nowMs) {
   click = false;
   longPress = false;
@@ -201,6 +200,7 @@ void UI::menuClickLogic(bool pressed, bool& click, bool& longPress, uint32_t now
   }
   _encBtnLast = pressed;
 }
+#endif
 
 static const __FlashStringHelper* errToText(ErrorCode e) {
   switch (e) {
@@ -609,7 +609,7 @@ void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSetti
     u8g2.print(F("V1:7^ 9v  V2:*^ #v"));
     u8g2.setCursor(0, 52);
     u8g2.print(F("Sync 2/8: "));
-    u8g2.print(settings.manual_h_sync ? F("ON") : F("OFF"));
+    u8g2.print(settings.manual_h_sync_default ? F("ON") : F("OFF"));
     u8g2.setCursor(0, 64);
     u8g2.print(F("B=BACK   D=STOP"));
 #else
@@ -697,7 +697,7 @@ void UI::tick(uint32_t nowMs,
     manualButtonsOut.h2_fwd = _kp.isDown('3');
 
     // Опциональная синхронная горизонталь (оба тельфера вместе)
-    const bool allowSync = settings.manual_h_sync;
+    const bool allowSync = settings.manual_h_sync_default;
     manualButtonsOut.h_both_bwd = allowSync && _kp.isDown('2');
     manualButtonsOut.h_both_fwd = allowSync && _kp.isDown('8');
 

@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <Arduino.h>   // IMPORTANT: provides A0..A15 and pin macros in Arduino core
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -47,6 +49,9 @@ static constexpr uint16_t MOTORS_TICK_MS   = 50;
 static constexpr uint8_t PIN_LCD_CS   = 10;
 static constexpr uint8_t PIN_LCD_DC   = 8;
 static constexpr uint8_t PIN_LCD_RST  = 9;
+
+// Контраст дисплея (0..255). Для многих ST7565R "читаемое" значение лежит в диапазоне 5..30.
+static constexpr uint8_t LCD_CONTRAST = 10;
 
 // ----------------------------- Энкодер ------------------------------------
 static constexpr uint8_t PIN_ENC_CLK  = 3;
