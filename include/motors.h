@@ -75,11 +75,6 @@ private:
   DriveTelemetry _tel[(uint8_t)DriveId::COUNT];
 
   DriveMap _map[(uint8_t)DriveId::COUNT];
-
-  // Круговые индексы, чтобы НЕ блокировать UI, опрашивая все 4 ПЧ в одном loop().
-  uint8_t _rrPoll = 0;
-  uint8_t _rrSend = 0;
-
   void sendCommand(DriveId id, int16_t pct);
   void pollTelemetry(DriveId id, uint32_t nowMs);
 };

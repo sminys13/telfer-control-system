@@ -804,6 +804,8 @@ void UI::tick(uint32_t nowMs,
     if (click) {
       _screen = Screen::MAIN_MENU;
       _sel = 0; _scroll = 0; _editing = false;
+      // ВАЖНО: "съедаем" этот клик, чтобы он не сработал сразу внутри MAIN_MENU (иначе можно мгновенно выбрать первый пункт).
+      click = false;
     } else {
       drawStatus(sensors, st);
       return;
