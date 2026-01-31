@@ -136,14 +136,23 @@ void App::loop() {
   st.autoOrderIndex = _rt.autoRt.orderIndex;
   st.autoZoneIndex = _rt.autoRt.zoneIndex;
   st.error = _rt.error;
-  // modbusOk: считаем OK, если все 4 привода отвечают
-  const bool m1 = _drives.telemetry(DriveId::H1).connected;
-  const bool m2 = _drives.telemetry(DriveId::H2).connected;
-  const bool m3 = _drives.telemetry(DriveId::V1).connected;
-  const bool m4 = _drives.telemetry(DriveId::V2).connected;
-  _rt.modbusOk = (m1 && m2 && m3 && m4);
-  st.modbusOk = _rt.modbusOk;
 
+  // --- Modbus/RS485 (4 привода: H1,H2,V1,V2) ---
+  // Собираем краткую телеметрию в UiStateSummary, чтобы UI мог показать состояние связи.
+  // Важно: порядок индексов 0..3 жёстко задан и совпадает с маской в ui.h:
+  //   0=H1, 1=H2, 2=V1, 3=V2
+  const DriveId ids[4] = {DriveId::H1, DriveId::H2, DriveId::V1, DriveId::V2};
+  uint8_t mask = 0;
+  bool allOk = true;
+  for (uint8_t i = 0; i < 4; i++) {
+    const DriveTelemetry& t = _drives.telemetry(ids[i]);
+    if (t.connected) mask |= (1u << i);
+    else allOk = false;
+    st.mbStatus[i] = t.statusReg;
+    st.mbFault[i]  = t.faultCode;
+  }
+  st.mbConnectedMask = mask;
+  _rt.modbusOk = allOk;
   // --- UI ---
   if ((uint32_t)(now - _tUi) >= UI_TICK_MS) {
     _tUi = now;

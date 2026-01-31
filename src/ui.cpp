@@ -253,12 +253,22 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     if (sensors.us[1].valid) { i32toa(sensors.us[1].mm, b2, sizeof(b2)); u8g2.print(b2); }
     else u8g2.print(F("---"));
 
+    // Статус связи с 4 частотниками по Modbus.
+    // Показываем компактно: H1?, H2?, V1?, V2?
+    // ? = 'O' (OK, связь есть), 'E' (ошибка/FAULT), '-' (нет связи)
+    auto mk = [&](uint8_t idx) -> char {
+      const bool connected = (st.mbConnectedMask & (1u << idx)) != 0;
+      if (!connected) return '-';
+      const bool fault = (st.mbStatus[idx] & (1u << 2)) != 0; // бит 2 = FAULT (см. регистр STATUS)
+      return fault ? 'E' : 'O';
+    };
+
     u8g2.setCursor(0, 64);
-    #if USE_KEYPAD
-    u8g2.print(F("A=MENU  B=BACK"));
-#else
-    u8g2.print(F("Knob=MENU  Hold=STATUS"));
-#endif
+    u8g2.print(F("MB "));
+    u8g2.print(F("H1")); u8g2.print(mk(0)); u8g2.print(' ');
+    u8g2.print(F("H2")); u8g2.print(mk(1)); u8g2.print(' ');
+    u8g2.print(F("V1")); u8g2.print(mk(2)); u8g2.print(' ');
+    u8g2.print(F("V2")); u8g2.print(mk(3));
   } while (u8g2.nextPage());
 }
 

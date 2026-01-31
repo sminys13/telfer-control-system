@@ -64,7 +64,13 @@ struct UiStateSummary {
   uint8_t autoOrderIndex;
   uint8_t autoZoneIndex;
   ErrorCode error;
-  bool modbusOk;
+
+  // Modbus/RS485 связь с 4 ПЧ (H1,H2,V1,V2).
+  // UI специально НЕ включает motors.h: сюда передаём только то, что нужно для отображения.
+  static constexpr uint8_t MB_DRIVES = 4;
+  uint8_t mbConnectedMask = 0;              // bit0=H1, bit1=H2, bit2=V1, bit3=V2
+  uint16_t mbStatus[MB_DRIVES] = {0,0,0,0}; // регистр 0x0020 (Status)
+  uint16_t mbFault [MB_DRIVES] = {0,0,0,0}; // регистр 0x0021 (Fault)
 };
 
 class UI {
