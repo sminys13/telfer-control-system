@@ -1,4 +1,3 @@
-\
 /**
  * @file config.h
  * @brief Аппаратная конфигурация и основные типы данных проекта telfer-control-system.
@@ -59,6 +58,25 @@ static constexpr uint8_t PIN_ENC_SW   = 5;
 // попробуй ENCODER_DIV=2 или ENCODER_DIV=1.
 static constexpr uint8_t ENCODER_DIV  = 4;
 
+
+// ----------------------------- Input devices ------------------------------
+// В этой версии для макетки мы уходим от энкодера (из‑за проблем со стабильностью на пинах без прерываний)
+// и используем матричную клавиатуру 4x4. Энкодер можно вернуть, поставив USE_ENCODER=true.
+#define USE_KEYPAD 1
+#define USE_ENCODER 0
+
+// ----------------------------- Матричная клавиатура 4x4 -------------------
+// Пины клавиатуры: C1..C4 (колонки), R1..R4 (ряды).
+// Рекомендуем подключать к аналоговым пинам Mega (A0..A7) — они свободны и имеют удобную разводку.
+static constexpr uint8_t PIN_KP_C1 = A0;
+static constexpr uint8_t PIN_KP_C2 = A1;
+static constexpr uint8_t PIN_KP_C3 = A2;
+static constexpr uint8_t PIN_KP_C4 = A3;
+static constexpr uint8_t PIN_KP_R1 = A4;
+static constexpr uint8_t PIN_KP_R2 = A5;
+static constexpr uint8_t PIN_KP_R3 = A6;
+static constexpr uint8_t PIN_KP_R4 = A7;
+
 // ----------------------------- Режим макетки (стол) ------------------------
 // В реальной машине E-STOP и концевики рекомендуется делать NC (разрыв = авария).
 // На столе часто стоят NO-кнопки или входы вообще не подключены.
@@ -97,6 +115,11 @@ static constexpr uint32_t BAUD_RS485  = 9600;
 // Лазеры питаются 3.3V, UART 9600 8N1.
 // ВНИМАНИЕ: TX Mega (5V) -> RX Лазера (3.3V) через понижение уровня.
 static constexpr uint32_t BAUD_LASER  = 9600;
+
+
+// На текущем этапе дальность измерения нам нужна до 10 м.
+// Это ограничение используется в парсере, чтобы \"мусор\" не попадал в расчёты.
+static constexpr int32_t LASER_MAX_MM = 10000;
 
 // ----------------------------- Кнопки --------------------------------------
 // Общие

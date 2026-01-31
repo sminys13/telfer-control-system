@@ -40,6 +40,11 @@ void Sensors::initLaserPort(HardwareSerial& s) {
   // Если ваш датчик настроен иначе — эти команды просто будут проигнорированы.
   // Команды приведены для адреса 0x80 (заводской). Поскольку у вас 2 лазера на разных UART,
   // одинаковый адрес допустим.
+  const uint8_t CMD_SET_RANGE_10M[] = {0x04, 0x09, 0x0A, 0xEF}; // set range to 10m
+  s.write(CMD_SET_RANGE_10M, sizeof(CMD_SET_RANGE_10M));
+  s.flush();
+  delay(20);
+
   const uint8_t CMD_LASER_ON[]   = {0x80, 0x06, 0x05, 0x01, 0x74}; // открыть луч
   const uint8_t CMD_CONTINUOUS[] = {0x80, 0x06, 0x03, 0x77};       // непрерывный режим
   s.write(CMD_LASER_ON, sizeof(CMD_LASER_ON));
@@ -94,8 +99,9 @@ bool Sensors::readLaserFrame(HardwareSerial& s, int32_t& outMm) {
       for (uint8_t k=0;k<7;k++) d[k] = (char)buf[i+3+k];
       d[7] = '\0';
       float meters = atof(d);
-      if (meters < 0.0f || meters > 80.0f) return false;
+      if (meters < 0.0f) return false;
       outMm = (int32_t)(meters * 1000.0f);
+      if (outMm > LASER_MAX_MM) return false;
       return true;
     }
   }
@@ -111,8 +117,9 @@ bool Sensors::readLaserFrame(HardwareSerial& s, int32_t& outMm) {
   if (tn < 3) return false;
 
   float meters = atof(txt);
-  if (meters < 0.0f || meters > 80.0f) return false;
+  if (meters < 0.0f) return false;
   outMm = (int32_t)(meters * 1000.0f);
+  if (outMm > LASER_MAX_MM) return false;
   return true;
 }
 
@@ -146,7 +153,7 @@ void Sensors::tick(uint32_t nowMs) {
     _snap.laser[0].mm = pushAvg3(_laserHist[0], _laserHistN[0], mm);
     _snap.laser[0].valid = true;
     _snap.laser[0].lastUpdateMs = nowMs;
-  } else if ((nowMs - _snap.laser[0].lastUpdateMs) > 1000) {
+  } else if ((nowMs - _snap.laser[0].lastUpdateMs) > 2000) {
     _snap.laser[0].valid = false;
   }
 
@@ -154,7 +161,7 @@ void Sensors::tick(uint32_t nowMs) {
     _snap.laser[1].mm = pushAvg3(_laserHist[1], _laserHistN[1], mm);
     _snap.laser[1].valid = true;
     _snap.laser[1].lastUpdateMs = nowMs;
-  } else if ((nowMs - _snap.laser[1].lastUpdateMs) > 1000) {
+  } else if ((nowMs - _snap.laser[1].lastUpdateMs) > 2000) {
     _snap.laser[1].valid = false;
   }
 

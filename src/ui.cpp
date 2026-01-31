@@ -1,19 +1,23 @@
-\
 /**
  * @file ui.cpp
- * @brief Реализация UI (U8g2 + Encoder).
+ * @brief Реализация UI (U8g2 + Keypad/Encoder).
  */
 #include "ui.h"
 #include "utils.h"
 
 #include <Arduino.h>
 #include <U8g2lib.h>
+#if USE_ENCODER
 #include <Encoder.h>
+#endif
+
 #include <avr/pgmspace.h>
 
 // Используем "_1_" буфер (экономия RAM).
 static U8G2_ST7565_ERC12864_1_4W_HW_SPI u8g2(U8G2_R0, PIN_LCD_CS, PIN_LCD_DC, PIN_LCD_RST);
+#if USE_ENCODER
 static Encoder enc(PIN_ENC_CLK, PIN_ENC_DT);
+#endif
 
 static constexpr uint16_t LONG_PRESS_MS = 1200;
 static constexpr uint8_t  MENU_VISIBLE = 4;
@@ -23,67 +27,67 @@ static constexpr uint8_t  MENU_VISIBLE = 4;
 // (это даёт ошибки компиляции на AVR). Поэтому строки кладём в PROGMEM явно.
 
 // MAIN
-static const char S_BACK[] PROGMEM = "<-назад";
-static const char S_AUTO[] PROGMEM = "Авто";
-static const char S_MANUAL[] PROGMEM = "Ручной режим";
-static const char S_PROGS[] PROGMEM = "Программы";
-static const char S_CAL[] PROGMEM = "Калибровка";
-static const char S_SET[] PROGMEM = "Настройки";
-static const char S_SRV[] PROGMEM = "Сервис";
+static const char S_BACK[] PROGMEM = "<-Back";
+static const char S_AUTO[] PROGMEM = "Auto";
+static const char S_MANUAL[] PROGMEM = "Manual";
+static const char S_PROGS[] PROGMEM = "Programs";
+static const char S_CAL[] PROGMEM = "Calibration";
+static const char S_SET[] PROGMEM = "Settings";
+static const char S_SRV[] PROGMEM = "Service";
 static const char* const MENU_MAIN[] PROGMEM = {
   S_BACK, S_AUTO, S_MANUAL, S_PROGS, S_CAL, S_SET, S_SRV
 };
 
 // AUTO
-static const char S_START[] PROGMEM = "Старт";
-static const char S_PAUSE[] PROGMEM = "Пауза/Прод";
-static const char S_STOP[] PROGMEM = "Стоп";
-static const char S_HOME[] PROGMEM = "Домой";
+static const char S_START[] PROGMEM = "Start";
+static const char S_PAUSE[] PROGMEM = "Pause/Res";
+static const char S_STOP[] PROGMEM = "Stop";
+static const char S_HOME[] PROGMEM = "Home";
 static const char* const MENU_AUTO[] PROGMEM = {
   S_BACK, S_START, S_PAUSE, S_STOP, S_HOME
 };
 
 // PROGRAMS
-static const char S_SLOT_SEL[] PROGMEM = "Слот (выбор)";
-static const char S_SLOT_LOAD[] PROGMEM = "Загрузить слот";
-static const char S_SLOT_SAVE[] PROGMEM = "Сохранить в слот";
-static const char S_SLOT_COPY[] PROGMEM = "Копировать активный";
-static const char S_ZONE_COUNT[] PROGMEM = "Кол-во зон";
-static const char S_ORDER_STEP[] PROGMEM = "Порядок: шаг";
-static const char S_ORDER_ZONE[] PROGMEM = "Порядок: зона";
+static const char S_SLOT_SEL[] PROGMEM = "Slot (select)";
+static const char S_SLOT_LOAD[] PROGMEM = "Load slot";
+static const char S_SLOT_SAVE[] PROGMEM = "Save slot";
+static const char S_SLOT_COPY[] PROGMEM = "Copy active";
+static const char S_ZONE_COUNT[] PROGMEM = "Zones count";
+static const char S_ORDER_STEP[] PROGMEM = "Order: step";
+static const char S_ORDER_ZONE[] PROGMEM = "Order: zone";
 static const char* const MENU_PROG[] PROGMEM = {
   S_BACK, S_SLOT_SEL, S_SLOT_LOAD, S_SLOT_SAVE, S_SLOT_COPY, S_ZONE_COUNT, S_ORDER_STEP, S_ORDER_ZONE
 };
 
 // CALIBRATION
-static const char S_ZONE_SEL[] PROGMEM = "Зона (выбор)";
-static const char S_ZONE_ONOFF[] PROGMEM = "Зона вкл/выкл";
-static const char S_CAP_X[] PROGMEM = "Сохранить X (лазер)";
-static const char S_CAP_H[] PROGMEM = "Сохранить высоту (УЗ)";
-static const char S_DIP_TIME[] PROGMEM = "Время погруж. (сек)";
-static const char S_TILT_STEP[] PROGMEM = "Шаг наклона (мм)";
-static const char S_STEP_WAIT[] PROGMEM = "Пауза ступень (сек)";
-static const char S_CAP_HOME[] PROGMEM = "Сохранить HOME X";
-static const char S_CAP_TRAVEL[] PROGMEM = "Сохранить TRAVEL";
+static const char S_ZONE_SEL[] PROGMEM = "Zone (select)";
+static const char S_ZONE_ONOFF[] PROGMEM = "Zone on/off";
+static const char S_CAP_X[] PROGMEM = "Save X (laser)";
+static const char S_CAP_H[] PROGMEM = "Save H (ultra)";
+static const char S_DIP_TIME[] PROGMEM = "Dip time (s)";
+static const char S_TILT_STEP[] PROGMEM = "Tilt step (mm)";
+static const char S_STEP_WAIT[] PROGMEM = "Step wait (s)";
+static const char S_CAP_HOME[] PROGMEM = "Save HOME X";
+static const char S_CAP_TRAVEL[] PROGMEM = "Save TRAVEL";
 static const char* const MENU_CAL[] PROGMEM = {
   S_BACK, S_ZONE_SEL, S_ZONE_ONOFF, S_CAP_X, S_CAP_H, S_DIP_TIME, S_TILT_STEP, S_STEP_WAIT, S_CAP_HOME, S_CAP_TRAVEL
 };
 
 // SETTINGS
-static const char S_H_TOL[] PROGMEM = "H допуск (мм)";
-static const char S_V_TOL[] PROGMEM = "V допуск (мм)";
-static const char S_H_SPD[] PROGMEM = "H скорость (%)";
-static const char S_V_SPD[] PROGMEM = "V скорость (%)";
-static const char S_TILT_SPD[] PROGMEM = "Tilt скорость (%)";
-static const char S_DRIP[] PROGMEM = "Drip wait (сек)";
-static const char S_HSYNC[] PROGMEM = "Ручн H-sync";
+static const char S_H_TOL[] PROGMEM = "H tol (mm)";
+static const char S_V_TOL[] PROGMEM = "V tol (mm)";
+static const char S_H_SPD[] PROGMEM = "H speed (%)";
+static const char S_V_SPD[] PROGMEM = "V speed (%)";
+static const char S_TILT_SPD[] PROGMEM = "Tilt spd (%)";
+static const char S_DRIP[] PROGMEM = "Drip wait (s)";
+static const char S_HSYNC[] PROGMEM = "Manual H-sync";
 static const char* const MENU_SET[] PROGMEM = {
   S_BACK, S_H_TOL, S_V_TOL, S_H_SPD, S_V_SPD, S_TILT_SPD, S_DRIP, S_HSYNC
 };
 
 // SERVICE
-static const char S_FACTORY[] PROGMEM = "Сброс к заводским";
-static const char S_SAVE_ALL[] PROGMEM = "Сохранить все";
+static const char S_FACTORY[] PROGMEM = "Factory reset";
+static const char S_SAVE_ALL[] PROGMEM = "Save all";
 static const char* const MENU_SRV[] PROGMEM = {
   S_BACK, S_FACTORY, S_SAVE_ALL
 };
@@ -105,9 +109,13 @@ void UI::begin() {
   // ВАЖНО: многие энкодер-модули EC11 имеют лишь «сухие» контакты (S1/S2 замыкают на GND).
   // Поэтому для стабильной работы ОБЯЗАТЕЛЬНО включаем подтяжку вверх.
   // (Если на модуле уже стоят внешние подтяжки — это не мешает: получится параллельная подтяжка.)
+#if USE_ENCODER
   pinMode(PIN_ENC_CLK, INPUT_PULLUP);
   pinMode(PIN_ENC_DT,  INPUT_PULLUP);
   pinMode(PIN_ENC_SW, INPUT_PULLUP);
+#else
+  /* Encoder disabled (USE_ENCODER=0). */
+#endif
 
   pinMode(PIN_BTN_STOP, INPUT_PULLUP);
   pinMode(PIN_BTN_START, INPUT_PULLUP);
@@ -132,10 +140,15 @@ void UI::begin() {
   pinMode(PIN_LIM_H2_LEFT, INPUT_PULLUP);
   pinMode(PIN_LIM_H2_RIGHT, INPUT_PULLUP);
 
+#if USE_KEYPAD
+  _kp.begin();
+#endif
+
   // Дисплей
   u8g2.begin();
-  u8g2.setFont(u8g2_font_6x13_t_cyrillic);
+  u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.setFontMode(1);
+  u8g2.setContrast(10);
 
   // Очистка мусора после прошивки
   for (uint8_t i=0;i<2;i++) {
@@ -144,8 +157,13 @@ void UI::begin() {
     delay(20);
   }
 
+#if USE_ENCODER
   _encLast = enc.read() / ENCODER_DIV;
   _encBtnLast = readBtn(PIN_ENC_SW);
+#else
+  _encLast = 0;
+  _encBtnLast = false;
+#endif
   _screen = Screen::STATUS;
   _sel = 0; _scroll = 0; _editing = false;
   _tmpSlotSel = 0;
@@ -188,15 +206,15 @@ static const __FlashStringHelper* errToText(ErrorCode e) {
   switch (e) {
     case ErrorCode::NONE: return F("OK");
     case ErrorCode::ESTOP: return F("E-STOP!");
-    case ErrorCode::LIMIT_SWITCH: return F("КОНЦЕВИК!");
+    case ErrorCode::LIMIT_SWITCH: return F("LIMIT!");
     case ErrorCode::MODBUS_COMM: return F("RS485/Modbus");
-    case ErrorCode::LASER1_FAIL: return F("Лазер1");
-    case ErrorCode::LASER2_FAIL: return F("Лазер2");
-    case ErrorCode::US1_FAIL: return F("УЗ1");
-    case ErrorCode::US2_FAIL: return F("УЗ2");
-    case ErrorCode::SENSOR_TIMEOUT: return F("Сенсоры тайм");
-    case ErrorCode::INVALID_PROGRAM: return F("Программа");
-    case ErrorCode::DRIVE_FAULT: return F("Ошибка ПЧ");
+    case ErrorCode::LASER1_FAIL: return F("Laser1");
+    case ErrorCode::LASER2_FAIL: return F("Laser2");
+    case ErrorCode::US1_FAIL: return F("US1");
+    case ErrorCode::US2_FAIL: return F("US2");
+    case ErrorCode::SENSOR_TIMEOUT: return F("Sensor timeout");
+    case ErrorCode::INVALID_PROGRAM: return F("Bad program");
+    case ErrorCode::DRIVE_FAULT: return F("Drive fault");
     default: return F("ERR");
   }
 }
@@ -205,7 +223,7 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
   char b1[14], b2[14];
   u8g2.firstPage();
   do {
-    u8g2.setFont(u8g2_font_6x13_t_cyrillic);
+    u8g2.setFont(u8g2_font_6x13_tf);
 
     u8g2.setCursor(0, 12);
     if (st.mode == RunMode::STOP) u8g2.print(F("STOP "));
@@ -236,7 +254,11 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     else u8g2.print(F("---"));
 
     u8g2.setCursor(0, 64);
+    #if USE_KEYPAD
+    u8g2.print(F("A=MENU  B=BACK"));
+#else
     u8g2.print(F("Knob=MENU  Hold=STATUS"));
+#endif
   } while (u8g2.nextPage());
 }
 
@@ -247,7 +269,7 @@ void UI::drawMenu(const __FlashStringHelper* title,
                   const char* footerLine2) {
   u8g2.firstPage();
   do {
-    u8g2.setFont(u8g2_font_6x13_t_cyrillic);
+    u8g2.setFont(u8g2_font_6x13_tf);
 
     u8g2.setCursor(0, 12);
     u8g2.print(title);
@@ -304,7 +326,7 @@ void UI::screenMainMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSet
       default: break;
     }
   }
-  drawMenu(F("МЕНЮ"), MENU_MAIN, cnt);
+  drawMenu(F("MENU"), MENU_MAIN, cnt);
 }
 
 void UI::screenAutoMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&,
@@ -322,7 +344,7 @@ void UI::screenAutoMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSet
       default: break;
     }
   }
-  drawMenu(F("АВТО"), MENU_AUTO, cnt);
+  drawMenu(F("AUTO"), MENU_AUTO, cnt);
 }
 
 void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, GlobalSettings&, ProgramConfig& program,
@@ -405,7 +427,7 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
   snprintf(f1, sizeof(f1), "Act:%u  Sel:%u", (unsigned)(st.activeSlot+1), (unsigned)(_tmpSlotSel+1));
   snprintf(f2, sizeof(f2), "Zones:%u  Ord%u->Z%u", (unsigned)program.zone_count,
            (unsigned)(_tmpOrderStep+1), (unsigned)(program.order[_tmpOrderStep]+1));
-  drawMenu(F("ПРОГРАММЫ"), MENU_PROG, cnt, f1, _editing ? "Edit: rotate, click OK" : f2);
+  drawMenu(F("PROGRAMS"), MENU_PROG, cnt, f1, _editing ? "Edit: rotate, click OK" : f2);
 }
 
 void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig& program,
@@ -480,7 +502,7 @@ void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSett
   auto& z = program.zones[_tmpZoneSel];
   snprintf(f1, sizeof(f1), "Zone:%u %s Dip:%us", (unsigned)(_tmpZoneSel+1), z.enabled ? "ON" : "OFF", (unsigned)z.dip_time_s);
   snprintf(f2, sizeof(f2), "Tilt:%umm Wait:%us", (unsigned)z.tilt_step_mm, (unsigned)z.step_wait_s);
-  drawMenu(F("КАЛИБРОВКА"), MENU_CAL, cnt, f1, f2);
+  drawMenu(F("CALIB"), MENU_CAL, cnt, f1, f2);
 }
 
 void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings& settings, ProgramConfig&,
@@ -550,7 +572,7 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
   char f1[32], f2[32];
   snprintf(f1, sizeof(f1), "Htol:%d Vtol:%d", (int)settings.h_tol_mm, (int)settings.v_tol_mm);
   snprintf(f2, sizeof(f2), "H%u V%u Tilt%u", (unsigned)settings.h_speed_pct, (unsigned)settings.v_speed_pct, (unsigned)settings.v_tilt_speed_pct);
-  drawMenu(F("НАСТРОЙКИ"), MENU_SET, cnt, f1, _editing ? "Edit: rotate, click save" : f2);
+  drawMenu(F("SETTINGS"), MENU_SET, cnt, f1, _editing ? "Edit: rotate, click save" : f2);
 }
 
 void UI::screenServiceMenu(const SensorsSnapshot&, const UiStateSummary& st, GlobalSettings&, ProgramConfig&,
@@ -566,8 +588,9 @@ void UI::screenServiceMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
       default: break;
     }
   }
-  drawMenu(F("СЕРВИС"), MENU_SRV, cnt, " ", " ");
+  drawMenu(F("SERVICE"), MENU_SRV, cnt, " ", " ");
 }
+
 
 void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings& settings, ProgramConfig&,
                       AppActions& a, bool click, bool, int8_t) {
@@ -575,23 +598,37 @@ void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSetti
 
   u8g2.firstPage();
   do {
-    u8g2.setFont(u8g2_font_6x13_t_cyrillic);
+    u8g2.setFont(u8g2_font_6x13_tf);
     u8g2.setCursor(0, 12);
-    u8g2.print(F("РУЧНОЙ РЕЖИМ"));
+    u8g2.print(F("MANUAL MODE"));
+
+#if USE_KEYPAD
     u8g2.setCursor(0, 28);
-    u8g2.print(F("Кнопки: H1/H2/V1/V2"));
+    u8g2.print(F("H1:4< 6>  H2:1< 3>"));
+    u8g2.setCursor(0, 40);
+    u8g2.print(F("V1:7^ 9v  V2:*^ #v"));
+    u8g2.setCursor(0, 52);
+    u8g2.print(F("Sync 2/8: "));
+    u8g2.print(settings.manual_h_sync ? F("ON") : F("OFF"));
+    u8g2.setCursor(0, 64);
+    u8g2.print(F("B=BACK   D=STOP"));
+#else
+    u8g2.setCursor(0, 28);
+    u8g2.print(F("Buttons: H1/H2/V1/V2"));
     u8g2.setCursor(0, 40);
     u8g2.print(F("H-sync: "));
     u8g2.print(_manualSync ? F("ON") : F("OFF"));
     u8g2.setCursor(0, 52);
-    u8g2.print(F("Синхр: кнопки BOTH"));
+    u8g2.print(F("Use BOTH buttons"));
     u8g2.setCursor(0, 64);
-    u8g2.print(F("Нажми ручку: меню"));
+    u8g2.print(F("Press knob: menu"));
+#endif
   } while (u8g2.nextPage());
 
-  (void)settings;
   (void)a;
 }
+
+
 
 void UI::tick(uint32_t nowMs,
               const SensorsSnapshot& sensors,
@@ -600,51 +637,129 @@ void UI::tick(uint32_t nowMs,
               ProgramConfig& program,
               AppActions& actionsOut,
               ManualButtons& manualButtonsOut) {
+  // Всегда начинаем с чистого набора действий, чтобы не тянуть "хвост".
   actionsOut = AppActions{};
 
-  // --- Кнопки ручного управления ---
+#if USE_KEYPAD
+  // Скан клавиатуры делаем один раз за тик UI.
+  _kp.tick(nowMs);
+  // Одно событие "нажатия" (edge). Для меню нам обычно достаточно одного ключа.
+  const char key = _kp.popKey();
+#else
+  const char key = 0;
+#endif
+
+  // -----------------------------------------------------------------------
+  // 1) Снимаем входы безопасности (E-STOP + концевики) ВСЕГДА с физических пинов.
+  // -----------------------------------------------------------------------
+  manualButtonsOut.estop = readActiveLow(PIN_ESTOP, ESTOP_ACTIVE_LOW);
+
+  manualButtonsOut.lim_h1_left  = readActiveLow(PIN_LIM_H1_LEFT,  LIMIT_ACTIVE_LOW);
+  manualButtonsOut.lim_h1_right = readActiveLow(PIN_LIM_H1_RIGHT, LIMIT_ACTIVE_LOW);
+  manualButtonsOut.lim_h2_left  = readActiveLow(PIN_LIM_H2_LEFT,  LIMIT_ACTIVE_LOW);
+  manualButtonsOut.lim_h2_right = readActiveLow(PIN_LIM_H2_RIGHT, LIMIT_ACTIVE_LOW);
+
+  // -----------------------------------------------------------------------
+  // 2) Ручные кнопки движения: по умолчанию читаем отдельные входы.
+  //    В BENCH_MODE на макетке часто всё заменено перемычками — это нормально.
+  // -----------------------------------------------------------------------
   manualButtonsOut.h1_fwd = readBtn(PIN_BTN_H1_FWD);
   manualButtonsOut.h1_bwd = readBtn(PIN_BTN_H1_BWD);
   manualButtonsOut.h2_fwd = readBtn(PIN_BTN_H2_FWD);
   manualButtonsOut.h2_bwd = readBtn(PIN_BTN_H2_BWD);
+
   manualButtonsOut.h_both_fwd = readBtn(PIN_BTN_H_BOTH_FWD);
   manualButtonsOut.h_both_bwd = readBtn(PIN_BTN_H_BOTH_BWD);
-  manualButtonsOut.v1_up = readBtn(PIN_BTN_V1_UP);
+
+  manualButtonsOut.v1_up   = readBtn(PIN_BTN_V1_UP);
   manualButtonsOut.v1_down = readBtn(PIN_BTN_V1_DOWN);
-  manualButtonsOut.v2_up = readBtn(PIN_BTN_V2_UP);
+  manualButtonsOut.v2_up   = readBtn(PIN_BTN_V2_UP);
   manualButtonsOut.v2_down = readBtn(PIN_BTN_V2_DOWN);
+
   manualButtonsOut.start = readBtn(PIN_BTN_START);
   manualButtonsOut.stop  = readBtn(PIN_BTN_STOP);
 
-  manualButtonsOut.estop = readActiveLow(PIN_ESTOP, ESTOP_ACTIVE_LOW);
+#if USE_KEYPAD
+  // -----------------------------------------------------------------------
+  // 2.1) Замена ручных кнопок матричной клавиатурой (только для MANUAL).
+  //      В остальных режимах клавиатура НЕ должна случайно запускать движение.
+  // -----------------------------------------------------------------------
+  const bool inManual = (st.mode == RunMode::MANUAL);
 
-  manualButtonsOut.lim_h1_left  = readActiveLow(PIN_LIM_H1_LEFT, LIMIT_ACTIVE_LOW);
-  manualButtonsOut.lim_h1_right = readActiveLow(PIN_LIM_H1_RIGHT, LIMIT_ACTIVE_LOW);
-  manualButtonsOut.lim_h2_left  = readActiveLow(PIN_LIM_H2_LEFT, LIMIT_ACTIVE_LOW);
-  manualButtonsOut.lim_h2_right = readActiveLow(PIN_LIM_H2_RIGHT, LIMIT_ACTIVE_LOW);
+  // STOP по клавише D — разрешаем ВСЕГДА (это безопасно).
+  if (_kp.isDown('D')) manualButtonsOut.stop = true;
 
+  if (inManual) {
+    // Горизонталь
+    manualButtonsOut.h1_bwd = _kp.isDown('4');
+    manualButtonsOut.h1_fwd = _kp.isDown('6');
+    manualButtonsOut.h2_bwd = _kp.isDown('1');
+    manualButtonsOut.h2_fwd = _kp.isDown('3');
+
+    // Опциональная синхронная горизонталь (оба тельфера вместе)
+    const bool allowSync = settings.manual_h_sync;
+    manualButtonsOut.h_both_bwd = allowSync && _kp.isDown('2');
+    manualButtonsOut.h_both_fwd = allowSync && _kp.isDown('8');
+
+    // Вертикаль: V Forward = DOWN
+    manualButtonsOut.v1_up   = _kp.isDown('7');
+    manualButtonsOut.v1_down = _kp.isDown('9');
+    manualButtonsOut.v2_up   = _kp.isDown('*');
+    manualButtonsOut.v2_down = _kp.isDown('#');
+
+    // Старт ручного режима (если понадобится) — клавиша A.
+    if (_kp.isDown('A')) manualButtonsOut.start = true;
+  }
+#endif
+
+  // Любой STOP/E-STOP → немедленно уходим в STOP и возвращаемся на STATUS.
   if (manualButtonsOut.stop || manualButtonsOut.estop) {
     actionsOut.toStop = true;
     _screen = Screen::STATUS;
     _editing = false;
   }
 
-  // --- Энкодер ---
-  // Encoder-библиотека может давать "шум"/скачки если входы висят в воздухе.
-  // Поэтому:
-  //  1) делим на ENCODER_DIV (под разные модули)
-  //  2) считаем дельту в long
-  //  3) жёстко ограничиваем шаг за тик (чтобы не улетать в меню от одного глитча)
+  // -----------------------------------------------------------------------
+  // 3) Управление UI (меню): энкодер или клавиатура.
+  // -----------------------------------------------------------------------
+  int8_t encDelta = 0;
+  bool click = false;
+  bool longPress = false;
+
+#if USE_ENCODER
+  // Энкодер: делим на ENCODER_DIV и ограничиваем шаг за тик (защита от глитчей).
   long det = enc.read() / ENCODER_DIV;
   long d = det - _encLast;
   _encLast = det;
   if (d > 4) d = 4;
   if (d < -4) d = -4;
-  int8_t encDelta = (int8_t)d;
+  encDelta = (int8_t)d;
 
   bool encPressed = readBtn(PIN_ENC_SW);
-  bool click = false, longPress = false;
   menuClickLogic(encPressed, click, longPress, nowMs);
+#endif
+
+#if USE_KEYPAD
+  // Клавиатура: 2/8 = вверх/вниз, A = enter, B = back, C = status (домой).
+  if (key == '2') encDelta = -1;
+  else if (key == '8') encDelta = +1;
+  else if (key == 'A') click = true;
+
+  if (key == 'C') {
+    _screen = Screen::STATUS;
+    _sel = 0; _scroll = 0; _editing = false;
+  }
+
+  if (key == 'B') {
+    // Универсальный "back":
+    //  - из MAIN_MENU → STATUS
+    //  - из любых подменю → MAIN_MENU
+    if (_screen == Screen::MAIN_MENU) _screen = Screen::STATUS;
+    else if (_screen != Screen::STATUS) _screen = Screen::MAIN_MENU;
+
+    _sel = 0; _scroll = 0; _editing = false;
+  }
+#endif
 
   if (longPress) {
     _screen = Screen::STATUS;
@@ -653,6 +768,10 @@ void UI::tick(uint32_t nowMs,
 
   // STATUS: клик → меню
   if (_screen == Screen::STATUS) {
+#if USE_KEYPAD
+    // В статусе хотим заходить в меню по A.
+    if (key == 'A') click = true;
+#endif
     if (click) {
       _screen = Screen::MAIN_MENU;
       _sel = 0; _scroll = 0; _editing = false;
@@ -662,7 +781,9 @@ void UI::tick(uint32_t nowMs,
     }
   }
 
-  // обработка экранов
+  // -----------------------------------------------------------------------
+  // 4) Рисуем/обрабатываем текущий экран.
+  // -----------------------------------------------------------------------
   switch (_screen) {
     case Screen::MAIN_MENU:
       screenMainMenu(sensors, st, settings, program, actionsOut, click, longPress, encDelta);
@@ -690,4 +811,3 @@ void UI::tick(uint32_t nowMs,
       break;
   }
 }
-

@@ -1,12 +1,16 @@
-\
 /**
  * @file ui.h
- * @brief Минимальный UI на дисплее 128x64 (ST7565R) + энкодер.
+ * @brief UI на дисплее 128x64 (ST7565R) + управление (клавиатура 4x4 или энкодер).
  */
 #pragma once
+
 #include <stdint.h>
 #include "config.h"
 #include "sensors.h"
+
+#if USE_KEYPAD
+#include "keypad.h"
+#endif
 
 enum class RunMode : uint8_t { STOP=0, MANUAL=1, AUTO=2 };
 
@@ -17,6 +21,8 @@ struct ManualButtons {
   bool v1_up, v1_down;
   bool v2_up, v2_down;
   bool start, stop;
+
+  // safety inputs
   bool estop;
   bool lim_h1_left, lim_h1_right, lim_h2_left, lim_h2_right;
 };
@@ -94,10 +100,16 @@ private:
   uint8_t _scroll = 0;
   bool _editing = false;
 
+#if USE_ENCODER
   // энкодер
   long _encLast = 0;
   bool _encBtnLast = false;
   uint32_t _encBtnDownMs = 0;
+#endif
+
+#if USE_KEYPAD
+  Keypad4x4 _kp;
+#endif
 
   // временные значения
   uint8_t _tmpSlotSel = 0;
@@ -108,7 +120,9 @@ private:
   bool readBtn(uint8_t pin) const;
 
   void menuMove(int8_t delta, uint8_t itemCount);
+#if USE_ENCODER
   void menuClickLogic(bool pressed, bool& click, bool& longPress, uint32_t nowMs);
+#endif
 
   void drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st);
   void drawMenu(const __FlashStringHelper* title,
@@ -125,4 +139,3 @@ private:
   void screenServiceMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
   void screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
 };
-
