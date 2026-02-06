@@ -162,11 +162,19 @@ static constexpr uint8_t PIN_BTN_V2_DOWN= 45;
 static constexpr bool BUTTON_ACTIVE_LOW = true;
 
 // ----------------------------- Modbus: регистры и команды ------------------
-// По мануалу NE200/300: 0001H команды, 0002H задание (%), 0020H статус, 0021H код ошибки.
+// Управление (команды/уставка) и мониторинг у разных приводов могут отличаться.
+// Для HE200 мониторинг (D0.xx) начинается с 0x7000.
+//
+// Команды (как было в проекте): 0001H — команда, 0002H — уставка (%).
+// Если для вашей конфигурации HE200 карта управления отличается — меняйте тут.
 static constexpr uint16_t MB_REG_CMD      = 0x0001;
 static constexpr uint16_t MB_REG_SETPOINT = 0x0002;
-static constexpr uint16_t MB_REG_STATUS   = 0x0020;
-static constexpr uint16_t MB_REG_FAULT    = 0x0021;
+
+// HE200: Monitoring parameters (Holding regs)
+static constexpr uint16_t MB_REG_MON_RUN_FREQ   = 0x7000; // D0.00 Running frequency, 0.01Hz
+static constexpr uint16_t MB_REG_MON_SET_FREQ   = 0x7001; // D0.01 Set frequency,     0.01Hz
+static constexpr uint16_t MB_REG_MON_FAULT_INFO = 0x702D; // D0.45 Fault information
+static constexpr uint16_t MB_REG_MON_RUN_STATE  = 0x703D; // D0.61 AC drive running state
 
 // Значения регистра команды 0001H
 static constexpr uint16_t MB_CMD_FWD        = 0x0001;

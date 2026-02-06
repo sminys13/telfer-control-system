@@ -221,31 +221,48 @@ static const __FlashStringHelper* errToText(ErrorCode e) {
 
 void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
   char b1[14], b2[14];
-  u8g2.firstPage();
-  do {
-    u8g2.setFont(u8g2_font_6x13_tf);
+  char fH1[8], fH2[8], fV1[8], fV2[8];
 
-    u8g2.setCursor(0, 12);
-    if (st.mode == RunMode::STOP) u8g2.print(F("STOP "));
-    else if (st.mode == RunMode::MANUAL) u8g2.print(F("MANUAL "));
-    else u8g2.print(st.autoPaused ? F("AUTO(P) ") : F("AUTO "));
+  auto formatFreq = [&](uint8_t idx, bool showSet, char* out, size_t outSz) {
+    const bool connected = (st.mbConnectedMask & (1u << idx)) != 0;
+    if (!connected) {
+      strncpy(out, "--.--", outSz);
+      out[outSz - 1] = 0;
+      return;
+    }
+    const uint16_t v = showSet ? st.mbSetFreq01Hz[idx] : st.mbRunFreq01Hz[idx];
+    const uint16_t a = (uint16_t)(v / 100);
+    const uint16_t b = (uint16_t)(v % 100);
+    snprintf(out, outSz, "%u.%02u", (unsigned)a, (unsigned)b);
+  };
 
-    u8g2.print(F("S"));
-    u8g2.print((int)(st.activeSlot+1));
+  const bool extended = _statusExtended;
 
-    u8g2.setCursor(0, 26);
-    u8g2.print(F("ERR: "));
-    u8g2.print(errToText(st.error));
-
+  bool holdSet = false;
 #if USE_KEYPAD
-    // Для быстрой диагностики: видит ли прошивка нажатия.
-    u8g2.print(F(" KP:"));
-    u8g2.print(_kpLastKeyDbg ? _kpLastKeyDbg : '-');
-    u8g2.print(F(" M:"));
-    u8g2.print(_kpMaskDbg, HEX);
+  // В компактном режиме удержание 5 временно показывает SET вместо RUN.
+  holdSet = _kp.isDown('5');
 #endif
 
-    u8g2.setCursor(0, 40);
+  u8g2.firstPage();
+  do {
+    u8g2.setFont(u8g2_font_5x8_tf);
+
+    // 1) Mode + Slot
+    u8g2.setCursor(0, 8);
+    if (st.mode == RunMode::STOP) u8g2.print(F("STOP "));
+    else if (st.mode == RunMode::MANUAL) u8g2.print(F("MAN "));
+    else u8g2.print(st.autoPaused ? F("AUTO(P) ") : F("AUTO "));
+    u8g2.print(F("S"));
+    u8g2.print((int)(st.activeSlot + 1));
+
+    // 2) ERR (always)
+    u8g2.setCursor(0, 16);
+    u8g2.print(F("ERR:"));
+    u8g2.print(errToText(st.error));
+
+    // 3) Lasers
+    u8g2.setCursor(0, 24);
     u8g2.print(F("X1="));
     if (sensors.laser[0].valid) { i32toa(sensors.laser[0].mm, b1, sizeof(b1)); u8g2.print(b1); }
     else u8g2.print(F("---"));
@@ -253,7 +270,8 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     if (sensors.laser[1].valid) { i32toa(sensors.laser[1].mm, b2, sizeof(b2)); u8g2.print(b2); }
     else u8g2.print(F("---"));
 
-    u8g2.setCursor(0, 54);
+    // 4) Ultrasound
+    u8g2.setCursor(0, 32);
     u8g2.print(F("H1="));
     if (sensors.us[0].valid) { i32toa(sensors.us[0].mm, b1, sizeof(b1)); u8g2.print(b1); }
     else u8g2.print(F("---"));
@@ -261,22 +279,43 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     if (sensors.us[1].valid) { i32toa(sensors.us[1].mm, b2, sizeof(b2)); u8g2.print(b2); }
     else u8g2.print(F("---"));
 
-    // Статус связи с 4 частотниками по Modbus.
-    // Показываем компактно: H1?, H2?, V1?, V2?
-    // ? = 'O' (OK, связь есть), 'E' (ошибка/FAULT), '-' (нет связи)
-    auto mk = [&](uint8_t idx) -> char {
-      const bool connected = (st.mbConnectedMask & (1u << idx)) != 0;
-      if (!connected) return '-';
-      const bool fault = (st.mbStatus[idx] & (1u << 2)) != 0; // бит 2 = FAULT (см. регистр STATUS)
-      return fault ? 'E' : 'O';
-    };
+    // 5-8) Drives
+    // Compact: show RUN by default; hold '5' -> show SET.
+    // Extended: show both RUN and SET.
 
-    u8g2.setCursor(0, 64);
-    u8g2.print(F("MB "));
-    u8g2.print(F("H1")); u8g2.print(mk(0)); u8g2.print(' ');
-    u8g2.print(F("H2")); u8g2.print(mk(1)); u8g2.print(' ');
-    u8g2.print(F("V1")); u8g2.print(mk(2)); u8g2.print(' ');
-    u8g2.print(F("V2")); u8g2.print(mk(3));
+    const bool compactShowSet = (!extended) && holdSet;
+    const bool showSetLine1 = extended ? false : compactShowSet;
+
+    // RUN/SET line for H drives
+    formatFreq(0, showSetLine1, fH1, sizeof(fH1));
+    formatFreq(1, showSetLine1, fH2, sizeof(fH2));
+    u8g2.setCursor(0, 40);
+    u8g2.print(showSetLine1 ? 'S' : 'R');
+    u8g2.print(F(" H1=")); u8g2.print(fH1);
+    u8g2.print(F(" H2=")); u8g2.print(fH2);
+
+    // RUN/SET line for V drives
+    formatFreq(2, showSetLine1, fV1, sizeof(fV1));
+    formatFreq(3, showSetLine1, fV2, sizeof(fV2));
+    u8g2.setCursor(0, 48);
+    u8g2.print(showSetLine1 ? 'S' : 'R');
+    u8g2.print(F(" V1=")); u8g2.print(fV1);
+    u8g2.print(F(" V2=")); u8g2.print(fV2);
+
+    if (extended) {
+      // SET lines
+      formatFreq(0, true, fH1, sizeof(fH1));
+      formatFreq(1, true, fH2, sizeof(fH2));
+      u8g2.setCursor(0, 56);
+      u8g2.print(F("S H1=")); u8g2.print(fH1);
+      u8g2.print(F(" H2=")); u8g2.print(fH2);
+
+      formatFreq(2, true, fV1, sizeof(fV1));
+      formatFreq(3, true, fV2, sizeof(fV2));
+      u8g2.setCursor(0, 64);
+      u8g2.print(F("S V1=")); u8g2.print(fV1);
+      u8g2.print(F(" V2=")); u8g2.print(fV2);
+    }
   } while (u8g2.nextPage());
 }
 
@@ -798,6 +837,10 @@ void UI::tick(uint32_t nowMs,
   // STATUS: клик → меню
   if (_screen == Screen::STATUS) {
 #if USE_KEYPAD
+    // Переключение режима статуса (compact/extended) по клавише 0
+    if (key == '0') {
+      _statusExtended = !_statusExtended;
+    }
     // В статусе хотим заходить в меню по A.
     if (key == 'A') click = true;
 #endif

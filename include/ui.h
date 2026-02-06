@@ -68,9 +68,9 @@ struct UiStateSummary {
   // Modbus/RS485 связь с 4 ПЧ (H1,H2,V1,V2).
   // UI специально НЕ включает motors.h: сюда передаём только то, что нужно для отображения.
   static constexpr uint8_t MB_DRIVES = 4;
-  uint8_t mbConnectedMask = 0;              // bit0=H1, bit1=H2, bit2=V1, bit3=V2
-  uint16_t mbStatus[MB_DRIVES] = {0,0,0,0}; // регистр 0x0020 (Status)
-  uint16_t mbFault [MB_DRIVES] = {0,0,0,0}; // регистр 0x0021 (Fault)
+  uint8_t mbConnectedMask = 0;                // bit0=H1, bit1=H2, bit2=V1, bit3=V2
+  uint16_t mbRunFreq01Hz[MB_DRIVES] = {0,0,0,0}; // 0x7000 (Running frequency), 0.01Hz
+  uint16_t mbSetFreq01Hz[MB_DRIVES] = {0,0,0,0}; // 0x7001 (Set frequency), 0.01Hz
 };
 
 class UI {
@@ -121,6 +121,9 @@ private:
   uint16_t _kpMaskDbg = 0;
   uint32_t _kpLastKeyMs = 0;
 #endif
+
+  // STATUS screen mode toggle (0): compact vs extended
+  bool _statusExtended = false;
 
   // временные значения
   uint8_t _tmpSlotSel = 0;

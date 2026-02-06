@@ -86,17 +86,36 @@ void Drives::sendCommand(DriveId id, int16_t pct) {
 void Drives::pollTelemetry(DriveId id, uint32_t nowMs) {
   if (!_mb) return;
   DriveMap m = _map[idx(id)];
-  uint16_t regs[2] = {0,0};
-  auto r = _mb->readHoldingRegisters(m.addr, MB_REG_STATUS, 2, regs);
+
+  // 1) Основной опрос: 0x7000..0x7001 (RUN+SET frequency, 0.01Hz)
+  uint16_t regs[2] = {0, 0};
+  auto r = _mb->readHoldingRegisters(m.addr, MB_REG_MON_RUN_FREQ, 2, regs);
   if (r.ok) {
-    _tel[idx(id)].statusReg = regs[0];
-    _tel[idx(id)].faultCode = regs[1];
+    _tel[idx(id)].runFreq01Hz = regs[0];
+    _tel[idx(id)].setFreq01Hz = regs[1];
     _tel[idx(id)].connected = true;
     _tel[idx(id)].lastErr = 0;
     _tel[idx(id)].lastOkMs = nowMs;
   } else {
     _tel[idx(id)].connected = false;
     _tel[idx(id)].lastErr = r.error;
+    return; // если нет связи — не тратим время на diag
+  }
+
+  // 2) Диагностика: чередуем faultInfo и runState (не чаще 1 раза/сек на привод)
+  auto& st = _st[idx(id)];
+  if ((uint32_t)(nowMs - st.lastDiag) < 1000) return;
+  st.lastDiag = nowMs;
+
+  uint16_t v = 0;
+  if (st.diagPhase == 0) {
+    auto rf = _mb->readHoldingRegisters(m.addr, MB_REG_MON_FAULT_INFO, 1, &v);
+    if (rf.ok) _tel[idx(id)].faultInfo = v;
+    st.diagPhase = 1;
+  } else {
+    auto rs = _mb->readHoldingRegisters(m.addr, MB_REG_MON_RUN_STATE, 1, &v);
+    if (rs.ok) _tel[idx(id)].runState = v;
+    st.diagPhase = 0;
   }
 }
 

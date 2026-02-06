@@ -25,11 +25,16 @@ struct DriveMap {
 };
 
 struct DriveTelemetry {
-  uint16_t statusReg;  // 0x0020
-  uint16_t faultCode;  // 0x0021
-  bool connected;
-  uint8_t lastErr;     // 0=ok, 1=timeout, 2=crc, 3=exception, 4=bad_response
-  uint32_t lastOkMs;   // когда последний раз получили валидный ответ
+  // HE200 monitoring (D0.xx)
+  // Частоты приходят в 0.01 Hz (например 1396 -> 13.96 Hz)
+  uint16_t runFreq01Hz = 0;   // 0x7000
+  uint16_t setFreq01Hz = 0;   // 0x7001
+  uint16_t faultInfo   = 0;   // 0x702D (0 = OK)
+  uint16_t runState    = 0;   // 0x703D
+
+  bool connected = false;
+  uint8_t lastErr = 0;     // 0=ok, 1=timeout, 2=crc, 3=exception, 4=bad_response
+  uint32_t lastOkMs = 0;   // когда последний раз получили валидный ответ
 };
 
 class Drives {
@@ -68,6 +73,8 @@ private:
     int16_t sentPct   = 0;
     uint32_t lastSend = 0;
     uint32_t lastPoll = 0;
+    uint32_t lastDiag = 0;
+    uint8_t  diagPhase = 0; // 0=fault, 1=state
     bool     needStopCmd = false;
   };
 

@@ -150,8 +150,8 @@ void App::loop() {
     const DriveTelemetry& t = _drives.telemetry(ids[i]);
     if (t.connected) mask |= (1u << i);
     else allOk = false;
-    st.mbStatus[i] = t.statusReg;
-    st.mbFault[i]  = t.faultCode;
+    st.mbRunFreq01Hz[i] = t.runFreq01Hz;
+    st.mbSetFreq01Hz[i] = t.setFreq01Hz;
   }
   st.mbConnectedMask = mask;
   _rt.modbusOk = allOk;
@@ -339,7 +339,7 @@ void App::updateSafety(uint32_t) {
   // Ошибки частотников
   for (uint8_t i=0;i<(uint8_t)DriveId::COUNT;i++) {
     const auto& t = _drives.telemetry((DriveId)i);
-    if (t.connected && t.faultCode != 0) {
+    if (t.connected && t.faultInfo != 0) {
       setError(ErrorCode::DRIVE_FAULT);
       return;
     }
