@@ -71,6 +71,7 @@ struct UiStateSummary {
   uint8_t mbConnectedMask = 0;                // bit0=H1, bit1=H2, bit2=V1, bit3=V2
   uint16_t mbRunFreq01Hz[MB_DRIVES] = {0,0,0,0}; // 0x7000 (Running frequency), 0.01Hz
   uint16_t mbSetFreq01Hz[MB_DRIVES] = {0,0,0,0}; // 0x7001 (Set frequency), 0.01Hz
+  uint16_t mbBusV01V[MB_DRIVES]     = {0,0,0,0}; // 0x7002 (DC bus voltage), 0.1V
 };
 
 class UI {

@@ -92,13 +92,15 @@ void Drives::pollTelemetry(DriveId id, uint32_t nowMs) {
   const uint16_t baseReg = MB_REG_MON_RUN_FREQ;
   bool okNow = false;
 
-  auto tryReadFreq = [&](bool useInput, uint16_t reg, uint8_t modeCode) -> bool {
-    uint16_t regs[2] = {0,0};
-    ModbusResult r = useInput ? _mb->readInputRegisters(m.addr, reg, 2, regs)
-                            : _mb->readHoldingRegisters(m.addr, reg, 2, regs);
+  auto tryReadMon = [&](bool useInput, uint16_t reg, uint8_t modeCode) -> bool {
+    // 0x7000..0x7003: run freq, set freq, DC bus voltage, output voltage
+    uint16_t regs[4] = {0, 0, 0, 0};
+    ModbusResult r = useInput ? _mb->readInputRegisters(m.addr, reg, 4, regs)
+                            : _mb->readHoldingRegisters(m.addr, reg, 4, regs);
     if (r.ok) {
       tel.runFreq01Hz = regs[0];
       tel.setFreq01Hz = regs[1];
+      tel.busV01V     = regs[2];
       tel.lastErr = 0;
       tel.lastOkMs = nowMs;
       tel.connected = true;
@@ -113,15 +115,15 @@ void Drives::pollTelemetry(DriveId id, uint32_t nowMs) {
 
   // Авто-детект карты/FC: 03/04 и возможный сдвиг адреса на -1 (некоторые мануалы 1-based).
   if (st.regMode == 0) {
-    if (tryReadFreq(false, baseReg, 1)) okNow = true;
-    else if (tryReadFreq(true, baseReg, 2)) okNow = true;
-    else if (baseReg > 0 && tryReadFreq(false, (uint16_t)(baseReg - 1), 3)) okNow = true;
-    else if (baseReg > 0 && tryReadFreq(true, (uint16_t)(baseReg - 1), 4)) okNow = true;
+    if (tryReadMon(false, baseReg, 1)) okNow = true;
+    else if (tryReadMon(true, baseReg, 2)) okNow = true;
+    else if (baseReg > 0 && tryReadMon(false, (uint16_t)(baseReg - 1), 3)) okNow = true;
+    else if (baseReg > 0 && tryReadMon(true, (uint16_t)(baseReg - 1), 4)) okNow = true;
   } else {
     bool useInput = (st.regMode == 2 || st.regMode == 4);
     uint16_t off = (st.regMode == 3 || st.regMode == 4) ? 1 : 0;
     uint16_t reg = (uint16_t)(baseReg - off);
-    okNow = tryReadFreq(useInput, reg, st.regMode);
+    okNow = tryReadMon(useInput, reg, st.regMode);
   }
 
   if (!okNow) {

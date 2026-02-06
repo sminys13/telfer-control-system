@@ -104,6 +104,7 @@ void App::setup() {
   //   - скорость (Fd.02),
   //   - формат (Fd.03) → в config.h это RS485_SERIAL_CONFIG.
   _mb.begin(Serial1, PIN_RS485_DE_RE, BAUD_RS485, RS485_TIMEOUT_MS, RS485_SERIAL_CONFIG);
+  _mb.setInterFrameDelayUs(4500); // 3.5 char times @9600bps ≈ 3.65ms, use a safe margin
   _drives.begin(_mb);
 
   stopAll();
@@ -152,6 +153,7 @@ void App::loop() {
     else allOk = false;
     st.mbRunFreq01Hz[i] = t.runFreq01Hz;
     st.mbSetFreq01Hz[i] = t.setFreq01Hz;
+    st.mbBusV01V[i]     = t.busV01V;
   }
   st.mbConnectedMask = mask;
   _rt.modbusOk = allOk;

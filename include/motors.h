@@ -29,6 +29,7 @@ struct DriveTelemetry {
   // Частоты приходят в 0.01 Hz (например 1396 -> 13.96 Hz)
   uint16_t runFreq01Hz = 0;   // 0x7000
   uint16_t setFreq01Hz = 0;   // 0x7001
+  uint16_t busV01V    = 0;   // 0x7002 (0.1 V DC bus)
   uint16_t faultInfo   = 0;   // 0x702D (0 = OK)
   uint16_t runState    = 0;   // 0x703D
 

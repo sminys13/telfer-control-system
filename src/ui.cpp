@@ -236,6 +236,15 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     snprintf(out, outSz, "%u.%02u", (unsigned)a, (unsigned)b);
   };
 
+  auto formatBusV = [&](int driveIndex, char* out, size_t outLen) {
+    if ((st.mbConnectedMask & (1u << driveIndex)) == 0) {
+      snprintf(out, outLen, "---.-");
+      return;
+    }
+    const uint16_t v = st.mbBusV01V[driveIndex];
+    snprintf(out, outLen, "%u.%01u", (unsigned)(v / 10), (unsigned)(v % 10));
+  };
+
   const bool extended = _statusExtended;
 
   bool holdSet = false;
@@ -301,6 +310,23 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     u8g2.print(showSetLine1 ? 'S' : 'R');
     u8g2.print(F(" V1=")); u8g2.print(fV1);
     u8g2.print(F(" V2=")); u8g2.print(fV2);
+
+    // In compact mode there is still room for two more lines. Show a parameter
+    // that is non-zero even when motor is stopped (DC bus voltage).
+    if (!extended) {
+      char uH1[8], uH2[8], uV1[8], uV2[8];
+      formatBusV(0, uH1, sizeof(uH1));
+      formatBusV(1, uH2, sizeof(uH2));
+      formatBusV(2, uV1, sizeof(uV1));
+      formatBusV(3, uV2, sizeof(uV2));
+
+      u8g2.setCursor(0, 56);
+      u8g2.print(F("U H:")); u8g2.print(uH1); u8g2.print(' '); u8g2.print(uH2);
+
+      u8g2.setCursor(0, 64);
+      u8g2.print(F("U V:")); u8g2.print(uV1); u8g2.print(' '); u8g2.print(uV2);
+      // return;
+    }
 
     if (extended) {
       // SET lines
