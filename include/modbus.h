@@ -34,6 +34,7 @@ public:
 
   ModbusResult writeSingleRegister(uint8_t addr, uint16_t reg, uint16_t value);
   ModbusResult readHoldingRegisters(uint8_t addr, uint16_t reg, uint16_t count, uint16_t* outValues);
+  ModbusResult readInputRegisters(uint8_t addr, uint16_t reg, uint16_t count, uint16_t* outValues);
 
   void setTimeout(uint16_t timeoutMs) { _timeoutMs = timeoutMs; }
   void setInterFrameDelayUs(uint16_t us) { _ifDelayUs = us; }

@@ -10,6 +10,14 @@
 static constexpr uint16_t US_TIMEOUT_US = 30000; // 30 ms (~5m), но мы всё равно ограничим расстояния
 
 void Sensors::begin() {
+  // Лазеры на Serial2 (TX=16) и Serial3 (TX=14)
+  // Держим TX в "1" до инициализации UART, чтобы избежать мусорных старт-битов при ресете.
+  pinMode(16, OUTPUT);
+  digitalWrite(16, HIGH);
+  pinMode(14, OUTPUT);
+  digitalWrite(14, HIGH);
+  delay(20);
+
   // Лазеры на Serial2 и Serial3 (UART на Mega)
   initLaserPort(Serial2);
   initLaserPort(Serial3);
@@ -155,6 +163,10 @@ void Sensors::tick(uint32_t nowMs) {
     _snap.laser[0].lastUpdateMs = nowMs;
   } else if ((nowMs - _snap.laser[0].lastUpdateMs) > 2000) {
     _snap.laser[0].valid = false;
+    if ((uint32_t)(nowMs - _laserReinitMs[0]) > 3000) {
+      initLaserPort(Serial2);
+      _laserReinitMs[0] = nowMs;
+    }
   }
 
   if (readLaserFrame(Serial3, mm)) {
@@ -163,6 +175,10 @@ void Sensors::tick(uint32_t nowMs) {
     _snap.laser[1].lastUpdateMs = nowMs;
   } else if ((nowMs - _snap.laser[1].lastUpdateMs) > 2000) {
     _snap.laser[1].valid = false;
+    if ((uint32_t)(nowMs - _laserReinitMs[1]) > 3000) {
+      initLaserPort(Serial3);
+      _laserReinitMs[1] = nowMs;
+    }
   }
 
   // Ультразвук

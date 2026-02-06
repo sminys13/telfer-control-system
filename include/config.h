@@ -176,6 +176,16 @@ static constexpr uint16_t MB_REG_MON_SET_FREQ   = 0x7001; // D0.01 Set frequency
 static constexpr uint16_t MB_REG_MON_FAULT_INFO = 0x702D; // D0.45 Fault information
 static constexpr uint16_t MB_REG_MON_RUN_STATE  = 0x703D; // D0.61 AC drive running state
 
+// Modbus slave addresses (set as in your HE200 settings)
+// Example from your setup: Addr=1 and Addr=2 (9600, 8N1)
+// If you have only 2 drives: H1/H2 share Addr=1, V1/V2 share Addr=2.
+// If you have 4 independent drives, set MB_ADDR_* to 1,2,3,4 accordingly.
+static constexpr uint8_t MB_ADDR_H1 = 1;
+static constexpr uint8_t MB_ADDR_H2 = 1;
+static constexpr uint8_t MB_ADDR_V1 = 2;
+static constexpr uint8_t MB_ADDR_V2 = 2;
+
+
 // Значения регистра команды 0001H
 static constexpr uint16_t MB_CMD_FWD        = 0x0001;
 static constexpr uint16_t MB_CMD_REV        = 0x0002;

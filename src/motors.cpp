@@ -21,7 +21,7 @@ void Drives::begin(ModbusMasterRTU& mb) {
 
   for (uint8_t i=0;i<idx(DriveId::COUNT);i++) {
     _st[i] = DriveState{};
-    _tel[i] = DriveTelemetry{0,0,false,0,0};
+    _tel[i] = DriveTelemetry{};
   }
 
   _rrSend = 0;
@@ -86,35 +86,73 @@ void Drives::sendCommand(DriveId id, int16_t pct) {
 void Drives::pollTelemetry(DriveId id, uint32_t nowMs) {
   if (!_mb) return;
   DriveMap m = _map[idx(id)];
+  auto& st = _st[idx(id)];
+  auto& tel = _tel[idx(id)];
 
-  // 1) Основной опрос: 0x7000..0x7001 (RUN+SET frequency, 0.01Hz)
-  uint16_t regs[2] = {0, 0};
-  auto r = _mb->readHoldingRegisters(m.addr, MB_REG_MON_RUN_FREQ, 2, regs);
-  if (r.ok) {
-    _tel[idx(id)].runFreq01Hz = regs[0];
-    _tel[idx(id)].setFreq01Hz = regs[1];
-    _tel[idx(id)].connected = true;
-    _tel[idx(id)].lastErr = 0;
-    _tel[idx(id)].lastOkMs = nowMs;
+  const uint16_t baseReg = MB_REG_MON_RUN_FREQ;
+  bool okNow = false;
+
+  auto tryReadFreq = [&](bool useInput, uint16_t reg, uint8_t modeCode) -> bool {
+    uint16_t regs[2] = {0,0};
+    ModbusResult r = useInput ? _mb->readInputRegisters(m.addr, reg, 2, regs)
+                            : _mb->readHoldingRegisters(m.addr, reg, 2, regs);
+    if (r.ok) {
+      tel.runFreq01Hz = regs[0];
+      tel.setFreq01Hz = regs[1];
+      tel.lastErr = 0;
+      tel.lastOkMs = nowMs;
+      tel.connected = true;
+      st.failStreak = 0;
+      st.regMode = modeCode;
+      tel.regMode = modeCode;
+      return true;
+    }
+    tel.lastErr = r.error;
+    return false;
+  };
+
+  // Авто-детект карты/FC: 03/04 и возможный сдвиг адреса на -1 (некоторые мануалы 1-based).
+  if (st.regMode == 0) {
+    if (tryReadFreq(false, baseReg, 1)) okNow = true;
+    else if (tryReadFreq(true, baseReg, 2)) okNow = true;
+    else if (baseReg > 0 && tryReadFreq(false, (uint16_t)(baseReg - 1), 3)) okNow = true;
+    else if (baseReg > 0 && tryReadFreq(true, (uint16_t)(baseReg - 1), 4)) okNow = true;
   } else {
-    _tel[idx(id)].connected = false;
-    _tel[idx(id)].lastErr = r.error;
-    return; // если нет связи — не тратим время на diag
+    bool useInput = (st.regMode == 2 || st.regMode == 4);
+    uint16_t off = (st.regMode == 3 || st.regMode == 4) ? 1 : 0;
+    uint16_t reg = (uint16_t)(baseReg - off);
+    okNow = tryReadFreq(useInput, reg, st.regMode);
   }
 
-  // 2) Диагностика: чередуем faultInfo и runState (не чаще 1 раза/сек на привод)
-  auto& st = _st[idx(id)];
+  if (!okNow) {
+    st.failStreak++;
+    tel.connected = ((uint32_t)(nowMs - tel.lastOkMs) <= 2000);
+    if (st.failStreak >= 3) {
+      st.regMode = 0;
+      tel.regMode = 0;
+    }
+    return;
+  }
+
+  // Диагностика (fault/state) — не чаще 1 раза/сек на привод. Используем тот же режим FC/offset.
   if ((uint32_t)(nowMs - st.lastDiag) < 1000) return;
   st.lastDiag = nowMs;
 
+  bool useInput = (st.regMode == 2 || st.regMode == 4);
+  uint16_t off = (st.regMode == 3 || st.regMode == 4) ? 1 : 0;
+
   uint16_t v = 0;
   if (st.diagPhase == 0) {
-    auto rf = _mb->readHoldingRegisters(m.addr, MB_REG_MON_FAULT_INFO, 1, &v);
-    if (rf.ok) _tel[idx(id)].faultInfo = v;
+    uint16_t rFault = (uint16_t)(MB_REG_MON_FAULT_INFO - off);
+    ModbusResult rf = useInput ? _mb->readInputRegisters(m.addr, rFault, 1, &v)
+                               : _mb->readHoldingRegisters(m.addr, rFault, 1, &v);
+    if (rf.ok) tel.faultInfo = v;
     st.diagPhase = 1;
   } else {
-    auto rs = _mb->readHoldingRegisters(m.addr, MB_REG_MON_RUN_STATE, 1, &v);
-    if (rs.ok) _tel[idx(id)].runState = v;
+    uint16_t rState = (uint16_t)(MB_REG_MON_RUN_STATE - off);
+    ModbusResult rs = useInput ? _mb->readInputRegisters(m.addr, rState, 1, &v)
+                               : _mb->readHoldingRegisters(m.addr, rState, 1, &v);
+    if (rs.ok) tel.runState = v;
     st.diagPhase = 0;
   }
 }

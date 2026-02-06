@@ -35,6 +35,7 @@ struct DriveTelemetry {
   bool connected = false;
   uint8_t lastErr = 0;     // 0=ok, 1=timeout, 2=crc, 3=exception, 4=bad_response
   uint32_t lastOkMs = 0;   // когда последний раз получили валидный ответ
+  uint8_t regMode = 0;     // 0=unknown,1=03,2=04,3=03@(base-1),4=04@(base-1)
 };
 
 class Drives {
@@ -75,6 +76,8 @@ private:
     uint32_t lastPoll = 0;
     uint32_t lastDiag = 0;
     uint8_t  diagPhase = 0; // 0=fault, 1=state
+    uint8_t  regMode = 0;  // 0=unknown,1=03,2=04,3=03@(base-1),4=04@(base-1)
+    uint8_t  failStreak = 0;
     bool     needStopCmd = false;
   };
 

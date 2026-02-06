@@ -50,8 +50,10 @@ ModbusResult ModbusMasterRTU::sendRequest(const uint8_t* req, uint8_t reqLen, ui
 
   clearRx();
   txEnable(true);
+  delayMicroseconds(80);
   _ser->write(req, reqLen);
   _ser->flush();
+  delayMicroseconds(80);
   txEnable(false);
 
   // --- IMPORTANT ---
@@ -163,3 +165,36 @@ ModbusResult ModbusMasterRTU::readHoldingRegisters(uint8_t addr, uint16_t reg, u
   return r;
 }
 
+
+ModbusResult ModbusMasterRTU::readInputRegisters(uint8_t addr, uint16_t reg, uint16_t count, uint16_t* outValues) {
+  if (count == 0 || count > 8 || !outValues) return ModbusResult{false,4};
+
+  uint8_t req[8];
+  req[0] = addr;
+  req[1] = 0x04;
+  req[2] = (uint8_t)(reg >> 8);
+  req[3] = (uint8_t)(reg & 0xFF);
+  req[4] = (uint8_t)(count >> 8);
+  req[5] = (uint8_t)(count & 0xFF);
+  uint16_t c = crc16(req, 6);
+  req[6] = (uint8_t)(c & 0xFF);
+  req[7] = (uint8_t)(c >> 8);
+
+  // Response: [addr][04][byteCount][data...][crcLo][crcHi]
+  const uint8_t expectedMin = 5 + (uint8_t)(count * 2);
+  uint8_t resp[64];
+  uint8_t respLen = 0;
+  auto r = sendRequest(req, sizeof(req), resp, sizeof(resp), respLen, expectedMin);
+  if (!r.ok) return r;
+
+  if (resp[0] != addr || resp[1] != 0x04) { return ModbusResult{false,4}; }
+  if (resp[2] != count*2) { return ModbusResult{false,4}; }
+  if (respLen < (uint8_t)(3 + count*2 + 2)) { return ModbusResult{false,4}; }
+
+  uint8_t idx = 3;
+  for (uint16_t i=0;i<count;i++) {
+    outValues[i] = ((uint16_t)resp[idx] << 8) | (uint16_t)resp[idx+1];
+    idx += 2;
+  }
+  return r;
+}

@@ -43,6 +43,8 @@ private:
   int32_t _laserHist[2][3] = {{0}};
   uint8_t _laserHistN[2] = {0};
 
+  uint32_t _laserReinitMs[2] = {0, 0};
+
   int32_t _usHist[2][3] = {{0}};
   uint8_t _usHistN[2] = {0};
 
