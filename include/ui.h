@@ -91,6 +91,16 @@ public:
 private:
   bool _manualSync = false;
 
+#if USE_KEYPAD
+  // Ускорение навигации по меню: авто-повтор при удержании клавиш 2/8.
+  int8_t _navDir = 0;               // -1=up(2), +1=down(8)
+  uint32_t _navNextRepeatMs = 0;
+
+  // В ручном режиме: удержание '0' включает/выключает синхронный ход по горизонтали.
+  bool _key0Latched = false;
+  uint32_t _key0DownMs = 0;
+#endif
+
   enum class Screen : uint8_t {
     STATUS,
     MAIN_MENU,

@@ -149,6 +149,8 @@ void UI::begin() {
   // Контраст (пользователь просил, иначе "засвечено")
   u8g2.setContrast(LCD_CONTRAST);
   u8g2.setFont(u8g2_font_6x13_tf);
+  // fontMode=1 (прозрачный фон). Чтобы не было «наслоения» текста,
+  // мы явно очищаем буфер (clearBuffer) в каждом рендере.
   u8g2.setFontMode(1);
 
   // Очистка мусора после прошивки
@@ -255,6 +257,7 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
 
   u8g2.firstPage();
   do {
+    u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_5x8_tf);
 
     // 1) Mode + Slot
@@ -352,6 +355,7 @@ void UI::drawMenu(const __FlashStringHelper* title,
                   const char* footerLine2) {
   u8g2.firstPage();
   do {
+    u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x13_tf);
 
     u8g2.setCursor(0, 12);
@@ -681,6 +685,7 @@ void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSetti
 
   u8g2.firstPage();
   do {
+    u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x13_tf);
     u8g2.setCursor(0, 12);
     u8g2.print(F("MANUAL MODE"));
@@ -692,9 +697,9 @@ void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSetti
     u8g2.print(F("V1:7^ 9v  V2:*^ #v"));
     u8g2.setCursor(0, 52);
     u8g2.print(F("Sync 2/8: "));
-    u8g2.print(settings.manual_h_sync_default ? F("ON") : F("OFF"));
+    u8g2.print(_manualSync ? F("ON") : F("OFF"));
     u8g2.setCursor(0, 64);
-    u8g2.print(F("B=BACK   D=STOP"));
+    u8g2.print(F("Hold 0=SYNC  B=BACK D=STOP"));
 #else
     u8g2.setCursor(0, 28);
     u8g2.print(F("Buttons: H1/H2/V1/V2"));
@@ -783,7 +788,23 @@ void UI::tick(uint32_t nowMs,
   // STOP по клавише D — разрешаем ВСЕГДА (это безопасно).
   if (_kp.isDown('D')) manualButtonsOut.stop = true;
 
-  if (inManual) {
+  // Движение с клавиатуры разрешаем ТОЛЬКО на экране "MANUAL MODE",
+  // чтобы в меню/настройках случайно не поехали привода.
+  if (inManual && _screen == Screen::MANUAL_SCREEN) {
+    // В ручном режиме: удержание '0' (короткое) переключает синхронный горизонтальный ход.
+    // Это удобно, чтобы быстро включать/выключать «оба тельфера вместе» без захода в Settings.
+    const bool k0 = _kp.isDown('0');
+    if (k0) {
+      if (_key0DownMs == 0) _key0DownMs = nowMs;
+      if (!_key0Latched && (uint32_t)(nowMs - _key0DownMs) >= 250) {
+        _manualSync = !_manualSync;
+        _key0Latched = true;
+      }
+    } else {
+      _key0DownMs = 0;
+      _key0Latched = false;
+    }
+
     // Горизонталь
     manualButtonsOut.h1_bwd = _kp.isDown('4');
     manualButtonsOut.h1_fwd = _kp.isDown('6');
@@ -791,7 +812,7 @@ void UI::tick(uint32_t nowMs,
     manualButtonsOut.h2_fwd = _kp.isDown('3');
 
     // Опциональная синхронная горизонталь (оба тельфера вместе)
-    const bool allowSync = settings.manual_h_sync_default;
+    const bool allowSync = _manualSync;
     manualButtonsOut.h_both_bwd = allowSync && _kp.isDown('2');
     manualButtonsOut.h_both_fwd = allowSync && _kp.isDown('8');
 
@@ -803,6 +824,10 @@ void UI::tick(uint32_t nowMs,
 
     // Старт ручного режима (если понадобится) — клавиша A.
     if (_kp.isDown('A')) manualButtonsOut.start = true;
+  } else {
+    // вне MANUAL_SCREEN — сбрасываем логику удержания 0, чтобы не было "залипания"
+    _key0DownMs = 0;
+    _key0Latched = false;
   }
 #endif
 
@@ -838,6 +863,34 @@ void UI::tick(uint32_t nowMs,
   if (key == '2') encDelta = -1;
   else if (key == '8') encDelta = +1;
   else if (key == 'A') click = true;
+
+  // Авто-повтор 2/8 при удержании — ускоряет пролистывание меню.
+  // Не применяем на STATUS и MANUAL_SCREEN (там 2/8 могут использоваться для движения).
+  if (_screen != Screen::STATUS && _screen != Screen::MANUAL_SCREEN) {
+    const bool up = _kp.isDown('2');
+    const bool dn = _kp.isDown('8');
+    const int8_t dir = (dn && !up) ? +1 : (up && !dn) ? -1 : 0;
+
+    constexpr uint16_t REPEAT_START_MS = 250;
+    constexpr uint16_t REPEAT_STEP_MS  = 120;
+
+    if (dir == 0) {
+      _navDir = 0;
+    } else if (_navDir != dir) {
+      // новое удержание/смена направления
+      _navDir = dir;
+      _navNextRepeatMs = (uint32_t)(nowMs + REPEAT_START_MS);
+      // быстрый первый шаг (на случай, если edge был пропущен)
+      if (encDelta == 0) encDelta = dir;
+    } else {
+      if ((int32_t)(nowMs - _navNextRepeatMs) >= 0) {
+        if (encDelta == 0) encDelta = dir;
+        _navNextRepeatMs = (uint32_t)(_navNextRepeatMs + REPEAT_STEP_MS);
+      }
+    }
+  } else {
+    _navDir = 0;
+  }
 
   if (key == 'C') {
     _screen = Screen::STATUS;

@@ -55,6 +55,7 @@ void Drives::resetFault(DriveId id) {
 void Drives::sendCommand(DriveId id, int16_t pct) {
   if (!_mb) return;
   DriveMap m = _map[idx(id)];
+  if (m.addr == 0) return; // адрес 0 = отключено (удобно при отладке 1..2 приводов)
 
   // направление с учётом инверсии
   int16_t eff = pct;
@@ -86,6 +87,7 @@ void Drives::sendCommand(DriveId id, int16_t pct) {
 void Drives::pollTelemetry(DriveId id, uint32_t nowMs) {
   if (!_mb) return;
   DriveMap m = _map[idx(id)];
+  if (m.addr == 0) return; // отключено
   auto& st = _st[idx(id)];
   auto& tel = _tel[idx(id)];
 
@@ -114,11 +116,18 @@ void Drives::pollTelemetry(DriveId id, uint32_t nowMs) {
   };
 
   // Авто-детект карты/FC: 03/04 и возможный сдвиг адреса на -1 (некоторые мануалы 1-based).
+  // ВАЖНО: чтобы не «подвешивать» UI при отсутствии одного из приводов на шине,
+  // не делаем 4 запроса подряд. Пробуем по одному режиму за тик (probePhase).
   if (st.regMode == 0) {
-    if (tryReadMon(false, baseReg, 1)) okNow = true;
-    else if (tryReadMon(true, baseReg, 2)) okNow = true;
-    else if (baseReg > 0 && tryReadMon(false, (uint16_t)(baseReg - 1), 3)) okNow = true;
-    else if (baseReg > 0 && tryReadMon(true, (uint16_t)(baseReg - 1), 4)) okNow = true;
+    switch (st.probePhase & 0x03u) {
+      case 0: okNow = tryReadMon(false, baseReg, 1); break; // 03
+      case 1: okNow = tryReadMon(true,  baseReg, 2); break; // 04
+      case 2: okNow = (baseReg > 0) && tryReadMon(false, (uint16_t)(baseReg - 1), 3); break; // 03 base-1
+      case 3: okNow = (baseReg > 0) && tryReadMon(true,  (uint16_t)(baseReg - 1), 4); break; // 04 base-1
+      default: break;
+    }
+    // если не получилось — в следующий раз попробуем другой режим
+    if (!okNow) st.probePhase = (uint8_t)((st.probePhase + 1) & 0x03u);
   } else {
     bool useInput = (st.regMode == 2 || st.regMode == 4);
     uint16_t off = (st.regMode == 3 || st.regMode == 4) ? 1 : 0;
@@ -198,7 +207,9 @@ void Drives::tick(uint32_t nowMs) {
   {
     const uint8_t i = _rrPoll;
     auto& st = _st[i];
-    if ((uint32_t)(nowMs - st.lastPoll) >= 500) {
+    // Если привод не на связи, опрашиваем реже, чтобы меню/экран не «тормозили».
+    const uint16_t pollGap = _tel[i].connected ? 500 : 2000;
+    if ((uint32_t)(nowMs - st.lastPoll) >= pollGap) {
       pollTelemetry((DriveId)i, nowMs);
       st.lastPoll = nowMs;
       _rrPoll = (uint8_t)((i + 1) % idx(DriveId::COUNT));

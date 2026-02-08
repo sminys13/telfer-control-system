@@ -78,6 +78,10 @@ private:
     uint32_t lastDiag = 0;
     uint8_t  diagPhase = 0; // 0=fault, 1=state
     uint8_t  regMode = 0;  // 0=unknown,1=03,2=04,3=03@(base-1),4=04@(base-1)
+    // Авто-пробник для regMode==0. Вместо 4 запросов подряд (что может
+    // «подвешивать» UI при отсутствии привода) пробуем по одному режиму
+    // за тик: 0..3 → (03),(04),(03 base-1),(04 base-1).
+    uint8_t  probePhase = 0;
     uint8_t  failStreak = 0;
     bool     needStopCmd = false;
   };
