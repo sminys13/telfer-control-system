@@ -99,6 +99,9 @@ private:
   // В ручном режиме: удержание '0' включает/выключает синхронный ход по горизонтали.
   bool _key0Latched = false;
   uint32_t _key0DownMs = 0;
+
+  // Для Back (B): latch, чтобы не пропускать нажатия при редком тике.
+  bool _keyBLatched = false;
 #endif
 
   enum class Screen : uint8_t {
@@ -155,6 +158,14 @@ private:
                 uint8_t itemCount,
                 const char* footerLine1 = nullptr,
                 const char* footerLine2 = nullptr);
+
+  // Меню с отображением значений справа (без подвала)
+  typedef void (*MenuValueFn)(uint8_t idx, char* out, size_t outSize, void* ctx);
+  void drawMenuValues(const __FlashStringHelper* title,
+                      const char* const* itemsPgm,
+                      uint8_t itemCount,
+                      MenuValueFn valueFn,
+                      void* ctx = nullptr);
 
   void screenMainMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
   void screenAutoMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);

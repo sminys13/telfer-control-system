@@ -149,14 +149,16 @@ void UI::begin() {
   // Контраст (пользователь просил, иначе "засвечено")
   u8g2.setContrast(LCD_CONTRAST);
   u8g2.setFont(u8g2_font_6x13_tf);
-  // fontMode=1 (прозрачный фон). Чтобы не было «наслоения» текста,
-  // мы явно очищаем буфер (clearBuffer) в каждом рендере.
+  // fontMode=1 (прозрачный фон). В page-buffer режиме (u8g2 "_1_")
+  // кадр рисуется через firstPage/nextPage и полностью перерисовывается каждый тик.
   u8g2.setFontMode(1);
 
-  // Очистка мусора после прошивки
+  // Очистка после прошивки (пара пустых кадров)
   for (uint8_t i=0;i<2;i++) {
     u8g2.firstPage();
-    do { } while (u8g2.nextPage());
+    do {
+      // пустой кадр
+    } while (u8g2.nextPage());
     delay(20);
   }
 
@@ -257,7 +259,6 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
 
   u8g2.firstPage();
   do {
-    u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_5x8_tf);
 
     // 1) Mode + Slot
@@ -353,34 +354,134 @@ void UI::drawMenu(const __FlashStringHelper* title,
                   uint8_t itemCount,
                   const char* footerLine1,
                   const char* footerLine2) {
+  // Если есть "подвал" (2 строки статуса), уменьшаем количество видимых пунктов,
+  // иначе они пересекаются по координатам (y=52/64) и создают "наслоение".
+  const bool hasFooter =
+      (footerLine1 && footerLine1[0] != '\0') ||
+      (footerLine2 && footerLine2[0] != '\0');
+
+  const uint8_t visibleRows = hasFooter ? 3 : MENU_VISIBLE;
+
+  // Подправим скролл под реальное число видимых строк (важно, если менюMove() работал на 4 строки).
+  if (_sel < _scroll) _scroll = _sel;
+  if (_sel >= _scroll + visibleRows) _scroll = _sel - (visibleRows - 1);
+
   u8g2.firstPage();
   do {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_6x13_tf);
 
+  // Заголовок
+  u8g2.setFont(u8g2_font_6x13_tf);
+  u8g2.setCursor(0, 12);
+  u8g2.print(title);
+  u8g2.drawHLine(0, 14, 128);
+
+  // Пункты меню
+  for (uint8_t row = 0; row < visibleRows; row++) {
+    const uint8_t idx = _scroll + row;
+    if (idx >= itemCount) break;
+    const uint8_t y = 28 + row * 12;
+
+    const bool selected = (idx == _sel);
+    if (selected) { u8g2.drawBox(0, y - 10, 128, 12); u8g2.setDrawColor(0); }
+    else          { u8g2.setDrawColor(1); }
+
+    char lineBuf[48];
+    readMenuItem(itemsPgm, idx, lineBuf, sizeof(lineBuf));
+    u8g2.setCursor(2, y);
+    u8g2.print(lineBuf);
+
+    u8g2.setDrawColor(1);
+  }
+
+  // Подвал (мелкий шрифт, 2 строки).
+  // Важно: расстояние между строками должно быть >= высоты шрифта, иначе будет 'наслоение'.
+  if (hasFooter) {
+    u8g2.setFont(u8g2_font_4x6_tf);
+    if (footerLine1 && footerLine1[0] != '\0') { u8g2.setCursor(0, 58); u8g2.print(footerLine1); }
+    if (footerLine2 && footerLine2[0] != '\0') { u8g2.setCursor(0, 64); u8g2.print(footerLine2); }
+  }
+
+  } while (u8g2.nextPage());
+}
+
+
+void UI::drawMenuValues(const __FlashStringHelper* title,
+                        const char* const* itemsPgm,
+                        uint8_t itemCount,
+                        MenuValueFn valueFn,
+                        void* ctx) {
+  // фиксированное число видимых строк (без подвала)
+  const uint8_t visibleRows = MENU_VISIBLE;
+
+  // Подправим скролл под число видимых строк
+  if (_sel < _scroll) _scroll = _sel;
+  if (_sel >= _scroll + visibleRows) _scroll = _sel - (visibleRows - 1);
+
+  u8g2.firstPage();
+  do {
+    // Заголовок
+    u8g2.setFont(u8g2_font_6x13_tf);
     u8g2.setCursor(0, 12);
     u8g2.print(title);
+    if (_editing) {
+      u8g2.setCursor(98, 12);
+      u8g2.print(F("EDIT"));
+    }
     u8g2.drawHLine(0, 14, 128);
 
-    for (uint8_t row=0; row<MENU_VISIBLE; row++) {
-      uint8_t idx = _scroll + row;
+    // Пункты меню
+    for (uint8_t row = 0; row < visibleRows; row++) {
+      const uint8_t idx = _scroll + row;
       if (idx >= itemCount) break;
-      uint8_t y = 28 + row*12;
+      const uint8_t y = 28 + row * 12;
 
-      bool selected = (idx == _sel);
-      if (selected) { u8g2.drawBox(0, y-10, 128, 12); u8g2.setDrawColor(0); }
-      else { u8g2.setDrawColor(1); }
+      const bool selected = (idx == _sel);
+      if (selected) { u8g2.drawBox(0, y - 10, 128, 12); u8g2.setDrawColor(0); }
+      else          { u8g2.setDrawColor(1); }
 
       char lineBuf[48];
       readMenuItem(itemsPgm, idx, lineBuf, sizeof(lineBuf));
+
+      // Значение справа (если задано)
+      char valBuf[20];
+      valBuf[0] = 0;
+      int16_t xVal = -1;
+      if (valueFn) {
+        valueFn(idx, valBuf, sizeof(valBuf), ctx);
+        if (valBuf[0] != 0) {
+          const uint8_t w = (uint8_t)u8g2.getStrWidth(valBuf);
+          xVal = 126 - (int16_t)w;
+          if (xVal < 70) xVal = 70; // оставим место для подписи
+        }
+      }
+
+      // Если значение есть — чуть подрежем подпись слева, чтобы не лезла под значение
+      if (xVal > 0) {
+        const int16_t maxW = xVal - 4;
+        if (maxW > 10) {
+          const size_t origLen = strlen(lineBuf);
+          bool trimmed = false;
+          while (strlen(lineBuf) > 0 && u8g2.getStrWidth(lineBuf) > maxW) {
+            lineBuf[strlen(lineBuf) - 1] = 0;
+            trimmed = true;
+          }
+          if (trimmed && strlen(lineBuf) > 0 && strlen(lineBuf) < origLen) {
+            if (strlen(lineBuf) > 1) lineBuf[strlen(lineBuf) - 1] = '.';
+          }
+        }
+      }
+
       u8g2.setCursor(2, y);
       u8g2.print(lineBuf);
+
+      if (xVal > 0 && valBuf[0] != 0) {
+        u8g2.setCursor(xVal, y);
+        u8g2.print(valBuf);
+      }
 
       u8g2.setDrawColor(1);
     }
 
-    if (footerLine1) { u8g2.setCursor(0, 54); u8g2.print(footerLine1); }
-    if (footerLine2) { u8g2.setCursor(0, 64); u8g2.print(footerLine2); }
   } while (u8g2.nextPage());
 }
 
@@ -400,6 +501,7 @@ void UI::screenMainMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSet
                         AppActions& a, bool click, bool, int8_t encDelta) {
   const uint8_t cnt = (uint8_t)(sizeof(MENU_MAIN)/sizeof(MENU_MAIN[0]));
   menuMove(encDelta, cnt);
+
 
   if (click) {
     switch (_sel) {
@@ -434,10 +536,59 @@ void UI::screenAutoMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSet
   drawMenu(F("AUTO"), MENU_AUTO, cnt);
 }
 
+
+
+struct ProgMenuVals {
+  uint8_t sel = 0;
+  bool editing = false;
+  uint8_t selSlot = 0;
+  uint8_t activeSlot = 0;
+  uint8_t zoneCount = 0;
+  uint8_t orderStep = 0;
+  uint8_t orderZoneSel = 0;
+  uint8_t orderMapped = 0;
+};
+
+static void progMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) {
+  auto* ctx = (ProgMenuVals*)ctxVoid;
+  out[0] = 0;
+  switch (idx) {
+    case 1: // Slot (select)
+      snprintf(out, outSize, "S%u A%u", (uint16_t)(ctx->selSlot + 1), (uint16_t)(ctx->activeSlot + 1));
+      break;
+    case 2: // Load slot
+      snprintf(out, outSize, "->%u", (uint16_t)(ctx->selSlot + 1));
+      break;
+    case 3: // Save slot
+      snprintf(out, outSize, "->%u", (uint16_t)(ctx->selSlot + 1));
+      break;
+    case 4: // Copy active
+      snprintf(out, outSize, "%u->%u", (uint16_t)(ctx->activeSlot + 1), (uint16_t)(ctx->selSlot + 1));
+      break;
+    case 5: // Zones
+      snprintf(out, outSize, "%u", (uint16_t)ctx->zoneCount);
+      break;
+    case 6: // Order: step
+      snprintf(out, outSize, "%u", (uint16_t)(ctx->orderStep + 1));
+      break;
+    case 7: { // Order: zone
+      // Показываем либо выбранную зону (когда редактируем этот пункт), либо текущую привязку.
+      const uint8_t z = (ctx->editing && ctx->sel == 7) ? ctx->orderZoneSel : ctx->orderMapped;
+      snprintf(out, outSize, "%u", (uint16_t)(z + 1));
+    } break;
+    default: break;
+  }
+}
+
 void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, GlobalSettings&, ProgramConfig& program,
                            AppActions& a, bool click, bool, int8_t encDelta) {
   const uint8_t cnt = (uint8_t)(sizeof(MENU_PROG)/sizeof(MENU_PROG[0]));
   menuMove(encDelta, cnt);
+
+  // ВАЖНО: в PROGRAMS при выходе из редактирования по A
+  // этот же клик не должен сразу снова включить редактирование.
+  // Запоминаем, были ли мы в режиме редактирования в начале вызова.
+  const bool wasEditing = _editing;
 
   // --- Режим редактирования конкретных пунктов ---
   if (_editing) {
@@ -496,7 +647,7 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
   }
 
   // --- Клики по пунктам ---
-  if (!_editing && click) {
+  if (!wasEditing && click) {
     switch (_sel) {
       case 0: _screen = Screen::MAIN_MENU; _sel=0; _scroll=0; break;
       case 1: _editing = true; break;
@@ -510,11 +661,53 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
     }
   }
 
-  char f1[32], f2[32];
-  snprintf(f1, sizeof(f1), "Act:%u  Sel:%u", (unsigned)(st.activeSlot+1), (unsigned)(_tmpSlotSel+1));
-  snprintf(f2, sizeof(f2), "Zones:%u  Ord%u->Z%u", (unsigned)program.zone_count,
-           (unsigned)(_tmpOrderStep+1), (unsigned)(program.order[_tmpOrderStep]+1));
-  drawMenu(F("PROGRAMS"), MENU_PROG, cnt, f1, _editing ? "Edit: rotate, click OK" : f2);
+  // Значения справа (вместо нижних строк, чтобы не было наслоения)
+  ProgMenuVals pv;
+  pv.sel = _sel;
+  pv.editing = _editing;
+  pv.selSlot = _tmpSlotSel;
+  pv.activeSlot = st.activeSlot;
+  pv.zoneCount = program.zone_count;
+  pv.orderStep = _tmpOrderStep;
+  pv.orderZoneSel = _tmpOrderZone;
+  pv.orderMapped = (program.zone_count ? program.order[_tmpOrderStep] : 0);
+  if (pv.orderMapped >= program.zone_count) pv.orderMapped = 0;
+  drawMenuValues(F("PROGRAMS"), MENU_PROG, cnt, progMenuValue, &pv);
+}
+
+
+struct CalMenuVals {
+  uint8_t sel = 0;
+  bool editing = false;
+  uint8_t zoneSel = 0;
+  bool zoneEnabled = false;
+  uint16_t dipTimeS = 0;
+  uint16_t tiltStepMm = 0;
+  uint16_t stepWaitS = 0;
+};
+
+static void calMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) {
+  auto* ctx = (CalMenuVals*)ctxVoid;
+  out[0] = 0;
+  switch (idx) {
+    case 1: // Zone (select)
+      snprintf(out, outSize, "%u", (uint16_t)(ctx->zoneSel + 1));
+      break;
+    case 2: // Zone on/off
+      snprintf(out, outSize, ctx->zoneEnabled ? "ON" : "OFF");
+      break;
+    case 5: // Dip time
+      snprintf(out, outSize, "%us", (unsigned)ctx->dipTimeS);
+      break;
+    case 6: // Tilt step
+      snprintf(out, outSize, "%umm", (unsigned)ctx->tiltStepMm);
+      break;
+    case 7: // Step wait
+      snprintf(out, outSize, "%us", (unsigned)ctx->stepWaitS);
+      break;
+    default:
+      break;
+  }
 }
 
 void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig& program,
@@ -584,13 +777,50 @@ void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSett
     }
   }
 
-  char f1[32], f2[32];
+
+  // Значения справа (Zone/Dip/Tilt/Wait)
   ensureZoneExists(program, _tmpZoneSel);
   auto& z = program.zones[_tmpZoneSel];
-  snprintf(f1, sizeof(f1), "Zone:%u %s Dip:%us", (unsigned)(_tmpZoneSel+1), z.enabled ? "ON" : "OFF", (unsigned)z.dip_time_s);
-  snprintf(f2, sizeof(f2), "Tilt:%umm Wait:%us", (unsigned)z.tilt_step_mm, (unsigned)z.step_wait_s);
-  drawMenu(F("CALIB"), MENU_CAL, cnt, f1, f2);
+  CalMenuVals vals;
+  vals.sel = _sel;
+  vals.editing = _editing;
+  vals.zoneSel = _tmpZoneSel;
+  vals.zoneEnabled = z.enabled;
+  vals.dipTimeS = z.dip_time_s;
+  vals.tiltStepMm = z.tilt_step_mm;
+  vals.stepWaitS = z.step_wait_s;
+  drawMenuValues(F("CALIB"), MENU_CAL, cnt, calMenuValue, &vals);
 }
+
+
+struct SetMenuVals {
+  uint8_t sel = 0;
+  bool editing = false;
+  int32_t hTol = 0;
+  int32_t vTol = 0;
+  int32_t hSpeed = 0;
+  int32_t vSpeed = 0;
+  int32_t tiltSpeed = 0;
+  int32_t dripWaitS = 0;
+  bool manualHsync = false;
+};
+
+static void setMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) {
+  auto* ctx = (SetMenuVals*)ctxVoid;
+  out[0] = 0;
+  switch (idx) {
+    case 1: snprintf(out, outSize, "%ld", (long)ctx->hTol); break;
+    case 2: snprintf(out, outSize, "%ld", (long)ctx->vTol); break;
+    case 3: snprintf(out, outSize, "%ld", (long)ctx->hSpeed); break;
+    case 4: snprintf(out, outSize, "%ld", (long)ctx->vSpeed); break;
+    case 5: snprintf(out, outSize, "%ld", (long)ctx->tiltSpeed); break;
+    case 6: snprintf(out, outSize, "%lds", (long)ctx->dripWaitS); break;
+    case 7: snprintf(out, outSize, ctx->manualHsync ? "ON" : "OFF"); break;
+    default: break;
+  }
+}
+
+
 
 void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings& settings, ProgramConfig&,
                             AppActions& a, bool click, bool, int8_t encDelta) {
@@ -656,10 +886,19 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
     }
   }
 
-  char f1[32], f2[32];
-  snprintf(f1, sizeof(f1), "Htol:%d Vtol:%d", (int)settings.h_tol_mm, (int)settings.v_tol_mm);
-  snprintf(f2, sizeof(f2), "H%u V%u Tilt%u", (unsigned)settings.h_speed_pct, (unsigned)settings.v_speed_pct, (unsigned)settings.v_tilt_speed_pct);
-  drawMenu(F("SETTINGS"), MENU_SET, cnt, f1, _editing ? "Edit: rotate, click save" : f2);
+  // Значения справа
+  SetMenuVals vals;
+  vals.sel = _sel;
+  vals.editing = _editing;
+  vals.hTol = settings.h_tol_mm;
+  vals.vTol = settings.v_tol_mm;
+  vals.hSpeed = settings.h_speed_pct;
+  vals.vSpeed = settings.v_speed_pct;
+  vals.tiltSpeed = settings.v_tilt_speed_pct;
+  vals.dripWaitS = settings.drip_wait_s;
+  vals.manualHsync = settings.manual_h_sync_default;
+
+  drawMenuValues(F("SETTINGS"), MENU_SET, cnt, setMenuValue, &vals);
 }
 
 void UI::screenServiceMenu(const SensorsSnapshot&, const UiStateSummary& st, GlobalSettings&, ProgramConfig&,
@@ -675,7 +914,7 @@ void UI::screenServiceMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
       default: break;
     }
   }
-  drawMenu(F("SERVICE"), MENU_SRV, cnt, " ", " ");
+  drawMenu(F("SERVICE"), MENU_SRV, cnt);
 }
 
 
@@ -685,7 +924,6 @@ void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSetti
 
   u8g2.firstPage();
   do {
-    u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x13_tf);
     u8g2.setCursor(0, 12);
     u8g2.print(F("MANUAL MODE"));
@@ -699,7 +937,7 @@ void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSetti
     u8g2.print(F("Sync 2/8: "));
     u8g2.print(_manualSync ? F("ON") : F("OFF"));
     u8g2.setCursor(0, 64);
-    u8g2.print(F("Hold 0=SYNC  B=BACK D=STOP"));
+    u8g2.print(F("0=SYNC  B=BACK D=STOP"));
 #else
     u8g2.setCursor(0, 28);
     u8g2.print(F("Buttons: H1/H2/V1/V2"));
@@ -712,6 +950,7 @@ void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSetti
     u8g2.print(F("Press knob: menu"));
 #endif
   } while (u8g2.nextPage());
+
 
   (void)a;
 }
@@ -733,6 +972,13 @@ void UI::tick(uint32_t nowMs,
   _kp.tick(nowMs);
   // Одно событие "нажатия" (edge). Для меню нам обычно достаточно одного ключа.
   const char key = _kp.popKey();
+
+  // Иногда edge-событие popKey() можно пропустить, если UI тик редкий.
+  // Поэтому для B(back) делаем latch по удержанию.
+  bool bPress = false;
+  const bool bDown = _kp.isDown('B');
+  if (bDown && !_keyBLatched) { bPress = true; _keyBLatched = true; }
+  if (!bDown) { _keyBLatched = false; }
 
   // Debug: маска и последняя клавиша.
   _kpMaskDbg = _kp.stableMask();
@@ -897,7 +1143,7 @@ void UI::tick(uint32_t nowMs,
     _sel = 0; _scroll = 0; _editing = false;
   }
 
-  if (key == 'B') {
+  if (key == 'B' || bPress) {
     // Универсальный "back":
     //  - из MAIN_MENU → STATUS
     //  - из любых подменю → MAIN_MENU
