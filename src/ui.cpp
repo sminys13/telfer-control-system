@@ -269,10 +269,44 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     u8g2.print(F("S"));
     u8g2.print((int)(st.activeSlot + 1));
 
+    // Справа сверху: текущая зона и направление перехода между зонами (только когда Auto реально запущен).
+    // Формат: Z03>04, Z03<02, Z03-H (домой/конец).
+    if (st.autoRunning && st.autoZoneNow != 0) {
+      u8g2.setCursor(72, 8);
+      u8g2.print('Z');
+      if (st.autoZoneNow < 10) u8g2.print('0');
+      u8g2.print((int)st.autoZoneNow);
+      char dir = '-';
+      if (st.autoZoneDir > 0) dir = '>';
+      else if (st.autoZoneDir < 0) dir = '<';
+      u8g2.print(dir);
+      if (st.autoZoneNext != 0) {
+        if (st.autoZoneNext < 10) u8g2.print('0');
+        u8g2.print((int)st.autoZoneNext);
+      } else {
+        u8g2.print('H');
+      }
+    }
+
     // 2) ERR (always)
     u8g2.setCursor(0, 16);
     u8g2.print(F("ERR:"));
     u8g2.print(errToText(st.error));
+
+    // Справа во 2-й строке: оставшееся время выдержки при погружении (WAIT_DIP).
+    // Формат: DIP 01:23
+    if (st.autoRunning && st.autoDipRemainS != 0xFFFF) {
+      u8g2.setCursor(72, 16);
+      u8g2.print(F("DIP "));
+      const uint16_t rs = st.autoDipRemainS;
+      uint16_t mm = rs / 60;
+      uint8_t ss = (uint8_t)(rs % 60);
+      if (mm < 10) u8g2.print('0');
+      u8g2.print((int)mm);
+      u8g2.print(':');
+      if (ss < 10) u8g2.print('0');
+      u8g2.print((int)ss);
+    }
 
     // 3) Lasers
     u8g2.setCursor(0, 24);
@@ -976,9 +1010,23 @@ void UI::tick(uint32_t nowMs,
   // Иногда edge-событие popKey() можно пропустить, если UI тик редкий.
   // Поэтому для B(back) делаем latch по удержанию.
   bool bPress = false;
+  bool bLong = false;
   const bool bDown = _kp.isDown('B');
   if (bDown && !_keyBLatched) { bPress = true; _keyBLatched = true; }
   if (!bDown) { _keyBLatched = false; }
+
+  // Долгое удержание B: используется на статус-экране как START/ACK.
+  // Срабатывает ОДИН раз за удержание.
+  if (bDown) {
+    if (_keyBDownMs == 0) _keyBDownMs = nowMs;
+    if (!_keyBLongLatched && (uint32_t)(nowMs - _keyBDownMs) >= 700) {
+      bLong = true;
+      _keyBLongLatched = true;
+    }
+  } else {
+    _keyBDownMs = 0;
+    _keyBLongLatched = false;
+  }
 
   // Debug: маска и последняя клавиша.
   _kpMaskDbg = _kp.stableMask();
@@ -1033,6 +1081,12 @@ void UI::tick(uint32_t nowMs,
 
   // STOP по клавише D — разрешаем ВСЕГДА (это безопасно).
   if (_kp.isDown('D')) manualButtonsOut.stop = true;
+
+  // START/ACK по долгому удержанию B на статус-экране.
+  // Это заменяет физическую кнопку START (если её нет):
+  //  - сброс аварии (E-STOP/концевики) после устранения причины
+  //  - выход из STOP в MANUAL
+  if (_screen == Screen::STATUS && bLong) manualButtonsOut.start = true;
 
   // Движение с клавиатуры разрешаем ТОЛЬКО на экране "MANUAL MODE",
   // чтобы в меню/настройках случайно не поехали привода.

@@ -135,10 +135,57 @@ void App::loop() {
   UiStateSummary st{};
   st.mode = _rt.mode;
   st.autoPaused = _rt.autoRt.paused;
+  st.autoRunning = _rt.autoRt.running;
   st.activeSlot = _rt.activeSlot;
   st.autoOrderIndex = _rt.autoRt.orderIndex;
   st.autoZoneIndex = _rt.autoRt.zoneIndex;
+  st.autoPhase = (uint8_t)_rt.autoRt.phase;
+  st.autoZoneNow = 0;
+  st.autoZoneNext = 0;
+  st.autoZoneDir = 0;
+  st.autoDipRemainS = 0xFFFF;
   st.error = _rt.error;
+
+  // Доп. инфо для статус-экрана: текущая/следующая зона, направление, остаток выдержки.
+  if (_rt.autoRt.running) {
+    const uint8_t curZid = _rt.autoRt.zoneIndex;
+    if (curZid < MAX_ZONES) st.autoZoneNow = (uint8_t)(curZid + 1);
+
+    // Следующая включённая зона по порядку программы.
+    uint8_t nextZid = 0xFF;
+    for (uint8_t j = (uint8_t)(_rt.autoRt.orderIndex + 1); j < _rt.program.zone_count; j++) {
+      const uint8_t zid = _rt.program.order[j];
+      if (zid < MAX_ZONES && _rt.program.zones[zid].enabled) {
+        nextZid = zid;
+        break;
+      }
+    }
+    if (nextZid != 0xFF) {
+      st.autoZoneNext = (uint8_t)(nextZid + 1);
+      // Направление по X (сравнение средних X H1/H2).
+      if (curZid < MAX_ZONES) {
+        const int32_t curX = ((int32_t)_rt.program.zones[curZid].x_mm[0] + (int32_t)_rt.program.zones[curZid].x_mm[1]) / 2;
+        const int32_t nxtX = ((int32_t)_rt.program.zones[nextZid].x_mm[0] + (int32_t)_rt.program.zones[nextZid].x_mm[1]) / 2;
+        if (nxtX > curX) st.autoZoneDir = 1;
+        else if (nxtX < curX) st.autoZoneDir = -1;
+        else st.autoZoneDir = 0;
+      } else {
+        st.autoZoneDir = 0;
+      }
+    } else {
+      st.autoZoneNext = 0; // дальше — домой/конец
+      st.autoZoneDir = 0;
+    }
+
+    // Остаток выдержки (только в фазе WAIT_DIP).
+    if (_rt.autoRt.phase == AutoRunner::Phase::WAIT_DIP && curZid < MAX_ZONES) {
+      const ZoneConfig& z = _rt.program.zones[curZid];
+      const uint32_t totalMs = (uint32_t)z.dip_time_s * 1000u;
+      const uint32_t elapsed = (uint32_t)(now - _rt.autoRt.phaseStartMs);
+      if (elapsed >= totalMs) st.autoDipRemainS = 0;
+      else st.autoDipRemainS = (uint16_t)((totalMs - elapsed + 999u) / 1000u);
+    }
+  }
 
   // --- Modbus/RS485 (4 привода: H1,H2,V1,V2) ---
   // Собираем краткую телеметрию в UiStateSummary, чтобы UI мог показать состояние связи.

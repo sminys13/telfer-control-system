@@ -60,9 +60,15 @@ struct AppActions {
 struct UiStateSummary {
   RunMode mode;
   bool autoPaused;
+  bool autoRunning;
   uint8_t activeSlot;
   uint8_t autoOrderIndex;
   uint8_t autoZoneIndex;
+  uint8_t autoPhase;       // AutoRunner::Phase (как число), чтобы UI мог показать стадию
+  uint8_t autoZoneNow;     // 1..N (человеческий номер), 0 = n/a
+  uint8_t autoZoneNext;    // 1..N, 0 = home/end/unknown
+  int8_t  autoZoneDir;     // -1 = влево, +1 = вправо, 0 = неизвестно/нет
+  uint16_t autoDipRemainS; // оставшееся время выдержки (сек), 0xFFFF = не в выдержке
   ErrorCode error;
 
   // Modbus/RS485 связь с 4 ПЧ (H1,H2,V1,V2).
@@ -102,6 +108,9 @@ private:
 
   // Для Back (B): latch, чтобы не пропускать нажатия при редком тике.
   bool _keyBLatched = false;
+  // Долгое удержание B на статус-экране = START/ACK (сброс аварии/выход из STOP).
+  bool _keyBLongLatched = false;
+  uint32_t _keyBDownMs = 0;
 #endif
 
   enum class Screen : uint8_t {
