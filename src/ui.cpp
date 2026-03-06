@@ -908,17 +908,31 @@ struct CalMenuVals {
   uint16_t stepWaitS = 0;
 
   bool dryValid = false;
-  int32_t dryXavg = 0;
-  int32_t dryHavg = 0;
 
-  // live sensors (avg)
-  int32_t curXavg = 0;
-  int32_t curHavg = 0;
+  // live sensors (per telfer)
+  int32_t curX[2] = {0,0};
+  bool    curXok[2] = {false,false};
+  int32_t curH[2] = {0,0};
+  bool    curHok[2] = {false,false};
 
   // SAVE confirmation
   bool confirm = false;
   uint8_t confirmItem = 0;
 };
+
+static void fmtTwoMm(char* out, size_t outSize,
+                     bool ok1, int32_t v1,
+                     bool ok2, int32_t v2) {
+  // Compact representation for right column: "T1/T2".
+  // If one sensor invalid -> use '-' placeholder.
+  char a[12] = {0};
+  char b[12] = {0};
+  if (ok1) snprintf(a, sizeof(a), "%ld", (long)v1);
+  else strncpy(a, "-", sizeof(a));
+  if (ok2) snprintf(b, sizeof(b), "%ld", (long)v2);
+  else strncpy(b, "-", sizeof(b));
+  snprintf(out, outSize, "%s/%s", a, b);
+}
 
 static void calMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) {
   auto* ctx = (CalMenuVals*)ctxVoid;
@@ -937,13 +951,13 @@ static void calMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) 
     case 3: // Save X
     case 8: // Save HOME X
     case 10: // Save DRY X
-      snprintf(out, outSize, "%ld", (long)ctx->curXavg);
+      fmtTwoMm(out, outSize, ctx->curXok[0], ctx->curX[0], ctx->curXok[1], ctx->curX[1]);
       break;
 
     case 4: // Save H
     case 9: // Save TRAVEL
     case 11: // Save DRY H
-      snprintf(out, outSize, "%ld", (long)ctx->curHavg);
+      fmtTwoMm(out, outSize, ctx->curHok[0], ctx->curH[0], ctx->curHok[1], ctx->curH[1]);
       break;
 
     case 5: snprintf(out, outSize, "%us", (unsigned)ctx->dipTimeS); break;
@@ -958,11 +972,16 @@ void UI::screenCalMenu(const SensorsSnapshot& sensors, const UiStateSummary&, Gl
   const uint8_t cnt = (uint8_t)(sizeof(MENU_CAL)/sizeof(MENU_CAL[0]));
   const uint32_t nowMs = millis();
 
-  // Live sensor averages (for showing on SAVE items)
-  const int32_t curXavg = (sensors.laser[0].valid && sensors.laser[1].valid) ? ((sensors.laser[0].mm + sensors.laser[1].mm) / 2) :
-                          (sensors.laser[0].valid ? sensors.laser[0].mm : (sensors.laser[1].valid ? sensors.laser[1].mm : 0));
-  const int32_t curHavg = (sensors.us[0].valid && sensors.us[1].valid) ? ((sensors.us[0].mm + sensors.us[1].mm) / 2) :
-                          (sensors.us[0].valid ? sensors.us[0].mm : (sensors.us[1].valid ? sensors.us[1].mm : 0));
+  // Live sensor values (per telfer) for showing on SAVE items
+  const bool curXok0 = sensors.laser[0].valid;
+  const bool curXok1 = sensors.laser[1].valid;
+  const int32_t curX0 = curXok0 ? sensors.laser[0].mm : 0;
+  const int32_t curX1 = curXok1 ? sensors.laser[1].mm : 0;
+
+  const bool curHok0 = sensors.us[0].valid;
+  const bool curHok1 = sensors.us[1].valid;
+  const int32_t curH0 = curHok0 ? sensors.us[0].mm : 0;
+  const int32_t curH1 = curHok1 ? sensors.us[1].mm : 0;
 
   // SAVE confirmation dialog
   if (_saveConfirm.active) {
@@ -996,10 +1015,10 @@ void UI::screenCalMenu(const SensorsSnapshot& sensors, const UiStateSummary&, Gl
     vals.tiltStepMm = z.tilt_step_mm;
     vals.stepWaitS = z.step_wait_s;
     vals.dryValid = settings.dry_valid;
-    vals.dryXavg = (settings.dry_x_mm[0] + settings.dry_x_mm[1]) / 2;
-    vals.dryHavg = (settings.dry_us_mm[0] + settings.dry_us_mm[1]) / 2;
-    vals.curXavg = curXavg;
-    vals.curHavg = curHavg;
+    vals.curXok[0] = curXok0; vals.curXok[1] = curXok1;
+    vals.curX[0] = curX0;     vals.curX[1] = curX1;
+    vals.curHok[0] = curHok0; vals.curHok[1] = curHok1;
+    vals.curH[0] = curH0;     vals.curH[1] = curH1;
     vals.confirm = true;
     vals.confirmItem = _saveConfirm.itemIndex;
 
@@ -1088,10 +1107,10 @@ void UI::screenCalMenu(const SensorsSnapshot& sensors, const UiStateSummary&, Gl
   vals.tiltStepMm = z.tilt_step_mm;
   vals.stepWaitS = z.step_wait_s;
   vals.dryValid = settings.dry_valid;
-  vals.dryXavg = (settings.dry_x_mm[0] + settings.dry_x_mm[1]) / 2;
-  vals.dryHavg = (settings.dry_us_mm[0] + settings.dry_us_mm[1]) / 2;
-  vals.curXavg = curXavg;
-  vals.curHavg = curHavg;
+  vals.curXok[0] = curXok0; vals.curXok[1] = curXok1;
+  vals.curX[0] = curX0;     vals.curX[1] = curX1;
+  vals.curHok[0] = curHok0; vals.curHok[1] = curHok1;
+  vals.curH[0] = curH0;     vals.curH[1] = curH1;
   vals.confirm = false;
   vals.confirmItem = 0;
 
