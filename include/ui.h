@@ -39,6 +39,10 @@ struct AppActions {
   // storage
   bool saveSettings = false;
 
+  // laser device config
+  bool applyLaserConfig = false; // отправить команды 0x04/0x80 в лазеры
+  bool restartLaserStreaming = false; // отправить только laser ON + continuous
+
   bool loadSlot = false;
   bool saveSlot = false;
   uint8_t slot = 0;

@@ -10,7 +10,7 @@
 #include <string.h>
 
 static constexpr uint32_t MAGIC_TLFR = 0x52464C54UL; // 'T''L''F''R' little-endian
-static constexpr uint8_t  STORAGE_VER = 3;
+static constexpr uint8_t  STORAGE_VER = 6; // +per-sensor origin/offset // +laser device config
 
 uint16_t Storage::crc16(const uint8_t* data, uint16_t len) const {
   return crc16_modbus(data, len);
@@ -76,13 +76,34 @@ void Storage::makeDefaultSettings(GlobalSettings& s) const {
   s.x_tol_mm[1] = DEFAULT_H_TOL_MM;
   s.us_tol_mm[0] = DEFAULT_V_TOL_MM;
   s.us_tol_mm[1] = DEFAULT_V_TOL_MM;
+  s.laser_offset_mm[0] = 0;
+  s.laser_offset_mm[1] = 0;
+  s.us_offset_mm[0] = 0;
+  s.us_offset_mm[1] = 0;
   s.drip_wait_s = 45;
 
   s.h_speed_pct = DEFAULT_H_SPEED_PCT;
   s.v_speed_pct = DEFAULT_V_SPEED_PCT;
   s.v_tilt_speed_pct = DEFAULT_V_TILT_PCT;
   s.manual_h_sync_default = false;
+
+  // Laser watchdog/recovery defaults
+  s.laser_timeout_ms = 2000;
+  s.laser_reinit_enabled = true;
+
+  // Laser device config defaults (не применяем автоматически)
+  s.laser_freq_hz = 10;        // 10 Hz
+  s.laser_range_m = 10;        // 10 m
+  s.laser_resolution = 1;      // 1 mm
+  s.laser_origin[0] = 0;        // BACK
+  s.laser_origin[1] = 0;        // BACK
+  s.laser_autostart = false;
+  s.laser_apply_on_boot = false;
+  s.laser_addr[0] = 0x80;
+  s.laser_addr[1] = 0x80;
+  s.reserved0 = 0;
 }
+
 
 void Storage::makeDefaultProgram(ProgramConfig& p) const {
   memset(&p, 0, sizeof(p));
@@ -154,6 +175,22 @@ bool Storage::loadSettings(GlobalSettings& out) {
   if (out.x_tol_mm[1] <= 0 || out.x_tol_mm[1] > 200) out.x_tol_mm[1] = out.h_tol_mm;
   if (out.us_tol_mm[0] <= 0 || out.us_tol_mm[0] > 200) out.us_tol_mm[0] = out.v_tol_mm;
   if (out.us_tol_mm[1] <= 0 || out.us_tol_mm[1] > 200) out.us_tol_mm[1] = out.v_tol_mm;
+  if (out.laser_offset_mm[0] < -1000 || out.laser_offset_mm[0] > 1000) out.laser_offset_mm[0] = 0;
+  if (out.laser_offset_mm[1] < -1000 || out.laser_offset_mm[1] > 1000) out.laser_offset_mm[1] = 0;
+  if (out.us_offset_mm[0] < -1000 || out.us_offset_mm[0] > 1000) out.us_offset_mm[0] = 0;
+  if (out.us_offset_mm[1] < -1000 || out.us_offset_mm[1] > 1000) out.us_offset_mm[1] = 0;
+  if (out.laser_timeout_ms < 500 || out.laser_timeout_ms > 20000) out.laser_timeout_ms = 2000;
+  // laser_reinit_enabled is bool; no strict validation needed
+
+  // Laser device config sanitize
+  if (!(out.laser_freq_hz == 0 || out.laser_freq_hz == 5 || out.laser_freq_hz == 10 || out.laser_freq_hz == 20)) out.laser_freq_hz = 10;
+  if (!(out.laser_range_m == 5 || out.laser_range_m == 10 || out.laser_range_m == 30 || out.laser_range_m == 50 || out.laser_range_m == 80)) out.laser_range_m = 10;
+  if (!(out.laser_resolution == 1 || out.laser_resolution == 2)) out.laser_resolution = 1;
+  out.laser_origin[0] = out.laser_origin[0] ? 1 : 0;
+  out.laser_origin[1] = out.laser_origin[1] ? 1 : 0;
+  if (out.laser_addr[0] == 0) out.laser_addr[0] = 0x80;
+  if (out.laser_addr[1] == 0) out.laser_addr[1] = 0x80;
+
   return true;
 }
 

@@ -97,6 +97,7 @@ void App::setup() {
   _rt.activeSlot = _storage.getActiveSlot();
   _storage.loadSettings(_rt.settings);
   _storage.loadActiveProgram(_rt.program);
+  _sensors.applySettings(_rt.settings);
 
   // Настройка RS485/Modbus и приводов.
   // Параметры должны совпадать с настройками ПЧ (группа Fd.xx):
@@ -342,6 +343,7 @@ void App::applyActions(uint32_t nowMs) {
     _rt.activeSlot = _storage.getActiveSlot();
     _storage.loadSettings(_rt.settings);
     _storage.loadActiveProgram(_rt.program);
+    _sensors.applySettings(_rt.settings);
     _ui.setManualSyncEnabled(_rt.settings.manual_h_sync_default);
     stopAll();
     _rt.error = ErrorCode::NONE;
@@ -349,6 +351,18 @@ void App::applyActions(uint32_t nowMs) {
 
   if (_actions.saveSettings) {
     _storage.saveSettings(_rt.settings);
+    _sensors.applySettings(_rt.settings);
+  }
+
+  if (_actions.applyLaserConfig) {
+    // конфиг лазеров: частота/диапазон/разрешение/ноль/автостарт/адрес
+    _storage.saveSettings(_rt.settings);
+    _sensors.applyLaserDeviceConfig(_rt.settings);
+  }
+
+  if (_actions.restartLaserStreaming) {
+    // Мягкий запуск лазеров без конфигурации.
+    _sensors.restartLaserStreaming();
   }
 
   if (_actions.copySlot) {

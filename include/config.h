@@ -30,7 +30,7 @@
 
 // ----------------------------- Общие параметры -----------------------------
 
-#define FW_VERSION "5.0.0"
+#define FW_VERSION "5.2.0"
 static constexpr uint8_t TELFER_COUNT = 2;
 static constexpr uint8_t MAX_ZONES    = 10;
 static constexpr uint8_t PROGRAM_SLOTS = 4;     // количество слотов программ в EEPROM
@@ -295,6 +295,8 @@ struct GlobalSettings {
   // ---- Per-sensor tolerances (mm) ----
   int16_t  x_tol_mm[TELFER_COUNT];      // допуск по лазерам (X1/X2)
   int16_t  us_tol_mm[TELFER_COUNT];     // допуск по УЗ (H1/H2)
+  int16_t  laser_offset_mm[TELFER_COUNT]; // корректировка X по каждому лазеру (mm, может быть отрицательной)
+  int16_t  us_offset_mm[TELFER_COUNT];    // корректировка H по каждому УЗ (mm, может быть отрицательной)
 
   int16_t  h_tol_mm;                    // допуск горизонтали
   int16_t  v_tol_mm;                    // допуск вертикали
@@ -304,7 +306,22 @@ struct GlobalSettings {
   uint8_t  v_tilt_speed_pct;            // скорость наклонного шага
   bool     manual_h_sync_default;       // по умолчанию: горизонталь синхронизирована в ручном режиме?
 
-  bool     reserved[2];                 // выравнивание/резерв
+  // ---- Laser watchdog / recovery ----
+  uint16_t laser_timeout_ms;            // мс без валидного кадра перед invalid
+  bool     laser_reinit_enabled;         // переоткрывать UART при таймауте
+
+  // ---- Laser device configuration (UART commands) ----
+  // Эти параметры соответствуют вашему описанию команд 0x04/0x80.
+  // По умолчанию мы НЕ шлём конфигурационные команды на каждом старте,
+  // чтобы не провоцировать «мигание/перезапуск». Команды отправляются по кнопке Apply.
+  uint8_t  laser_freq_hz;               // 0, 5, 10, 20
+  uint8_t  laser_range_m;               // 5,10,30,50,80
+  uint8_t  laser_resolution;            // 1 (1мм) or 2 (0.1мм)
+    uint8_t  laser_origin[TELFER_COUNT];  // origin per laser: 0=BACK, 1=TOP
+  bool     laser_autostart;             // 04 0D (start measure at power on)
+  bool     laser_apply_on_boot;         // применять конфиг при старте
+  uint8_t  laser_addr[TELFER_COUNT];    // адрес устройства (по умолчанию 0x80)
+  uint8_t  reserved0;                   // выравнивание
 };
 
 // ----------------------------- Ошибки --------------------------------------

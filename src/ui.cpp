@@ -86,13 +86,42 @@ static const char S_X1_TOL[] PROGMEM = "X1 tol (mm)";
 static const char S_X2_TOL[] PROGMEM = "X2 tol (mm)";
 static const char S_H1_TOL[] PROGMEM = "H1 tol (mm)";
 static const char S_H2_TOL[] PROGMEM = "H2 tol (mm)";
+static const char S_X1_OFFS[] PROGMEM = "X1 offs (mm)";
+static const char S_X2_OFFS[] PROGMEM = "X2 offs (mm)";
+static const char S_H1_OFFS[] PROGMEM = "H1 offs (mm)";
+static const char S_H2_OFFS[] PROGMEM = "H2 offs (mm)";
 static const char S_H_SPD[] PROGMEM = "H speed (%)";
 static const char S_V_SPD[] PROGMEM = "V speed (%)";
 static const char S_TILT_SPD[] PROGMEM = "Tilt spd (%)";
 static const char S_DRIP[] PROGMEM = "Drip wait (s)";
 static const char S_HSYNC[] PROGMEM = "Manual H-sync";
+static const char S_LASER_WD[] PROGMEM = "Laser WD (s)";
+static const char S_LASER_RE[] PROGMEM = "Laser reinit";
+static const char S_LASER_FREQ[] PROGMEM = "Laser freq (Hz)";
+static const char S_LASER_RANGE[] PROGMEM = "Laser range (m)";
+static const char S_LASER_RES[] PROGMEM = "Laser res";
+static const char S_LASER_ORG1[] PROGMEM = "L1 origin";
+static const char S_LASER_ORG2[] PROGMEM = "L2 origin";
+static const char S_LASER_AUTOST[] PROGMEM = "Laser autostart";
+static const char S_LASER_APPLYBOOT[] PROGMEM = "Laser cfg@boot";
+static const char S_LASER_ADDR1[] PROGMEM = "Laser1 addr";
+static const char S_LASER_ADDR2[] PROGMEM = "Laser2 addr";
+static const char S_LASER_APPLY[] PROGMEM = "Laser APPLY";
+static const char S_LASER_START[] PROGMEM = "Laser START";
+
 static const char* const MENU_SET[] PROGMEM = {
-  S_BACK, S_X1_TOL, S_X2_TOL, S_H1_TOL, S_H2_TOL, S_H_SPD, S_V_SPD, S_TILT_SPD, S_DRIP, S_HSYNC
+  S_BACK,
+  S_X1_TOL, S_X2_TOL, S_H1_TOL, S_H2_TOL,
+  S_X1_OFFS, S_X2_OFFS, S_H1_OFFS, S_H2_OFFS,
+  S_H_SPD, S_V_SPD, S_TILT_SPD, S_DRIP,
+  S_HSYNC,
+  S_LASER_WD, S_LASER_RE,
+  S_LASER_FREQ, S_LASER_RANGE, S_LASER_RES,
+  S_LASER_ORG1, S_LASER_ORG2,
+  S_LASER_AUTOST, S_LASER_APPLYBOOT,
+  S_LASER_ADDR1, S_LASER_ADDR2,
+  S_LASER_APPLY,
+  S_LASER_START
 };
 
 // SERVICE
@@ -1126,15 +1155,35 @@ void UI::screenCalMenu(const SensorsSnapshot& sensors, const UiStateSummary&, Gl
 struct SetMenuVals {
   uint8_t sel = 0;
   bool editing = false;
+
   int32_t x1Tol = 0;
   int32_t x2Tol = 0;
   int32_t h1Tol = 0;
   int32_t h2Tol = 0;
+
+  int32_t x1Offs = 0;
+  int32_t x2Offs = 0;
+  int32_t h1Offs = 0;
+  int32_t h2Offs = 0;
+
   int32_t hSpeed = 0;
   int32_t vSpeed = 0;
   int32_t tiltSpeed = 0;
   int32_t dripWaitS = 0;
+
   bool manualHsync = false;
+
+  int32_t laserWdS = 0;
+  bool laserReinit = false;
+  int32_t laserFreqHz = 0;
+  int32_t laserRangeM = 0;
+  bool laserResFine = false; // true=0.1mm
+  bool laser1OriginTop = false;
+  bool laser2OriginTop = false;
+  bool laserAutostart = false;
+  bool laserCfgBoot = false;
+  int32_t laserAddr1 = 0x80;
+  int32_t laserAddr2 = 0x80;
 };
 
 static void setMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) {
@@ -1145,11 +1194,32 @@ static void setMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) 
     case 2: snprintf(out, outSize, "%ld", (long)ctx->x2Tol); break;
     case 3: snprintf(out, outSize, "%ld", (long)ctx->h1Tol); break;
     case 4: snprintf(out, outSize, "%ld", (long)ctx->h2Tol); break;
-    case 5: snprintf(out, outSize, "%ld", (long)ctx->hSpeed); break;
-    case 6: snprintf(out, outSize, "%ld", (long)ctx->vSpeed); break;
-    case 7: snprintf(out, outSize, "%ld", (long)ctx->tiltSpeed); break;
-    case 8: snprintf(out, outSize, "%lds", (long)ctx->dripWaitS); break;
-    case 9: snprintf(out, outSize, ctx->manualHsync ? "ON" : "OFF"); break;
+
+    case 5: snprintf(out, outSize, "%+ld", (long)ctx->x1Offs); break;
+    case 6: snprintf(out, outSize, "%+ld", (long)ctx->x2Offs); break;
+    case 7: snprintf(out, outSize, "%+ld", (long)ctx->h1Offs); break;
+    case 8: snprintf(out, outSize, "%+ld", (long)ctx->h2Offs); break;
+
+    case 9:  snprintf(out, outSize, "%ld", (long)ctx->hSpeed); break;
+    case 10: snprintf(out, outSize, "%ld", (long)ctx->vSpeed); break;
+    case 11: snprintf(out, outSize, "%ld", (long)ctx->tiltSpeed); break;
+    case 12: snprintf(out, outSize, "%lds", (long)ctx->dripWaitS); break;
+
+    case 13: snprintf(out, outSize, ctx->manualHsync ? "ON" : "OFF"); break;
+
+    case 14: snprintf(out, outSize, "%lds", (long)ctx->laserWdS); break;
+    case 15: snprintf(out, outSize, ctx->laserReinit ? "ON" : "OFF"); break;
+    case 16: snprintf(out, outSize, "%ld", (long)ctx->laserFreqHz); break;
+    case 17: snprintf(out, outSize, "%ld", (long)ctx->laserRangeM); break;
+    case 18: snprintf(out, outSize, ctx->laserResFine ? "0.1mm" : "1mm"); break;
+    case 19: snprintf(out, outSize, ctx->laser1OriginTop ? "TOP" : "BACK"); break;
+    case 20: snprintf(out, outSize, ctx->laser2OriginTop ? "TOP" : "BACK"); break;
+    case 21: snprintf(out, outSize, ctx->laserAutostart ? "ON" : "OFF"); break;
+    case 22: snprintf(out, outSize, ctx->laserCfgBoot ? "ON" : "OFF"); break;
+    case 23: snprintf(out, outSize, "0x%02lX", (long)ctx->laserAddr1); break;
+    case 24: snprintf(out, outSize, "0x%02lX", (long)ctx->laserAddr2); break;
+    case 25: snprintf(out, outSize, "GO"); break;
+    case 26: snprintf(out, outSize, "GO"); break;
     default: break;
   }
 }
@@ -1165,60 +1235,106 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
 
   if (_editing) {
     switch (_sel) {
-      case 1: {
-        int32_t v = settings.x_tol_mm[0];
-        applyEdit(v, 1, 200, 1);
-        settings.x_tol_mm[0] = (int16_t)v;
+      case 1: { int32_t v = settings.x_tol_mm[0]; applyEdit(v, 1, 200, 1); settings.x_tol_mm[0] = (int16_t)v; } break;
+      case 2: { int32_t v = settings.x_tol_mm[1]; applyEdit(v, 1, 200, 1); settings.x_tol_mm[1] = (int16_t)v; } break;
+      case 3: { int32_t v = settings.us_tol_mm[0]; applyEdit(v, 1, 200, 1); settings.us_tol_mm[0] = (int16_t)v; } break;
+      case 4: { int32_t v = settings.us_tol_mm[1]; applyEdit(v, 1, 200, 1); settings.us_tol_mm[1] = (int16_t)v; } break;
+
+      case 5: { int32_t v = settings.laser_offset_mm[0]; applyEdit(v, -1000, 1000, 1); settings.laser_offset_mm[0] = (int16_t)v; } break;
+      case 6: { int32_t v = settings.laser_offset_mm[1]; applyEdit(v, -1000, 1000, 1); settings.laser_offset_mm[1] = (int16_t)v; } break;
+      case 7: { int32_t v = settings.us_offset_mm[0];    applyEdit(v, -1000, 1000, 1); settings.us_offset_mm[0] = (int16_t)v; } break;
+      case 8: { int32_t v = settings.us_offset_mm[1];    applyEdit(v, -1000, 1000, 1); settings.us_offset_mm[1] = (int16_t)v; } break;
+
+      case 9: { int32_t v = settings.h_speed_pct; applyEdit(v, 10, 100, 1); settings.h_speed_pct = (uint8_t)v; } break;
+      case 10:{ int32_t v = settings.v_speed_pct; applyEdit(v, 10, 100, 1); settings.v_speed_pct = (uint8_t)v; } break;
+      case 11:{ int32_t v = settings.v_tilt_speed_pct; applyEdit(v, 10, 100, 1); settings.v_tilt_speed_pct = (uint8_t)v; } break;
+      case 12:{ int32_t v = settings.drip_wait_s; applyEdit(v, 0, 600, 5); settings.drip_wait_s = (uint16_t)v; } break;
+
+      case 14:{ int32_t v = (int32_t)(settings.laser_timeout_ms / 1000u); applyEdit(v, 1, 20, 1); settings.laser_timeout_ms = (uint16_t)(v * 1000u); } break;
+
+      case 16:{ // freq: 0/5/10/20
+        if (encDelta) {
+          int32_t v = settings.laser_freq_hz;
+          const int32_t opts[] = {0,5,10,20};
+          int idx = 2; for (int i=0;i<4;i++) if (opts[i]==v) { idx=i; break; }
+          idx += (encDelta>0 ? 1 : -1);
+          if (idx < 0) idx = 0; if (idx > 3) idx = 3;
+          settings.laser_freq_hz = (uint8_t)opts[idx];
+        }
       } break;
-      case 2: {
-        int32_t v = settings.x_tol_mm[1];
-        applyEdit(v, 1, 200, 1);
-        settings.x_tol_mm[1] = (int16_t)v;
+
+      case 17:{ // range: 5/10/30/50/80
+        if (encDelta) {
+          int32_t v = settings.laser_range_m;
+          const int32_t opts[] = {5,10,30,50,80};
+          int idx = 1; for (int i=0;i<5;i++) if (opts[i]==v) { idx=i; break; }
+          idx += (encDelta>0 ? 1 : -1);
+          if (idx < 0) idx = 0; if (idx > 4) idx = 4;
+          settings.laser_range_m = (uint8_t)opts[idx];
+        }
       } break;
-      case 3: {
-        int32_t v = settings.us_tol_mm[0];
-        applyEdit(v, 1, 200, 1);
-        settings.us_tol_mm[0] = (int16_t)v;
-      } break;
-      case 4: {
-        int32_t v = settings.us_tol_mm[1];
-        applyEdit(v, 1, 200, 1);
-        settings.us_tol_mm[1] = (int16_t)v;
-      } break;
-      case 5: {
-        int32_t v = settings.h_speed_pct;
-        applyEdit(v, 10, 100, 1);
-        settings.h_speed_pct = (uint8_t)v;
-      } break;
-      case 6: {
-        int32_t v = settings.v_speed_pct;
-        applyEdit(v, 10, 100, 1);
-        settings.v_speed_pct = (uint8_t)v;
-      } break;
-      case 7: {
-        int32_t v = settings.v_tilt_speed_pct;
-        applyEdit(v, 10, 100, 1);
-        settings.v_tilt_speed_pct = (uint8_t)v;
-      } break;
-      case 8: {
-        int32_t v = settings.drip_wait_s;
-        applyEdit(v, 0, 600, 5);
-        settings.drip_wait_s = (uint16_t)v;
-      } break;
+
+      case 23:{ int32_t v = settings.laser_addr[0]; applyEdit(v, 1, 254, 1); settings.laser_addr[0] = (uint8_t)v; } break;
+      case 24:{ int32_t v = settings.laser_addr[1]; applyEdit(v, 1, 254, 1); settings.laser_addr[1] = (uint8_t)v; } break;
       default: break;
     }
     if (click) { _editing = false; a.saveSettings = true; }
   } else if (click) {
     switch (_sel) {
       case 0: _screen = Screen::MAIN_MENU; _sel=0; _scroll=0; break;
-      case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8:
+
+      case 1: case 2: case 3: case 4:
+      case 5: case 6: case 7: case 8:
+      case 9: case 10: case 11: case 12:
+      case 14: case 16: case 17:
+      case 23: case 24:
         _editing = true;
         break;
-      case 9:
+
+      case 13:
         settings.manual_h_sync_default = !settings.manual_h_sync_default;
         _manualSync = settings.manual_h_sync_default;
         a.saveSettings = true;
         break;
+
+      case 15:
+        settings.laser_reinit_enabled = !settings.laser_reinit_enabled;
+        a.saveSettings = true;
+        break;
+
+      case 18:
+        settings.laser_resolution = (settings.laser_resolution == 2) ? 1 : 2;
+        a.saveSettings = true;
+        break;
+
+      case 19:
+        settings.laser_origin[0] = settings.laser_origin[0] ? 0 : 1;
+        a.saveSettings = true;
+        break;
+
+      case 20:
+        settings.laser_origin[1] = settings.laser_origin[1] ? 0 : 1;
+        a.saveSettings = true;
+        break;
+
+      case 21:
+        settings.laser_autostart = !settings.laser_autostart;
+        a.saveSettings = true;
+        break;
+
+      case 22:
+        settings.laser_apply_on_boot = !settings.laser_apply_on_boot;
+        a.saveSettings = true;
+        break;
+
+      case 25:
+        a.applyLaserConfig = true;
+        break;
+
+      case 26:
+        a.restartLaserStreaming = true;
+        break;
+
       default: break;
     }
   }
@@ -1226,15 +1342,35 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
   SetMenuVals vals;
   vals.sel = _sel;
   vals.editing = _editing;
+
   vals.x1Tol = settings.x_tol_mm[0];
   vals.x2Tol = settings.x_tol_mm[1];
   vals.h1Tol = settings.us_tol_mm[0];
   vals.h2Tol = settings.us_tol_mm[1];
+
+  vals.x1Offs = settings.laser_offset_mm[0];
+  vals.x2Offs = settings.laser_offset_mm[1];
+  vals.h1Offs = settings.us_offset_mm[0];
+  vals.h2Offs = settings.us_offset_mm[1];
+
   vals.hSpeed = settings.h_speed_pct;
   vals.vSpeed = settings.v_speed_pct;
   vals.tiltSpeed = settings.v_tilt_speed_pct;
   vals.dripWaitS = settings.drip_wait_s;
+
   vals.manualHsync = settings.manual_h_sync_default;
+
+  vals.laserWdS = (int32_t)(settings.laser_timeout_ms / 1000);
+  vals.laserReinit = settings.laser_reinit_enabled;
+  vals.laserFreqHz = settings.laser_freq_hz;
+  vals.laserRangeM = settings.laser_range_m;
+  vals.laserResFine = (settings.laser_resolution == 2);
+  vals.laser1OriginTop = (settings.laser_origin[0] != 0);
+  vals.laser2OriginTop = (settings.laser_origin[1] != 0);
+  vals.laserAutostart = settings.laser_autostart;
+  vals.laserCfgBoot = settings.laser_apply_on_boot;
+  vals.laserAddr1 = settings.laser_addr[0];
+  vals.laserAddr2 = settings.laser_addr[1];
 
   drawMenuValues(F("SET"), MENU_SET, cnt, setMenuValue, &vals);
 }
