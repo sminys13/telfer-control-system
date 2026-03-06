@@ -54,6 +54,13 @@ struct AppActions {
   bool captureTravel = false;
   bool captureZoneX = false;
   bool captureZoneHeight = false;
+
+  // DRY zone (special) calibration
+  bool captureDryX = false;
+  bool captureDryHeight = false;
+
+  // Operator confirmation (used in DRY sequence on STATUS screen)
+  bool operatorNext = false;
   uint8_t zoneIndex = 0;
 };
 
@@ -69,6 +76,9 @@ struct UiStateSummary {
   uint8_t autoZoneNext;    // 1..N, 0 = home/end/unknown
   int8_t  autoZoneDir;     // -1 = влево, +1 = вправо, 0 = неизвестно/нет
   uint16_t autoDipRemainS; // оставшееся время выдержки (сек), 0xFFFF = не в выдержке
+  uint16_t autoDryRemainS; // оставшееся время сушки (сек), 0xFFFF = не в сушке
+  bool autoWaitOperator;   // ждём команду оператора (A на статус-экране)
+  bool autoDryAlarm;       // таймер сушки закончился, активен сигнал
   ErrorCode error;
 
   // Modbus/RS485 связь с 4 ПЧ (H1,H2,V1,V2).
@@ -118,6 +128,7 @@ private:
     MAIN_MENU,
     AUTO_MENU,
     PROGRAM_MENU,
+    PROGRAM_VIEW,
     CAL_MENU,
     SETTINGS_MENU,
     MANUAL_SCREEN,
@@ -148,11 +159,27 @@ private:
   // STATUS screen mode toggle (0): compact vs extended
   bool _statusExtended = false;
 
+  // Optional header tag on the right side (AUTO state, SAVE confirm, etc.)
+  const __FlashStringHelper* _hdrRight = nullptr;
+
   // временные значения
   uint8_t _tmpSlotSel = 0;
   uint8_t _tmpZoneSel = 0;
   uint8_t _tmpOrderStep = 0; // какой шаг в order[] редактируем
   uint8_t _tmpOrderZone = 0; // какое значение зоны ставим (0..zone_count-1)
+
+  // PROGRAM VIEW screen
+  uint8_t _progViewMode = 0; // 0=OVERVIEW, 1=ORDER, 2=ZONES
+
+  // Calibration: confirm SAVE operations (A=yes, B=no)
+  struct SaveConfirm {
+    bool active = false;
+    uint8_t itemIndex = 0;
+    uint8_t zoneIndex = 0;
+    enum class Op : uint8_t { NONE, ZONE_X, ZONE_H, HOME_X, TRAVEL_H, DRY_X, DRY_H } op = Op::NONE;
+  } _saveConfirm;
+
+  uint32_t _saveFlashUntilMs = 0;
 
   bool readBtn(uint8_t pin) const;
 
@@ -179,6 +206,7 @@ private:
   void screenMainMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
   void screenAutoMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
   void screenProgramMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
+  void screenProgramView(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
   void screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
   void screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);
   void screenServiceMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&, AppActions&, bool click, bool longPress, int8_t encDelta);

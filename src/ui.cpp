@@ -48,15 +48,21 @@ static const char* const MENU_AUTO[] PROGMEM = {
 };
 
 // PROGRAMS
+static const char S_PROG_VIEW[] PROGMEM = "View program";
 static const char S_SLOT_SEL[] PROGMEM = "Slot (select)";
 static const char S_SLOT_LOAD[] PROGMEM = "Load slot";
 static const char S_SLOT_SAVE[] PROGMEM = "Save slot";
 static const char S_SLOT_COPY[] PROGMEM = "Copy active";
 static const char S_ZONE_COUNT[] PROGMEM = "Zones count";
+static const char S_STAGING_ZONE[] PROGMEM = "Staging zone";
+static const char S_DRY_EN[] PROGMEM = "Drying";
+static const char S_DRY_TIME[] PROGMEM = "Dry time (min)";
 static const char S_ORDER_STEP[] PROGMEM = "Order: step";
 static const char S_ORDER_ZONE[] PROGMEM = "Order: zone";
 static const char* const MENU_PROG[] PROGMEM = {
-  S_BACK, S_SLOT_SEL, S_SLOT_LOAD, S_SLOT_SAVE, S_SLOT_COPY, S_ZONE_COUNT, S_ORDER_STEP, S_ORDER_ZONE
+  S_BACK, S_PROG_VIEW, S_SLOT_SEL, S_SLOT_LOAD, S_SLOT_SAVE, S_SLOT_COPY,
+  S_ZONE_COUNT, S_STAGING_ZONE, S_DRY_EN, S_DRY_TIME,
+  S_ORDER_STEP, S_ORDER_ZONE
 };
 
 // CALIBRATION
@@ -69,20 +75,24 @@ static const char S_TILT_STEP[] PROGMEM = "Tilt step (mm)";
 static const char S_STEP_WAIT[] PROGMEM = "Step wait (s)";
 static const char S_CAP_HOME[] PROGMEM = "Save HOME X";
 static const char S_CAP_TRAVEL[] PROGMEM = "Save TRAVEL";
+static const char S_CAP_DRY_X[] PROGMEM = "Save DRY X";
+static const char S_CAP_DRY_H[] PROGMEM = "Save DRY H";
 static const char* const MENU_CAL[] PROGMEM = {
-  S_BACK, S_ZONE_SEL, S_ZONE_ONOFF, S_CAP_X, S_CAP_H, S_DIP_TIME, S_TILT_STEP, S_STEP_WAIT, S_CAP_HOME, S_CAP_TRAVEL
+  S_BACK, S_ZONE_SEL, S_ZONE_ONOFF, S_CAP_X, S_CAP_H, S_DIP_TIME, S_TILT_STEP, S_STEP_WAIT, S_CAP_HOME, S_CAP_TRAVEL, S_CAP_DRY_X, S_CAP_DRY_H
 };
 
 // SETTINGS
-static const char S_H_TOL[] PROGMEM = "H tol (mm)";
-static const char S_V_TOL[] PROGMEM = "V tol (mm)";
+static const char S_X1_TOL[] PROGMEM = "X1 tol (mm)";
+static const char S_X2_TOL[] PROGMEM = "X2 tol (mm)";
+static const char S_H1_TOL[] PROGMEM = "H1 tol (mm)";
+static const char S_H2_TOL[] PROGMEM = "H2 tol (mm)";
 static const char S_H_SPD[] PROGMEM = "H speed (%)";
 static const char S_V_SPD[] PROGMEM = "V speed (%)";
 static const char S_TILT_SPD[] PROGMEM = "Tilt spd (%)";
 static const char S_DRIP[] PROGMEM = "Drip wait (s)";
 static const char S_HSYNC[] PROGMEM = "Manual H-sync";
 static const char* const MENU_SET[] PROGMEM = {
-  S_BACK, S_H_TOL, S_V_TOL, S_H_SPD, S_V_SPD, S_TILT_SPD, S_DRIP, S_HSYNC
+  S_BACK, S_X1_TOL, S_X2_TOL, S_H1_TOL, S_H2_TOL, S_H_SPD, S_V_SPD, S_TILT_SPD, S_DRIP, S_HSYNC
 };
 
 // SERVICE
@@ -269,23 +279,31 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     u8g2.print(F("S"));
     u8g2.print((int)(st.activeSlot + 1));
 
-    // Справа сверху: текущая зона и направление перехода между зонами (только когда Auto реально запущен).
-    // Формат: Z03>04, Z03<02, Z03-H (домой/конец).
-    if (st.autoRunning && st.autoZoneNow != 0) {
+    // Справа сверху: текущая зона и направление перехода (только когда Auto реально запущен).
+    // Поддерживаем спец-зоны: ST (staging), DR (dryer), HM (home).
+    if (st.autoRunning) {
+      auto printZone = [&](uint8_t z){
+        if (z == 0) { u8g2.print(F("HM")); return; }
+        if (z == 0xFD) { u8g2.print(F("ST")); return; }
+        if (z == 0xFE) { u8g2.print(F("DR")); return; }
+        u8g2.print('Z');
+        if (z < 10) u8g2.print('0');
+        u8g2.print((int)z);
+      };
+
+      // Индикатор ожидания оператора
+      if (st.autoWaitOperator) {
+        u8g2.setCursor(56, 8);
+        u8g2.print(F("OP"));
+      }
+
       u8g2.setCursor(72, 8);
-      u8g2.print('Z');
-      if (st.autoZoneNow < 10) u8g2.print('0');
-      u8g2.print((int)st.autoZoneNow);
+      printZone(st.autoZoneNow);
       char dir = '-';
       if (st.autoZoneDir > 0) dir = '>';
       else if (st.autoZoneDir < 0) dir = '<';
       u8g2.print(dir);
-      if (st.autoZoneNext != 0) {
-        if (st.autoZoneNext < 10) u8g2.print('0');
-        u8g2.print((int)st.autoZoneNext);
-      } else {
-        u8g2.print('H');
-      }
+      printZone(st.autoZoneNext);
     }
 
     // 2) ERR (always)
@@ -293,19 +311,26 @@ void UI::drawStatus(const SensorsSnapshot& sensors, const UiStateSummary& st) {
     u8g2.print(F("ERR:"));
     u8g2.print(errToText(st.error));
 
-    // Справа во 2-й строке: оставшееся время выдержки при погружении (WAIT_DIP).
-    // Формат: DIP 01:23
-    if (st.autoRunning && st.autoDipRemainS != 0xFFFF) {
-      u8g2.setCursor(72, 16);
-      u8g2.print(F("DIP "));
-      const uint16_t rs = st.autoDipRemainS;
-      uint16_t mm = rs / 60;
-      uint8_t ss = (uint8_t)(rs % 60);
-      if (mm < 10) u8g2.print('0');
-      u8g2.print((int)mm);
-      u8g2.print(':');
-      if (ss < 10) u8g2.print('0');
-      u8g2.print((int)ss);
+    // Справа во 2-й строке: таймеры (приоритет: DRY, затем DIP)
+    // Формат: DRY 01:23 или DIP 01:23
+    if (st.autoRunning) {
+      uint16_t rs = 0xFFFF;
+      bool isDry = false;
+      if (st.autoDryRemainS != 0xFFFF) { rs = st.autoDryRemainS; isDry = true; }
+      else if (st.autoDipRemainS != 0xFFFF) { rs = st.autoDipRemainS; isDry = false; }
+
+      if (rs != 0xFFFF) {
+        u8g2.setCursor(72, 16);
+        u8g2.print(isDry ? F("DRY ") : F("DIP "));
+        uint16_t mm = rs / 60;
+        uint8_t ss = (uint8_t)(rs % 60);
+        if (mm < 10) u8g2.print('0');
+        u8g2.print((int)mm);
+        u8g2.print(':');
+        if (ss < 10) u8g2.print('0');
+        u8g2.print((int)ss);
+        if (isDry && st.autoDryAlarm) u8g2.print('!');
+      }
     }
 
     // 3) Lasers
@@ -407,6 +432,7 @@ void UI::drawMenu(const __FlashStringHelper* title,
   u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.setCursor(0, 12);
   u8g2.print(title);
+  if (_hdrRight) { u8g2.setCursor(98, 12); u8g2.print(_hdrRight); }
   u8g2.drawHLine(0, 14, 128);
 
   // Пункты меню
@@ -460,6 +486,9 @@ void UI::drawMenuValues(const __FlashStringHelper* title,
     if (_editing) {
       u8g2.setCursor(98, 12);
       u8g2.print(F("EDIT"));
+    } else if (_hdrRight) {
+      u8g2.setCursor(98, 12);
+      u8g2.print(_hdrRight);
     }
     u8g2.drawHLine(0, 14, 128);
 
@@ -552,7 +581,7 @@ void UI::screenMainMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSet
   drawMenu(F("MENU"), MENU_MAIN, cnt);
 }
 
-void UI::screenAutoMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig&,
+void UI::screenAutoMenu(const SensorsSnapshot&, const UiStateSummary& st, GlobalSettings&, ProgramConfig&,
                         AppActions& a, bool click, bool, int8_t encDelta) {
   const uint8_t cnt = (uint8_t)(sizeof(MENU_AUTO)/sizeof(MENU_AUTO[0]));
   menuMove(encDelta, cnt);
@@ -567,7 +596,13 @@ void UI::screenAutoMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSet
       default: break;
     }
   }
+  // Status in header right: RUN/STOP/PAUS/ERR
+  if (st.error != ErrorCode::NONE) _hdrRight = F("ERR");
+  else if (st.autoRunning) _hdrRight = st.autoPaused ? F("PAUS") : F("RUN");
+  else _hdrRight = F("STOP");
+
   drawMenu(F("AUTO"), MENU_AUTO, cnt);
+  _hdrRight = nullptr;
 }
 
 
@@ -578,6 +613,9 @@ struct ProgMenuVals {
   uint8_t selSlot = 0;
   uint8_t activeSlot = 0;
   uint8_t zoneCount = 0;
+  uint8_t stagingZone = 0;
+  bool dryEnabled = false;
+  uint16_t dryTimeMin = 0;
   uint8_t orderStep = 0;
   uint8_t orderZoneSel = 0;
   uint8_t orderMapped = 0;
@@ -587,27 +625,35 @@ static void progMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid)
   auto* ctx = (ProgMenuVals*)ctxVoid;
   out[0] = 0;
   switch (idx) {
-    case 1: // Slot (select)
+    case 2: // Slot (select)
       snprintf(out, outSize, "S%u A%u", (uint16_t)(ctx->selSlot + 1), (uint16_t)(ctx->activeSlot + 1));
       break;
-    case 2: // Load slot
+    case 3: // Load slot
       snprintf(out, outSize, "->%u", (uint16_t)(ctx->selSlot + 1));
       break;
-    case 3: // Save slot
+    case 4: // Save slot
       snprintf(out, outSize, "->%u", (uint16_t)(ctx->selSlot + 1));
       break;
-    case 4: // Copy active
+    case 5: // Copy active
       snprintf(out, outSize, "%u->%u", (uint16_t)(ctx->activeSlot + 1), (uint16_t)(ctx->selSlot + 1));
       break;
-    case 5: // Zones
+    case 6: // Zones count
       snprintf(out, outSize, "%u", (uint16_t)ctx->zoneCount);
       break;
-    case 6: // Order: step
+    case 7: // Staging zone
+      snprintf(out, outSize, "%u", (uint16_t)(ctx->stagingZone + 1));
+      break;
+    case 8: // Drying
+      snprintf(out, outSize, ctx->dryEnabled ? "ON" : "OFF");
+      break;
+    case 9: // Dry time (min)
+      snprintf(out, outSize, "%um", (uint16_t)ctx->dryTimeMin);
+      break;
+    case 10: // Order: step
       snprintf(out, outSize, "%u", (uint16_t)(ctx->orderStep + 1));
       break;
-    case 7: { // Order: zone
-      // Показываем либо выбранную зону (когда редактируем этот пункт), либо текущую привязку.
-      const uint8_t z = (ctx->editing && ctx->sel == 7) ? ctx->orderZoneSel : ctx->orderMapped;
+    case 11: { // Order: zone
+      const uint8_t z = (ctx->editing && ctx->sel == 11) ? ctx->orderZoneSel : ctx->orderMapped;
       snprintf(out, outSize, "%u", (uint16_t)(z + 1));
     } break;
     default: break;
@@ -619,15 +665,12 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
   const uint8_t cnt = (uint8_t)(sizeof(MENU_PROG)/sizeof(MENU_PROG[0]));
   menuMove(encDelta, cnt);
 
-  // ВАЖНО: в PROGRAMS при выходе из редактирования по A
-  // этот же клик не должен сразу снова включить редактирование.
-  // Запоминаем, были ли мы в режиме редактирования в начале вызова.
   const bool wasEditing = _editing;
 
   // --- Режим редактирования конкретных пунктов ---
   if (_editing) {
     // 1) выбор слота
-    if (_sel == 1) {
+    if (_sel == 2) {
       if (encDelta) {
         int16_t v = (int16_t)_tmpSlotSel + encDelta;
         if (v < 0) v = 0;
@@ -637,11 +680,10 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
       if (click) _editing = false;
     }
     // 5) количество зон
-    else if (_sel == 5) {
+    else if (_sel == 7) {
       if (encDelta) {
         int16_t v = (int16_t)program.zone_count + encDelta;
         v = clampT<int16_t>(v, 1, MAX_ZONES);
-        // при увеличении дополним order по умолчанию 0..n-1
         if ((uint8_t)v > program.zone_count) {
           for (uint8_t i = program.zone_count; i < (uint8_t)v; i++) {
             program.order[i] = i;
@@ -650,30 +692,48 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
         }
         program.zone_count = (uint8_t)v;
         if (_tmpOrderStep >= program.zone_count) _tmpOrderStep = 0;
+        if (program.staging_zone >= program.zone_count) program.staging_zone = 0;
       }
       if (click) _editing = false;
     }
-    // 6) порядок: шаг
-    else if (_sel == 6) {
+    // 6) staging zone
+    else if (_sel == 7) {
+      if (encDelta) {
+        int16_t v = (int16_t)program.staging_zone + encDelta;
+        v = clampT<int16_t>(v, 0, (int16_t)program.zone_count - 1);
+        program.staging_zone = (uint8_t)v;
+      }
+      if (click) _editing = false;
+    }
+    // 8) dry time (min)
+    else if (_sel == 11) {
+      if (encDelta) {
+        int32_t curMin = (int32_t)(program.drying_time_s / 60u);
+        int32_t v = curMin + encDelta;
+        v = clampT<int32_t>(v, 0, 24*60); // 0..24h
+        program.drying_time_s = (uint16_t)(v * 60u);
+      }
+      if (click) _editing = false;
+    }
+    // 9) порядок: шаг
+    else if (_sel == 11) {
       if (encDelta) {
         int16_t v = (int16_t)_tmpOrderStep + encDelta;
         v = clampT<int16_t>(v, 0, (int16_t)program.zone_count - 1);
         _tmpOrderStep = (uint8_t)v;
-        // подтянем текущее значение зоны для этого шага
         _tmpOrderZone = program.order[_tmpOrderStep];
         if (_tmpOrderZone >= program.zone_count) _tmpOrderZone = 0;
       }
       if (click) _editing = false;
     }
-    // 7) порядок: зона
-    else if (_sel == 7) {
+    // 10) порядок: зона
+    else if (_sel == 11) {
       if (encDelta) {
         int16_t v = (int16_t)_tmpOrderZone + encDelta;
         v = clampT<int16_t>(v, 0, (int16_t)program.zone_count - 1);
         _tmpOrderZone = (uint8_t)v;
       }
       if (click) {
-        // применяем
         program.order[_tmpOrderStep] = _tmpOrderZone;
         _editing = false;
       }
@@ -684,24 +744,33 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
   if (!wasEditing && click) {
     switch (_sel) {
       case 0: _screen = Screen::MAIN_MENU; _sel=0; _scroll=0; break;
-      case 1: _editing = true; break;
-      case 2: a.loadSlot = true; a.slot = _tmpSlotSel; break;
-      case 3: a.saveSlot = true; a.slot = _tmpSlotSel; break;
-      case 4: a.copySlot = true; a.copyFrom = st.activeSlot; a.copyTo = _tmpSlotSel; break;
-      case 5: _editing = true; break;
-      case 6: _editing = true; _tmpOrderZone = program.order[_tmpOrderStep]; break;
-      case 7: _editing = true; _tmpOrderZone = program.order[_tmpOrderStep]; break;
+      case 1: // view program
+        _screen = Screen::PROGRAM_VIEW; _sel=0; _scroll=0; _editing=false; _progViewMode=0; break;
+      case 2: _editing = true; break;
+      case 3: a.loadSlot = true; a.slot = _tmpSlotSel; break;
+      case 4: a.saveSlot = true; a.slot = _tmpSlotSel; break;
+      case 5: a.copySlot = true; a.copyFrom = st.activeSlot; a.copyTo = _tmpSlotSel; break;
+      case 6: _editing = true; break;
+      case 7: _editing = true; break;
+      case 8: program.drying_enabled = !program.drying_enabled; break;
+      case 9: _editing = true; break;
+      case 10: _editing = true; _tmpOrderZone = program.order[_tmpOrderStep]; break;
+      case 11: _editing = true; _tmpOrderZone = program.order[_tmpOrderStep]; break;
       default: break;
     }
   }
 
-  // Значения справа (вместо нижних строк, чтобы не было наслоения)
+  // Значения справа
   ProgMenuVals pv;
   pv.sel = _sel;
   pv.editing = _editing;
   pv.selSlot = _tmpSlotSel;
   pv.activeSlot = st.activeSlot;
   pv.zoneCount = program.zone_count;
+  pv.stagingZone = (program.zone_count ? program.staging_zone : 0);
+  if (pv.stagingZone >= program.zone_count) pv.stagingZone = 0;
+  pv.dryEnabled = program.drying_enabled;
+  pv.dryTimeMin = (uint16_t)(program.drying_time_s / 60u);
   pv.orderStep = _tmpOrderStep;
   pv.orderZoneSel = _tmpOrderZone;
   pv.orderMapped = (program.zone_count ? program.order[_tmpOrderStep] : 0);
@@ -709,6 +778,125 @@ void UI::screenProgramMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
   drawMenuValues(F("PROGRAMS"), MENU_PROG, cnt, progMenuValue, &pv);
 }
 
+
+
+
+
+void UI::screenProgramView(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig& program,
+                          AppActions&, bool click, bool, int8_t encDelta) {
+  // A: switch view mode (OVERVIEW -> ORDER -> ZONES)
+  if (click) {
+    _progViewMode = (uint8_t)((_progViewMode + 1) % 3);
+    _sel = 0; _scroll = 0;
+  }
+
+  uint16_t itemCount = 0;
+  if (_progViewMode == 0) itemCount = 4;
+  else if (_progViewMode == 1) itemCount = (program.zone_count ? program.zone_count : 1);
+  else itemCount = (uint16_t)(program.zone_count ? program.zone_count * 3u : 3u);
+
+  if (itemCount > 200) itemCount = 200;
+  menuMove(encDelta, (uint8_t)itemCount);
+
+  // header tag
+  if (_progViewMode == 0) _hdrRight = F("OVR");
+  else if (_progViewMode == 1) _hdrRight = F("ORD");
+  else _hdrRight = F("ZON");
+
+  const uint8_t visibleRows = MENU_VISIBLE;
+  if (_sel < _scroll) _scroll = _sel;
+  if (_sel >= _scroll + visibleRows) _scroll = _sel - (visibleRows - 1);
+
+  u8g2.firstPage();
+  do {
+    u8g2.setFont(u8g2_font_6x13_tf);
+    u8g2.setCursor(0, 12);
+    u8g2.print(F("VIEW"));
+    if (_hdrRight) { u8g2.setCursor(98, 12); u8g2.print(_hdrRight); }
+    u8g2.drawHLine(0, 14, 128);
+
+    for (uint8_t row=0; row<visibleRows; row++) {
+      const uint16_t idx = (uint16_t)_scroll + row;
+      if (idx >= itemCount) break;
+      const uint8_t y = 28 + row * 12;
+
+      const bool selected = ((uint8_t)idx == _sel);
+      if (selected) { u8g2.drawBox(0, y - 10, 128, 12); u8g2.setDrawColor(0); }
+      else          { u8g2.setDrawColor(1); }
+
+      char label[40];
+      char val[24];
+      label[0]=0; val[0]=0;
+
+      if (_progViewMode == 0) {
+        switch (idx) {
+          case 0: strncpy(label, "Zones", sizeof(label)); snprintf(val, sizeof(val), "%u", (unsigned)program.zone_count); break;
+          case 1: strncpy(label, "Staging", sizeof(label)); snprintf(val, sizeof(val), "%u", (unsigned)(program.staging_zone + 1)); break;
+          case 2: strncpy(label, "Drying", sizeof(label)); snprintf(val, sizeof(val), program.drying_enabled ? "ON" : "OFF"); break;
+          case 3: {
+            strncpy(label, "Dry time", sizeof(label));
+            const uint16_t s = program.drying_time_s;
+            snprintf(val, sizeof(val), "%um", (unsigned)(s/60u));
+          } break;
+        }
+      } else if (_progViewMode == 1) {
+        // order
+        snprintf(label, sizeof(label), "Step %u", (unsigned)(idx+1));
+        uint8_t zid = (idx < program.zone_count) ? program.order[idx] : 0;
+        if (zid >= program.zone_count) zid = 0;
+        snprintf(val, sizeof(val), "Z%u", (unsigned)(zid+1));
+      } else {
+        // zones details
+        const uint8_t zid = (uint8_t)(idx / 3u);
+        const uint8_t f = (uint8_t)(idx % 3u);
+        const ZoneConfig& z = program.zones[zid];
+        if (f == 0) {
+          snprintf(label, sizeof(label), "Z%u X", (unsigned)(zid+1));
+          snprintf(val, sizeof(val), "%ld/%ld", (long)z.x_mm[0], (long)z.x_mm[1]);
+        } else if (f == 1) {
+          snprintf(label, sizeof(label), "Z%u H", (unsigned)(zid+1));
+          snprintf(val, sizeof(val), "%ld/%ld", (long)z.us_target_mm[0], (long)z.us_target_mm[1]);
+        } else {
+          snprintf(label, sizeof(label), "Z%u D/T/W", (unsigned)(zid+1));
+          snprintf(val, sizeof(val), "D%us T%umm W%us", (unsigned)z.dip_time_s, (unsigned)z.tilt_step_mm, (unsigned)z.step_wait_s);
+        }
+      }
+
+      // right align value
+      int16_t xVal = -1;
+      if (val[0]) {
+        const uint8_t w = (uint8_t)u8g2.getStrWidth(val);
+        xVal = 126 - (int16_t)w;
+        if (xVal < 70) xVal = 70;
+      }
+
+      if (xVal > 0) {
+        const int16_t maxW = xVal - 4;
+        if (maxW > 10) {
+          const size_t origLen = strlen(label);
+          bool trimmed=false;
+          while (strlen(label) > 0 && u8g2.getStrWidth(label) > maxW) {
+            label[strlen(label)-1]=0;
+            trimmed=true;
+          }
+          if (trimmed && strlen(label) > 1 && strlen(label) < origLen) label[strlen(label)-1]='.';
+        }
+      }
+
+      u8g2.setCursor(2, y);
+      u8g2.print(label);
+      if (xVal > 0 && val[0]) {
+        u8g2.setCursor(xVal, y);
+        u8g2.print(val);
+      }
+
+      u8g2.setDrawColor(1);
+    }
+
+  } while (u8g2.nextPage());
+
+  _hdrRight = nullptr;
+}
 
 struct CalMenuVals {
   uint8_t sel = 0;
@@ -718,35 +906,109 @@ struct CalMenuVals {
   uint16_t dipTimeS = 0;
   uint16_t tiltStepMm = 0;
   uint16_t stepWaitS = 0;
+
+  bool dryValid = false;
+  int32_t dryXavg = 0;
+  int32_t dryHavg = 0;
+
+  // live sensors (avg)
+  int32_t curXavg = 0;
+  int32_t curHavg = 0;
+
+  // SAVE confirmation
+  bool confirm = false;
+  uint8_t confirmItem = 0;
 };
 
 static void calMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) {
   auto* ctx = (CalMenuVals*)ctxVoid;
   out[0] = 0;
+
+  if (ctx->confirm && idx == ctx->confirmItem) {
+    snprintf(out, outSize, "YES/NO");
+    return;
+  }
+
   switch (idx) {
-    case 1: // Zone (select)
-      snprintf(out, outSize, "%u", (uint16_t)(ctx->zoneSel + 1));
+    case 1: snprintf(out, outSize, "%u", (uint16_t)(ctx->zoneSel + 1)); break;
+    case 2: snprintf(out, outSize, ctx->zoneEnabled ? "ON" : "OFF"); break;
+
+    // SAVE actions: show live distance
+    case 3: // Save X
+    case 8: // Save HOME X
+    case 10: // Save DRY X
+      snprintf(out, outSize, "%ld", (long)ctx->curXavg);
       break;
-    case 2: // Zone on/off
-      snprintf(out, outSize, ctx->zoneEnabled ? "ON" : "OFF");
+
+    case 4: // Save H
+    case 9: // Save TRAVEL
+    case 11: // Save DRY H
+      snprintf(out, outSize, "%ld", (long)ctx->curHavg);
       break;
-    case 5: // Dip time
-      snprintf(out, outSize, "%us", (unsigned)ctx->dipTimeS);
-      break;
-    case 6: // Tilt step
-      snprintf(out, outSize, "%umm", (unsigned)ctx->tiltStepMm);
-      break;
-    case 7: // Step wait
-      snprintf(out, outSize, "%us", (unsigned)ctx->stepWaitS);
-      break;
-    default:
-      break;
+
+    case 5: snprintf(out, outSize, "%us", (unsigned)ctx->dipTimeS); break;
+    case 6: snprintf(out, outSize, "%umm", (unsigned)ctx->tiltStepMm); break;
+    case 7: snprintf(out, outSize, "%us", (unsigned)ctx->stepWaitS); break;
+    default: break;
   }
 }
 
-void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings&, ProgramConfig& program,
+void UI::screenCalMenu(const SensorsSnapshot& sensors, const UiStateSummary&, GlobalSettings& settings, ProgramConfig& program,
                        AppActions& a, bool click, bool, int8_t encDelta) {
   const uint8_t cnt = (uint8_t)(sizeof(MENU_CAL)/sizeof(MENU_CAL[0]));
+  const uint32_t nowMs = millis();
+
+  // Live sensor averages (for showing on SAVE items)
+  const int32_t curXavg = (sensors.laser[0].valid && sensors.laser[1].valid) ? ((sensors.laser[0].mm + sensors.laser[1].mm) / 2) :
+                          (sensors.laser[0].valid ? sensors.laser[0].mm : (sensors.laser[1].valid ? sensors.laser[1].mm : 0));
+  const int32_t curHavg = (sensors.us[0].valid && sensors.us[1].valid) ? ((sensors.us[0].mm + sensors.us[1].mm) / 2) :
+                          (sensors.us[0].valid ? sensors.us[0].mm : (sensors.us[1].valid ? sensors.us[1].mm : 0));
+
+  // SAVE confirmation dialog
+  if (_saveConfirm.active) {
+    _sel = _saveConfirm.itemIndex;
+    _editing = false;
+    _hdrRight = F("SAVE");
+
+    if (click) {
+      // YES
+      switch (_saveConfirm.op) {
+        case SaveConfirm::Op::ZONE_X: a.captureZoneX = true; a.zoneIndex = _saveConfirm.zoneIndex; break;
+        case SaveConfirm::Op::ZONE_H: a.captureZoneHeight = true; a.zoneIndex = _saveConfirm.zoneIndex; break;
+        case SaveConfirm::Op::HOME_X: a.captureHome = true; break;
+        case SaveConfirm::Op::TRAVEL_H: a.captureTravel = true; break;
+        case SaveConfirm::Op::DRY_X: a.captureDryX = true; break;
+        case SaveConfirm::Op::DRY_H: a.captureDryHeight = true; break;
+        default: break;
+      }
+      _saveFlashUntilMs = nowMs + 600;
+      _saveConfirm.active = false;
+    }
+
+    ensureZoneExists(program, _tmpZoneSel);
+    auto& z = program.zones[_tmpZoneSel];
+    CalMenuVals vals;
+    vals.sel = _sel;
+    vals.editing = false;
+    vals.zoneSel = _tmpZoneSel;
+    vals.zoneEnabled = z.enabled;
+    vals.dipTimeS = z.dip_time_s;
+    vals.tiltStepMm = z.tilt_step_mm;
+    vals.stepWaitS = z.step_wait_s;
+    vals.dryValid = settings.dry_valid;
+    vals.dryXavg = (settings.dry_x_mm[0] + settings.dry_x_mm[1]) / 2;
+    vals.dryHavg = (settings.dry_us_mm[0] + settings.dry_us_mm[1]) / 2;
+    vals.curXavg = curXavg;
+    vals.curHavg = curHavg;
+    vals.confirm = true;
+    vals.confirmItem = _saveConfirm.itemIndex;
+
+    drawMenuValues(F("CALIB"), MENU_CAL, cnt, calMenuValue, &vals);
+    _hdrRight = nullptr;
+    return;
+  }
+
+  // normal navigation
   menuMove(encDelta, cnt);
 
   // zone select
@@ -759,34 +1021,34 @@ void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSett
     }
     if (click) _editing = false;
   }
-  // dip time (пункт 5)
+  // dip time
   else if (_sel == 5 && _editing) {
     ensureZoneExists(program, _tmpZoneSel);
     auto& z = program.zones[_tmpZoneSel];
     if (encDelta) {
-      int32_t v = (int32_t)z.dip_time_s + encDelta * 5; // шаг 5 сек
+      int32_t v = (int32_t)z.dip_time_s + encDelta * 5;
       v = clampT<int32_t>(v, 0, 600);
       z.dip_time_s = (uint16_t)v;
     }
     if (click) _editing = false;
   }
-  // tilt step (пункт 6)
+  // tilt step
   else if (_sel == 6 && _editing) {
     ensureZoneExists(program, _tmpZoneSel);
     auto& z = program.zones[_tmpZoneSel];
     if (encDelta) {
-      int32_t v = (int32_t)z.tilt_step_mm + encDelta * 2; // шаг 2 мм
+      int32_t v = (int32_t)z.tilt_step_mm + encDelta * 2;
       v = clampT<int32_t>(v, 0, 200);
       z.tilt_step_mm = (uint16_t)v;
     }
     if (click) _editing = false;
   }
-  // step wait (пункт 7)
+  // step wait
   else if (_sel == 7 && _editing) {
     ensureZoneExists(program, _tmpZoneSel);
     auto& z = program.zones[_tmpZoneSel];
     if (encDelta) {
-      int32_t v = (int32_t)z.step_wait_s + encDelta * 5; // шаг 5 сек
+      int32_t v = (int32_t)z.step_wait_s + encDelta * 5;
       v = clampT<int32_t>(v, 0, 300);
       z.step_wait_s = (uint16_t)v;
     }
@@ -796,23 +1058,25 @@ void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSett
     switch (_sel) {
       case 0: _screen = Screen::MAIN_MENU; _sel=0; _scroll=0; break;
       case 1: _editing = true; break;
-      case 2: // toggle enable
+      case 2:
         ensureZoneExists(program, _tmpZoneSel);
         program.zones[_tmpZoneSel].enabled = !program.zones[_tmpZoneSel].enabled;
         break;
-      case 3: a.captureZoneX = true; a.zoneIndex = _tmpZoneSel; break;
-      case 4: a.captureZoneHeight = true; a.zoneIndex = _tmpZoneSel; break;
+
+      // SAVE actions -> confirm
+      case 3: _saveConfirm = {}; _saveConfirm.active = true; _saveConfirm.itemIndex = 3; _saveConfirm.zoneIndex = _tmpZoneSel; _saveConfirm.op = SaveConfirm::Op::ZONE_X; break;
+      case 4: _saveConfirm = {}; _saveConfirm.active = true; _saveConfirm.itemIndex = 4; _saveConfirm.zoneIndex = _tmpZoneSel; _saveConfirm.op = SaveConfirm::Op::ZONE_H; break;
       case 5: _editing = true; break;
       case 6: _editing = true; break;
       case 7: _editing = true; break;
-      case 8: a.captureHome = true; break;
-      case 9: a.captureTravel = true; break;
+      case 8: _saveConfirm = {}; _saveConfirm.active = true; _saveConfirm.itemIndex = 8; _saveConfirm.op = SaveConfirm::Op::HOME_X; break;
+      case 9: _saveConfirm = {}; _saveConfirm.active = true; _saveConfirm.itemIndex = 9; _saveConfirm.op = SaveConfirm::Op::TRAVEL_H; break;
+      case 10: _saveConfirm = {}; _saveConfirm.active = true; _saveConfirm.itemIndex = 10; _saveConfirm.op = SaveConfirm::Op::DRY_X; break;
+      case 11: _saveConfirm = {}; _saveConfirm.active = true; _saveConfirm.itemIndex = 11; _saveConfirm.op = SaveConfirm::Op::DRY_H; break;
       default: break;
     }
   }
 
-
-  // Значения справа (Zone/Dip/Tilt/Wait)
   ensureZoneExists(program, _tmpZoneSel);
   auto& z = program.zones[_tmpZoneSel];
   CalMenuVals vals;
@@ -823,15 +1087,30 @@ void UI::screenCalMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSett
   vals.dipTimeS = z.dip_time_s;
   vals.tiltStepMm = z.tilt_step_mm;
   vals.stepWaitS = z.step_wait_s;
+  vals.dryValid = settings.dry_valid;
+  vals.dryXavg = (settings.dry_x_mm[0] + settings.dry_x_mm[1]) / 2;
+  vals.dryHavg = (settings.dry_us_mm[0] + settings.dry_us_mm[1]) / 2;
+  vals.curXavg = curXavg;
+  vals.curHavg = curHavg;
+  vals.confirm = false;
+  vals.confirmItem = 0;
+
+  if ((int32_t)(nowMs - _saveFlashUntilMs) < 0) _hdrRight = F("SAVE");
+
   drawMenuValues(F("CALIB"), MENU_CAL, cnt, calMenuValue, &vals);
+  _hdrRight = nullptr;
 }
+
+
 
 
 struct SetMenuVals {
   uint8_t sel = 0;
   bool editing = false;
-  int32_t hTol = 0;
-  int32_t vTol = 0;
+  int32_t x1Tol = 0;
+  int32_t x2Tol = 0;
+  int32_t h1Tol = 0;
+  int32_t h2Tol = 0;
   int32_t hSpeed = 0;
   int32_t vSpeed = 0;
   int32_t tiltSpeed = 0;
@@ -843,18 +1122,18 @@ static void setMenuValue(uint8_t idx, char* out, size_t outSize, void* ctxVoid) 
   auto* ctx = (SetMenuVals*)ctxVoid;
   out[0] = 0;
   switch (idx) {
-    case 1: snprintf(out, outSize, "%ld", (long)ctx->hTol); break;
-    case 2: snprintf(out, outSize, "%ld", (long)ctx->vTol); break;
-    case 3: snprintf(out, outSize, "%ld", (long)ctx->hSpeed); break;
-    case 4: snprintf(out, outSize, "%ld", (long)ctx->vSpeed); break;
-    case 5: snprintf(out, outSize, "%ld", (long)ctx->tiltSpeed); break;
-    case 6: snprintf(out, outSize, "%lds", (long)ctx->dripWaitS); break;
-    case 7: snprintf(out, outSize, ctx->manualHsync ? "ON" : "OFF"); break;
+    case 1: snprintf(out, outSize, "%ld", (long)ctx->x1Tol); break;
+    case 2: snprintf(out, outSize, "%ld", (long)ctx->x2Tol); break;
+    case 3: snprintf(out, outSize, "%ld", (long)ctx->h1Tol); break;
+    case 4: snprintf(out, outSize, "%ld", (long)ctx->h2Tol); break;
+    case 5: snprintf(out, outSize, "%ld", (long)ctx->hSpeed); break;
+    case 6: snprintf(out, outSize, "%ld", (long)ctx->vSpeed); break;
+    case 7: snprintf(out, outSize, "%ld", (long)ctx->tiltSpeed); break;
+    case 8: snprintf(out, outSize, "%lds", (long)ctx->dripWaitS); break;
+    case 9: snprintf(out, outSize, ctx->manualHsync ? "ON" : "OFF"); break;
     default: break;
   }
 }
-
-
 
 void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings& settings, ProgramConfig&,
                             AppActions& a, bool click, bool, int8_t encDelta) {
@@ -868,31 +1147,41 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
   if (_editing) {
     switch (_sel) {
       case 1: {
-        int32_t v = settings.h_tol_mm;
+        int32_t v = settings.x_tol_mm[0];
         applyEdit(v, 1, 200, 1);
-        settings.h_tol_mm = (int16_t)v;
+        settings.x_tol_mm[0] = (int16_t)v;
       } break;
       case 2: {
-        int32_t v = settings.v_tol_mm;
+        int32_t v = settings.x_tol_mm[1];
         applyEdit(v, 1, 200, 1);
-        settings.v_tol_mm = (int16_t)v;
+        settings.x_tol_mm[1] = (int16_t)v;
       } break;
       case 3: {
+        int32_t v = settings.us_tol_mm[0];
+        applyEdit(v, 1, 200, 1);
+        settings.us_tol_mm[0] = (int16_t)v;
+      } break;
+      case 4: {
+        int32_t v = settings.us_tol_mm[1];
+        applyEdit(v, 1, 200, 1);
+        settings.us_tol_mm[1] = (int16_t)v;
+      } break;
+      case 5: {
         int32_t v = settings.h_speed_pct;
         applyEdit(v, 10, 100, 1);
         settings.h_speed_pct = (uint8_t)v;
       } break;
-      case 4: {
+      case 6: {
         int32_t v = settings.v_speed_pct;
         applyEdit(v, 10, 100, 1);
         settings.v_speed_pct = (uint8_t)v;
       } break;
-      case 5: {
+      case 7: {
         int32_t v = settings.v_tilt_speed_pct;
         applyEdit(v, 10, 100, 1);
         settings.v_tilt_speed_pct = (uint8_t)v;
       } break;
-      case 6: {
+      case 8: {
         int32_t v = settings.drip_wait_s;
         applyEdit(v, 0, 600, 5);
         settings.drip_wait_s = (uint16_t)v;
@@ -903,36 +1192,32 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
   } else if (click) {
     switch (_sel) {
       case 0: _screen = Screen::MAIN_MENU; _sel=0; _scroll=0; break;
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-      case 6:
+      case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8:
         _editing = true;
         break;
-      case 7:
-        _manualSync = !_manualSync;
-        settings.manual_h_sync_default = _manualSync;
+      case 9:
+        settings.manual_h_sync_default = !settings.manual_h_sync_default;
+        _manualSync = settings.manual_h_sync_default;
         a.saveSettings = true;
         break;
       default: break;
     }
   }
 
-  // Значения справа
   SetMenuVals vals;
   vals.sel = _sel;
   vals.editing = _editing;
-  vals.hTol = settings.h_tol_mm;
-  vals.vTol = settings.v_tol_mm;
+  vals.x1Tol = settings.x_tol_mm[0];
+  vals.x2Tol = settings.x_tol_mm[1];
+  vals.h1Tol = settings.us_tol_mm[0];
+  vals.h2Tol = settings.us_tol_mm[1];
   vals.hSpeed = settings.h_speed_pct;
   vals.vSpeed = settings.v_speed_pct;
   vals.tiltSpeed = settings.v_tilt_speed_pct;
   vals.dripWaitS = settings.drip_wait_s;
   vals.manualHsync = settings.manual_h_sync_default;
 
-  drawMenuValues(F("SETTINGS"), MENU_SET, cnt, setMenuValue, &vals);
+  drawMenuValues(F("SET"), MENU_SET, cnt, setMenuValue, &vals);
 }
 
 void UI::screenServiceMenu(const SensorsSnapshot&, const UiStateSummary& st, GlobalSettings&, ProgramConfig&,
@@ -1198,13 +1483,26 @@ void UI::tick(uint32_t nowMs,
   }
 
   if (key == 'B' || bPress) {
-    // Универсальный "back":
-    //  - из MAIN_MENU → STATUS
-    //  - из любых подменю → MAIN_MENU
-    if (_screen == Screen::MAIN_MENU) _screen = Screen::STATUS;
-    else if (_screen != Screen::STATUS) _screen = Screen::MAIN_MENU;
+    // Special cases:
+    //  - CAL_MENU + SAVE confirm: B cancels confirm
+    if (_screen == Screen::CAL_MENU && _saveConfirm.active) {
+      _saveConfirm.active = false;
+      _hdrRight = nullptr;
+      _editing = false;
+      // do not navigate
+    } else if (_screen == Screen::PROGRAM_VIEW) {
+      // View -> back to Programs menu
+      _screen = Screen::PROGRAM_MENU;
+      _sel = 0; _scroll = 0; _editing = false;
+    } else {
+      // Универсальный "back":
+      //  - из MAIN_MENU → STATUS
+      //  - из любых подменю → MAIN_MENU
+      if (_screen == Screen::MAIN_MENU) _screen = Screen::STATUS;
+      else if (_screen != Screen::STATUS) _screen = Screen::MAIN_MENU;
 
-    _sel = 0; _scroll = 0; _editing = false;
+      _sel = 0; _scroll = 0; _editing = false;
+    }
   }
 #endif
 
@@ -1220,8 +1518,16 @@ void UI::tick(uint32_t nowMs,
     if (key == '0') {
       _statusExtended = !_statusExtended;
     }
-    // В статусе хотим заходить в меню по A.
-    if (key == 'A') click = true;
+    // В статусе по A:
+    //  - если авто ждёт команду оператора (сушка/предсушка) → подтверждение шага
+    //  - иначе → вход в меню
+    if (key == 'A') {
+      if (st.mode == RunMode::AUTO && st.autoWaitOperator) {
+        actionsOut.operatorNext = true;
+      } else {
+        click = true;
+      }
+    }
 #endif
     if (click) {
       _screen = Screen::MAIN_MENU;
@@ -1246,6 +1552,9 @@ void UI::tick(uint32_t nowMs,
       break;
     case Screen::PROGRAM_MENU:
       screenProgramMenu(sensors, st, settings, program, actionsOut, click, longPress, encDelta);
+      break;
+    case Screen::PROGRAM_VIEW:
+      screenProgramView(sensors, st, settings, program, actionsOut, click, longPress, encDelta);
       break;
     case Screen::CAL_MENU:
       screenCalMenu(sensors, st, settings, program, actionsOut, click, longPress, encDelta);

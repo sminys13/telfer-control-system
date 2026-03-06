@@ -10,7 +10,7 @@
 #include <string.h>
 
 static constexpr uint32_t MAGIC_TLFR = 0x52464C54UL; // 'T''L''F''R' little-endian
-static constexpr uint8_t  STORAGE_VER = 1;
+static constexpr uint8_t  STORAGE_VER = 3;
 
 uint16_t Storage::crc16(const uint8_t* data, uint16_t len) const {
   return crc16_modbus(data, len);
@@ -62,8 +62,20 @@ void Storage::makeDefaultSettings(GlobalSettings& s) const {
   s.travel_us_mm[0] = 800;
   s.travel_us_mm[1] = 800;
 
+  // DRY zone defaults (not calibrated yet)
+  s.dry_x_mm[0] = 0;
+  s.dry_x_mm[1] = 0;
+  s.dry_us_mm[0] = 400;
+  s.dry_us_mm[1] = 400;
+  s.dry_valid = false;
+
+  // tolerances
   s.h_tol_mm = DEFAULT_H_TOL_MM;
   s.v_tol_mm = DEFAULT_V_TOL_MM;
+  s.x_tol_mm[0] = DEFAULT_H_TOL_MM;
+  s.x_tol_mm[1] = DEFAULT_H_TOL_MM;
+  s.us_tol_mm[0] = DEFAULT_V_TOL_MM;
+  s.us_tol_mm[1] = DEFAULT_V_TOL_MM;
   s.drip_wait_s = 45;
 
   s.h_speed_pct = DEFAULT_H_SPEED_PCT;
@@ -90,6 +102,12 @@ void Storage::makeDefaultProgram(ProgramConfig& p) const {
     p.zones[i].v_speed_pct = DEFAULT_V_SPEED_PCT;
     p.zones[i].enabled = (i==0);
   }
+
+  // Drying defaults
+  p.drying_enabled = false;
+  p.drying_time_s = 1800; // 30 min
+  p.staging_zone = 0;
+  p.reserved0 = 0;
 }
 
 void Storage::factoryReset() {
@@ -132,6 +150,10 @@ bool Storage::loadSettings(GlobalSettings& out) {
   if (out.h_speed_pct < 10 || out.h_speed_pct > 100) out.h_speed_pct = DEFAULT_H_SPEED_PCT;
   if (out.v_speed_pct < 10 || out.v_speed_pct > 100) out.v_speed_pct = DEFAULT_V_SPEED_PCT;
   if (out.v_tilt_speed_pct < 10 || out.v_tilt_speed_pct > 100) out.v_tilt_speed_pct = DEFAULT_V_TILT_PCT;
+  if (out.x_tol_mm[0] <= 0 || out.x_tol_mm[0] > 200) out.x_tol_mm[0] = out.h_tol_mm;
+  if (out.x_tol_mm[1] <= 0 || out.x_tol_mm[1] > 200) out.x_tol_mm[1] = out.h_tol_mm;
+  if (out.us_tol_mm[0] <= 0 || out.us_tol_mm[0] > 200) out.us_tol_mm[0] = out.v_tol_mm;
+  if (out.us_tol_mm[1] <= 0 || out.us_tol_mm[1] > 200) out.us_tol_mm[1] = out.v_tol_mm;
   return true;
 }
 

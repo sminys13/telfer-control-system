@@ -116,6 +116,23 @@ static constexpr uint8_t PIN_RS485_TX_EN = 7;
 
 static constexpr uint32_t BAUD_RS485  = 9600;
 
+// ---- Notifications (optional) ----
+// LED: built-in LED on Mega2560 is on pin 13.
+static constexpr uint8_t PIN_STATUS_LED = 13;
+// Buzzer (active) can be connected to any free pin; default pin 12.
+static constexpr uint8_t PIN_BUZZER = 12;
+static constexpr bool ENABLE_BUZZER = true;
+
+// ---- Signal panel (optional) ----
+// Outputs can drive LEDs directly or relay module inputs.
+static constexpr bool ENABLE_SIGNAL_PANEL = true;
+static constexpr bool PANEL_ACTIVE_HIGH = true;
+static constexpr uint8_t PIN_LAMP_RED    = 46;
+static constexpr uint8_t PIN_LAMP_GREEN  = 47;
+static constexpr uint8_t PIN_LAMP_YELLOW = 48;
+static constexpr uint8_t PIN_LAMP_ORANGE = 49;
+
+
 // Формат UART для Modbus RTU.
 // Вы в инструкции нашли режим "1-8-N-1" → это SERIAL_8N1.
 // Если на частотнике выставите 8E1 (even parity), поменяйте на SERIAL_8E1.
@@ -255,22 +272,39 @@ struct ProgramConfig {
   uint8_t  zone_count;                 // активное количество зон (1..10)
   uint8_t  order[MAX_ZONES];           // порядок индексов зон (0..zone_count-1)
   ZoneConfig zones[MAX_ZONES];
+
+  // ---- Drying / Dryer integration (optional) ----
+  bool     drying_enabled;             // включить «зону сушки» после основного алгоритма
+  uint16_t drying_time_s;              // время сушки (сек). 0 = только ручное ожидание
+  uint8_t  staging_zone;               // индекс зоны (0..zone_count-1) для предсушки/преддверия
+  uint8_t  reserved0;                  // выравнивание
 };
 
 /**
  * @brief Общие настройки системы, отдельно от программы.
  */
 struct GlobalSettings {
-  int32_t  home_x_mm[TELFER_COUNT];     // HOME позиция (по лазерам)
+  int32_t  home_x_mm[TELFER_COUNT];      // HOME позиция (по лазерам)
   int32_t  travel_us_mm[TELFER_COUNT];  // транспортная "безопасная" высота по УЗ (mm)
-  int16_t  h_tol_mm;                   // допуск горизонтали
-  int16_t  v_tol_mm;                   // допуск вертикали
-  uint16_t drip_wait_s;                // пауза стекания (сек) - можно использовать как step_wait
-  uint8_t  h_speed_pct;                // скорость горизонтали (по умолчанию)
-  uint8_t  v_speed_pct;                // скорость вертикали (по умолчанию)
-  uint8_t  v_tilt_speed_pct;           // скорость наклонного шага
-  bool     manual_h_sync_default;      // по умолчанию: горизонталь синхронизирована в ручном режиме?
-  bool     reserved[3];                // выравнивание/резерв
+
+  // ---- Dryer zone calibration (special zone) ----
+  int32_t  dry_x_mm[TELFER_COUNT];      // DRY позиция (по лазерам)
+  int32_t  dry_us_mm[TELFER_COUNT];     // DRY высота опускания (по УЗ), mm
+  bool     dry_valid;                   // калибровка DRY сделана?
+
+  // ---- Per-sensor tolerances (mm) ----
+  int16_t  x_tol_mm[TELFER_COUNT];      // допуск по лазерам (X1/X2)
+  int16_t  us_tol_mm[TELFER_COUNT];     // допуск по УЗ (H1/H2)
+
+  int16_t  h_tol_mm;                    // допуск горизонтали
+  int16_t  v_tol_mm;                    // допуск вертикали
+  uint16_t drip_wait_s;                 // пауза стекания (сек) - можно использовать как step_wait
+  uint8_t  h_speed_pct;                 // скорость горизонтали (по умолчанию)
+  uint8_t  v_speed_pct;                 // скорость вертикали (по умолчанию)
+  uint8_t  v_tilt_speed_pct;            // скорость наклонного шага
+  bool     manual_h_sync_default;       // по умолчанию: горизонталь синхронизирована в ручном режиме?
+
+  bool     reserved[2];                 // выравнивание/резерв
 };
 
 // ----------------------------- Ошибки --------------------------------------

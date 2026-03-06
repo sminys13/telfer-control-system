@@ -109,6 +109,25 @@ void App::setup() {
 
   stopAll();
 
+  // Notifications / signal panel
+  pinMode(PIN_STATUS_LED, OUTPUT);
+  digitalWrite(PIN_STATUS_LED, LOW);
+  if (ENABLE_BUZZER) {
+    pinMode(PIN_BUZZER, OUTPUT);
+    digitalWrite(PIN_BUZZER, LOW);
+  }
+
+  if (ENABLE_SIGNAL_PANEL) {
+    pinMode(PIN_LAMP_RED, OUTPUT);
+    pinMode(PIN_LAMP_GREEN, OUTPUT);
+    pinMode(PIN_LAMP_YELLOW, OUTPUT);
+    pinMode(PIN_LAMP_ORANGE, OUTPUT);
+    digitalWrite(PIN_LAMP_RED, PANEL_ACTIVE_HIGH ? LOW : HIGH);
+    digitalWrite(PIN_LAMP_GREEN, PANEL_ACTIVE_HIGH ? LOW : HIGH);
+    digitalWrite(PIN_LAMP_YELLOW, PANEL_ACTIVE_HIGH ? LOW : HIGH);
+    digitalWrite(PIN_LAMP_ORANGE, PANEL_ACTIVE_HIGH ? LOW : HIGH);
+  }
+
   _rt.mode = RunMode::STOP;
   _rt.error = ErrorCode::NONE;
   _rt.autoRt = AutoRunner{};
@@ -144,46 +163,101 @@ void App::loop() {
   st.autoZoneNext = 0;
   st.autoZoneDir = 0;
   st.autoDipRemainS = 0xFFFF;
+  st.autoDryRemainS = 0xFFFF;
+  st.autoWaitOperator = _rt.autoRt.waitOperator;
+  st.autoDryAlarm = _rt.autoRt.dryAlarm;
   st.error = _rt.error;
 
-  // Доп. инфо для статус-экрана: текущая/следующая зона, направление, остаток выдержки.
+  // Доп. инфо для статус-экрана: текущая/следующая зона, направление, остатки выдержки/сушки.
   if (_rt.autoRt.running) {
-    const uint8_t curZid = _rt.autoRt.zoneIndex;
-    if (curZid < MAX_ZONES) st.autoZoneNow = (uint8_t)(curZid + 1);
+    const uint8_t STG = 0xFD;
+    const uint8_t DRY = 0xFE;
 
-    // Следующая включённая зона по порядку программы.
-    uint8_t nextZid = 0xFF;
-    for (uint8_t j = (uint8_t)(_rt.autoRt.orderIndex + 1); j < _rt.program.zone_count; j++) {
-      const uint8_t zid = _rt.program.order[j];
-      if (zid < MAX_ZONES && _rt.program.zones[zid].enabled) {
-        nextZid = zid;
-        break;
+    const uint8_t ph = (uint8_t)_rt.autoRt.phase;
+    const bool isDry = (ph >= (uint8_t)AutoRunner::Phase::DRY_GOTO_STAGING && ph <= (uint8_t)AutoRunner::Phase::DRY_WAIT_CLOSE);
+
+    auto avgHomeX = [&](){
+      return ((int32_t)_rt.settings.home_x_mm[0] + (int32_t)_rt.settings.home_x_mm[1]) / 2;
+    };
+    auto avgDryX = [&](){
+      return ((int32_t)_rt.settings.dry_x_mm[0] + (int32_t)_rt.settings.dry_x_mm[1]) / 2;
+    };
+    auto avgZoneX = [&](uint8_t zid){
+      return ((int32_t)_rt.program.zones[zid].x_mm[0] + (int32_t)_rt.program.zones[zid].x_mm[1]) / 2;
+    };
+    auto avgX = [&](uint8_t code){
+      if (code == 0) return avgHomeX();
+      if (code == STG) return avgZoneX(_rt.autoRt.stagingZoneIndex);
+      if (code == DRY) return avgDryX();
+      const uint8_t zid = (uint8_t)(code - 1);
+      if (zid >= MAX_ZONES) return 0L;
+      return avgZoneX(zid);
+    };
+
+    if (!isDry) {
+      const uint8_t curZid = _rt.autoRt.zoneIndex;
+      if (curZid < MAX_ZONES) st.autoZoneNow = (uint8_t)(curZid + 1);
+
+      // Следующая включённая зона по порядку программы.
+      uint8_t nextZid = 0xFF;
+      for (uint8_t j = (uint8_t)(_rt.autoRt.orderIndex + 1); j < _rt.program.zone_count; j++) {
+        const uint8_t zid = _rt.program.order[j];
+        if (zid < MAX_ZONES && _rt.program.zones[zid].enabled) { nextZid = zid; break; }
       }
-    }
-    if (nextZid != 0xFF) {
-      st.autoZoneNext = (uint8_t)(nextZid + 1);
-      // Направление по X (сравнение средних X H1/H2).
-      if (curZid < MAX_ZONES) {
-        const int32_t curX = ((int32_t)_rt.program.zones[curZid].x_mm[0] + (int32_t)_rt.program.zones[curZid].x_mm[1]) / 2;
-        const int32_t nxtX = ((int32_t)_rt.program.zones[nextZid].x_mm[0] + (int32_t)_rt.program.zones[nextZid].x_mm[1]) / 2;
-        if (nxtX > curX) st.autoZoneDir = 1;
-        else if (nxtX < curX) st.autoZoneDir = -1;
-        else st.autoZoneDir = 0;
+      if (nextZid != 0xFF) {
+        st.autoZoneNext = (uint8_t)(nextZid + 1);
       } else {
-        st.autoZoneDir = 0;
+        // Дальше — домой (или переход в сушку)
+        st.autoZoneNext = 0;
+      }
+
+      const int32_t dx = avgX(st.autoZoneNext) - avgX(st.autoZoneNow);
+      st.autoZoneDir = (dx > 0) ? 1 : (dx < 0 ? -1 : 0);
+
+      // Остаток выдержки (только в фазе WAIT_DIP).
+      if (_rt.autoRt.phase == AutoRunner::Phase::WAIT_DIP && curZid < MAX_ZONES) {
+        const ZoneConfig& z = _rt.program.zones[curZid];
+        const uint32_t totalMs = (uint32_t)z.dip_time_s * 1000u;
+        const uint32_t elapsed = (uint32_t)(now - _rt.autoRt.phaseStartMs);
+        if (elapsed >= totalMs) st.autoDipRemainS = 0;
+        else st.autoDipRemainS = (uint16_t)((totalMs - elapsed + 999u) / 1000u);
       }
     } else {
-      st.autoZoneNext = 0; // дальше — домой/конец
-      st.autoZoneDir = 0;
-    }
+      // DRY sequence: показываем ST/DR/HM
+      uint8_t nowCode = STG;
+      uint8_t nextCode = DRY;
 
-    // Остаток выдержки (только в фазе WAIT_DIP).
-    if (_rt.autoRt.phase == AutoRunner::Phase::WAIT_DIP && curZid < MAX_ZONES) {
-      const ZoneConfig& z = _rt.program.zones[curZid];
-      const uint32_t totalMs = (uint32_t)z.dip_time_s * 1000u;
-      const uint32_t elapsed = (uint32_t)(now - _rt.autoRt.phaseStartMs);
-      if (elapsed >= totalMs) st.autoDipRemainS = 0;
-      else st.autoDipRemainS = (uint16_t)((totalMs - elapsed + 999u) / 1000u);
+      switch (_rt.autoRt.phase) {
+        case AutoRunner::Phase::DRY_GOTO_STAGING:
+        case AutoRunner::Phase::DRY_WAIT_OPEN:
+          nowCode = STG; nextCode = DRY; break;
+        case AutoRunner::Phase::DRY_GOTO_DRY:
+        case AutoRunner::Phase::DRY_LOWER_DROP:
+        case AutoRunner::Phase::DRY_WAIT_DETACH:
+        case AutoRunner::Phase::DRY_RAISE_TRAVEL:
+        case AutoRunner::Phase::DRY_WAIT_START:
+        case AutoRunner::Phase::DRY_WAIT_TIMER:
+        case AutoRunner::Phase::DRY_LOWER_PICK:
+        case AutoRunner::Phase::DRY_WAIT_ATTACH:
+          nowCode = DRY; nextCode = STG; break;
+        case AutoRunner::Phase::DRY_RAISE_TRAVEL2:
+        case AutoRunner::Phase::DRY_GOTO_STAGING2:
+        case AutoRunner::Phase::DRY_WAIT_CLOSE:
+          nowCode = STG; nextCode = 0; break;
+        default: break;
+      }
+
+      st.autoZoneNow = nowCode;
+      st.autoZoneNext = nextCode;
+      const int32_t dx = avgX(nextCode) - avgX(nowCode);
+      st.autoZoneDir = (dx > 0) ? 1 : (dx < 0 ? -1 : 0);
+
+      // Остаток сушки (только в фазе DRY_WAIT_TIMER и если задано время)
+      if (_rt.autoRt.phase == AutoRunner::Phase::DRY_WAIT_TIMER && _rt.autoRt.dryTimeS > 0) {
+        const uint32_t elapsedS = (uint32_t)((now - _rt.autoRt.dryTimerStartMs) / 1000u);
+        if (elapsedS >= _rt.autoRt.dryTimeS) st.autoDryRemainS = 0;
+        else st.autoDryRemainS = (uint16_t)(_rt.autoRt.dryTimeS - elapsedS);
+      }
     }
   }
 
@@ -227,6 +301,9 @@ void App::loop() {
   } else {
     updateManual(now);
   }
+
+  // --- Signal panel / notifications ---
+  updateSignalPanel(now);
 }
 
 // ------------------------- Helpers -------------------------
@@ -305,6 +382,26 @@ void App::applyActions(uint32_t nowMs) {
     else {
       _rt.settings.travel_us_mm[0] = _sensors.get().us[0].mm;
       _rt.settings.travel_us_mm[1] = _sensors.get().us[1].mm;
+      _storage.saveSettings(_rt.settings);
+    }
+  }
+
+  // DRY zone calibration (special)
+  if (_actions.captureDryX) {
+    if (!lasersOk()) setError(ErrorCode::LASER1_FAIL);
+    else {
+      _rt.settings.dry_x_mm[0] = _sensors.get().laser[0].mm;
+      _rt.settings.dry_x_mm[1] = _sensors.get().laser[1].mm;
+      _rt.settings.dry_valid = true;
+      _storage.saveSettings(_rt.settings);
+    }
+  }
+  if (_actions.captureDryHeight) {
+    if (!usOk()) setError(ErrorCode::US1_FAIL);
+    else {
+      _rt.settings.dry_us_mm[0] = _sensors.get().us[0].mm;
+      _rt.settings.dry_us_mm[1] = _sensors.get().us[1].mm;
+      _rt.settings.dry_valid = true;
       _storage.saveSettings(_rt.settings);
     }
   }
@@ -510,9 +607,9 @@ bool App::driveToHorizontal(int32_t targetX1, int32_t targetX2, uint8_t maxPct) 
 
   int16_t c1=0, c2=0;
   const bool d1 = driveHorizontalOne(_drives, c1, DriveId::H1, s.laser[0].mm, s.laser[0].valid,
-                                    targetX1, _rt.settings.h_tol_mm, maxPct, stop);
+                                    targetX1, _rt.settings.x_tol_mm[0], maxPct, stop);
   const bool d2 = driveHorizontalOne(_drives, c2, DriveId::H2, s.laser[1].mm, s.laser[1].valid,
-                                    targetX2, _rt.settings.h_tol_mm, maxPct, stop);
+                                    targetX2, _rt.settings.x_tol_mm[1], maxPct, stop);
 
   // концевики: не ехать в них
   if (_manual.lim_h1_right && c1 > 0) { _drives.stop(DriveId::H1); c1 = 0; }
@@ -531,9 +628,9 @@ bool App::driveToVertical(int32_t targetUs1, int32_t targetUs2, uint8_t maxPct) 
 
   int16_t c1=0, c2=0;
   const bool d1 = driveVerticalOne(_drives, c1, DriveId::V1, s.us[0].mm, s.us[0].valid,
-                                  targetUs1, _rt.settings.v_tol_mm, maxPct, stop);
+                                  targetUs1, _rt.settings.us_tol_mm[0], maxPct, stop);
   const bool d2 = driveVerticalOne(_drives, c2, DriveId::V2, s.us[1].mm, s.us[1].valid,
-                                  targetUs2, _rt.settings.v_tol_mm, maxPct, stop);
+                                  targetUs2, _rt.settings.us_tol_mm[1], maxPct, stop);
 
   _cmdPct[(uint8_t)DriveId::V1] = c1;
   _cmdPct[(uint8_t)DriveId::V2] = c2;
@@ -546,6 +643,9 @@ void App::autoStop() {
   _rt.autoRt.running = false;
   _rt.autoRt.paused = false;
   _rt.autoRt.phase = AutoRunner::Phase::IDLE;
+  _rt.autoRt.waitOperator = false;
+  _rt.autoRt.dryAlarm = false;
+  _rt.autoRt.dryTimerStartMs = 0;
 }
 
 bool App::autoAdvanceToNextEnabledZone() {
@@ -574,6 +674,20 @@ void App::autoStart(uint32_t nowMs) {
   _rt.autoRt.phaseStartMs = nowMs;
   _rt.autoRt.lowSide = LOW_SIDE_TELFER_INDEX;
   _rt.autoRt.orderIndex = 0;
+
+  // DRY flow init
+  _rt.autoRt.waitOperator = false;
+  _rt.autoRt.dryAlarm = false;
+  _rt.autoRt.dryTimerStartMs = 0;
+  _rt.autoRt.dryTimeS = _rt.program.drying_time_s;
+  _rt.autoRt.stagingZoneIndex = _rt.program.staging_zone;
+  if (_rt.autoRt.stagingZoneIndex >= _rt.program.zone_count) _rt.autoRt.stagingZoneIndex = 0;
+
+  if (_rt.program.drying_enabled && !_rt.settings.dry_valid) {
+    // Требуется калибровка зоны сушки
+    setError(ErrorCode::INVALID_PROGRAM);
+    return;
+  }
 
   if (!autoAdvanceToNextEnabledZone()) {
     setError(ErrorCode::INVALID_PROGRAM);
@@ -657,7 +771,7 @@ void App::updateAuto(uint32_t nowMs) {
       const DriveId did = (low == 0) ? DriveId::V1 : DriveId::V2;
       const int32_t cur = s.us[low].mm;
       const bool ok = driveVerticalOne(_drives, dummyCmd, did, cur, s.us[low].valid,
-                                       _rt.autoRt.lowTiltTarget, _rt.settings.v_tol_mm,
+                                       _rt.autoRt.lowTiltTarget, _rt.settings.us_tol_mm[high],
                                        _rt.settings.v_tilt_speed_pct, false);
       // Второй вертикальный стоп
       _drives.stop((low == 0) ? DriveId::V2 : DriveId::V1);
@@ -711,7 +825,7 @@ void App::updateAuto(uint32_t nowMs) {
       const DriveId did = (high == 0) ? DriveId::V1 : DriveId::V2;
       const int32_t cur = s.us[high].mm;
       const bool ok = driveVerticalOne(_drives, dummyCmd, did, cur, s.us[high].valid,
-                                       _rt.autoRt.highLiftTarget, _rt.settings.v_tol_mm,
+                                       _rt.autoRt.highLiftTarget, _rt.settings.us_tol_mm[high],
                                        _rt.settings.v_tilt_speed_pct, false);
       _drives.stop((high == 0) ? DriveId::V2 : DriveId::V1);
 
@@ -749,6 +863,196 @@ void App::updateAuto(uint32_t nowMs) {
         _rt.autoRt.phase = AutoRunner::Phase::MOVE_ZONE_H;
         _rt.autoRt.phaseStartMs = nowMs;
       } else {
+        // Конец основного алгоритма
+        if (_rt.program.drying_enabled) {
+          _rt.autoRt.stagingZoneIndex = _rt.program.staging_zone;
+          if (_rt.autoRt.stagingZoneIndex >= _rt.program.zone_count) _rt.autoRt.stagingZoneIndex = 0;
+          _rt.autoRt.dryTimeS = _rt.program.drying_time_s;
+          _rt.autoRt.waitOperator = false;
+          _rt.autoRt.dryAlarm = false;
+          _rt.autoRt.dryTimerStartMs = 0;
+          _rt.autoRt.phase = AutoRunner::Phase::DRY_GOTO_STAGING;
+          _rt.autoRt.phaseStartMs = nowMs;
+        } else {
+          _rt.autoRt.phase = AutoRunner::Phase::MOVE_HOME;
+          _rt.autoRt.phaseStartMs = nowMs;
+        }
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_GOTO_STAGING: {
+      // Движение к предсушке/преддверию (Staging).
+      _rt.autoRt.waitOperator = false;
+
+      const uint8_t stg = _rt.autoRt.stagingZoneIndex;
+      const ZoneConfig& sz = _rt.program.zones[stg];
+
+      // Сначала на travel, затем в зону STG по X
+      if (!withinTol(s.us[0].mm, _rt.settings.travel_us_mm[0], _rt.settings.us_tol_mm[0]) ||
+          !withinTol(s.us[1].mm, _rt.settings.travel_us_mm[1], _rt.settings.us_tol_mm[1])) {
+        (void)driveToVertical(_rt.settings.travel_us_mm[0], _rt.settings.travel_us_mm[1], _rt.settings.v_speed_pct);
+      } else {
+        if (driveToHorizontal(sz.x_mm[0], sz.x_mm[1], _rt.settings.h_speed_pct)) {
+          stopAll();
+          _rt.autoRt.phase = AutoRunner::Phase::DRY_WAIT_OPEN;
+          _rt.autoRt.phaseStartMs = nowMs;
+        }
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_WAIT_OPEN: {
+      // Ждём команду оператора: дверь открыта, можно подъезжать к сушке
+      stopAll();
+      _rt.autoRt.waitOperator = true;
+      if (_actions.operatorNext) {
+        _rt.autoRt.waitOperator = false;
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_GOTO_DRY;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_GOTO_DRY: {
+      // Едем к зоне сушки по X (на travel высоте)
+      _rt.autoRt.waitOperator = false;
+      if (!withinTol(s.us[0].mm, _rt.settings.travel_us_mm[0], _rt.settings.us_tol_mm[0]) ||
+          !withinTol(s.us[1].mm, _rt.settings.travel_us_mm[1], _rt.settings.us_tol_mm[1])) {
+        (void)driveToVertical(_rt.settings.travel_us_mm[0], _rt.settings.travel_us_mm[1], _rt.settings.v_speed_pct);
+      } else {
+        if (driveToHorizontal(_rt.settings.dry_x_mm[0], _rt.settings.dry_x_mm[1], _rt.settings.h_speed_pct)) {
+          stopAll();
+          _rt.autoRt.phase = AutoRunner::Phase::DRY_LOWER_DROP;
+          _rt.autoRt.phaseStartMs = nowMs;
+        }
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_LOWER_DROP: {
+      // Опустить груз в сушилку
+      _rt.autoRt.waitOperator = false;
+      if (driveToVertical(_rt.settings.dry_us_mm[0], _rt.settings.dry_us_mm[1], _rt.settings.v_speed_pct)) {
+        stopAll();
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_WAIT_DETACH;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_WAIT_DETACH: {
+      // Оператор отцепил груз
+      stopAll();
+      _rt.autoRt.waitOperator = true;
+      if (_actions.operatorNext) {
+        _rt.autoRt.waitOperator = false;
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_RAISE_TRAVEL;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_RAISE_TRAVEL: {
+      // Подняться на транспортную высоту
+      _rt.autoRt.waitOperator = false;
+      if (driveToVertical(_rt.settings.travel_us_mm[0], _rt.settings.travel_us_mm[1], _rt.settings.v_speed_pct)) {
+        stopAll();
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_WAIT_START;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_WAIT_START: {
+      // Оператор закрыл дверцу и запустил сушку
+      stopAll();
+      _rt.autoRt.waitOperator = true;
+      if (_actions.operatorNext) {
+        _rt.autoRt.waitOperator = false;
+        _rt.autoRt.dryAlarm = false;
+        _rt.autoRt.dryTimerStartMs = nowMs;
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_WAIT_TIMER;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_WAIT_TIMER: {
+      // Ждём окончания таймера сушки (и/или команду оператора после окончания)
+      stopAll();
+
+      if (_rt.autoRt.dryTimeS == 0) {
+        // полностью ручной режим: сразу ждём подтверждение
+        _rt.autoRt.waitOperator = true;
+        if (_actions.operatorNext) {
+          _rt.autoRt.waitOperator = false;
+          _rt.autoRt.dryAlarm = false;
+          _rt.autoRt.phase = AutoRunner::Phase::DRY_LOWER_PICK;
+          _rt.autoRt.phaseStartMs = nowMs;
+        }
+        break;
+      }
+
+      const uint32_t elapsedMs = (uint32_t)(nowMs - _rt.autoRt.dryTimerStartMs);
+      const uint32_t totalMs = (uint32_t)_rt.autoRt.dryTimeS * 1000u;
+      const bool done = (elapsedMs >= totalMs);
+
+      if (done) {
+        _rt.autoRt.dryAlarm = true;
+        _rt.autoRt.waitOperator = true;
+        if (_actions.operatorNext) {
+          _rt.autoRt.waitOperator = false;
+          _rt.autoRt.dryAlarm = false;
+          _rt.autoRt.phase = AutoRunner::Phase::DRY_LOWER_PICK;
+          _rt.autoRt.phaseStartMs = nowMs;
+        }
+      } else {
+        _rt.autoRt.waitOperator = false;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_LOWER_PICK: {
+      // Опустить для подцепления груза
+      _rt.autoRt.waitOperator = false;
+      if (driveToVertical(_rt.settings.dry_us_mm[0], _rt.settings.dry_us_mm[1], _rt.settings.v_speed_pct)) {
+        stopAll();
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_WAIT_ATTACH;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_WAIT_ATTACH: {
+      // Оператор подцепил груз
+      stopAll();
+      _rt.autoRt.waitOperator = true;
+      if (_actions.operatorNext) {
+        _rt.autoRt.waitOperator = false;
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_RAISE_TRAVEL2;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_RAISE_TRAVEL2: {
+      // Подняться на транспортную высоту
+      _rt.autoRt.waitOperator = false;
+      if (driveToVertical(_rt.settings.travel_us_mm[0], _rt.settings.travel_us_mm[1], _rt.settings.v_speed_pct)) {
+        stopAll();
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_GOTO_STAGING2;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_GOTO_STAGING2: {
+      // Вернуться на предсушку/преддверие
+      _rt.autoRt.waitOperator = false;
+      const uint8_t stg = _rt.autoRt.stagingZoneIndex;
+      const ZoneConfig& sz = _rt.program.zones[stg];
+      if (driveToHorizontal(sz.x_mm[0], sz.x_mm[1], _rt.settings.h_speed_pct)) {
+        stopAll();
+        _rt.autoRt.phase = AutoRunner::Phase::DRY_WAIT_CLOSE;
+        _rt.autoRt.phaseStartMs = nowMs;
+      }
+    } break;
+
+    case AutoRunner::Phase::DRY_WAIT_CLOSE: {
+      // Оператор закрыл дверцу сушилки (или подготовил к отъезду)
+      stopAll();
+      _rt.autoRt.waitOperator = true;
+      if (_actions.operatorNext) {
+        _rt.autoRt.waitOperator = false;
         _rt.autoRt.phase = AutoRunner::Phase::MOVE_HOME;
         _rt.autoRt.phaseStartMs = nowMs;
       }
@@ -756,8 +1060,8 @@ void App::updateAuto(uint32_t nowMs) {
 
     case AutoRunner::Phase::MOVE_HOME: {
       // Сначала на travel, затем домой по X
-      if (!withinTol(s.us[0].mm, _rt.settings.travel_us_mm[0], _rt.settings.v_tol_mm) ||
-          !withinTol(s.us[1].mm, _rt.settings.travel_us_mm[1], _rt.settings.v_tol_mm)) {
+      if (!withinTol(s.us[0].mm, _rt.settings.travel_us_mm[0], _rt.settings.us_tol_mm[0]) ||
+          !withinTol(s.us[1].mm, _rt.settings.travel_us_mm[1], _rt.settings.us_tol_mm[1])) {
         (void)driveToVertical(_rt.settings.travel_us_mm[0], _rt.settings.travel_us_mm[1], _rt.settings.v_speed_pct);
       } else {
         if (driveToHorizontal(_rt.settings.home_x_mm[0], _rt.settings.home_x_mm[1], _rt.settings.h_speed_pct)) {
@@ -770,6 +1074,8 @@ void App::updateAuto(uint32_t nowMs) {
 
     case AutoRunner::Phase::DONE: {
       stopAll();
+      // completion notification: green blink + beep for a few seconds
+      _finishNotifyUntilMs = nowMs + 10000UL;
       autoStop();
       _rt.mode = RunMode::STOP;
     } break;
@@ -777,4 +1083,115 @@ void App::updateAuto(uint32_t nowMs) {
     default:
       break;
   }
+}
+
+
+// ------------------------- Signal panel / notifications -------------------------
+
+void App::updateSignalPanel(uint32_t nowMs) {
+  // helpers
+  auto setLamp = [&](uint8_t pin, bool on) {
+    if (!ENABLE_SIGNAL_PANEL) return;
+    const uint8_t v = (PANEL_ACTIVE_HIGH ? (on ? HIGH : LOW) : (on ? LOW : HIGH));
+    digitalWrite(pin, v);
+  };
+
+  auto allOff = [&]() {
+    setLamp(PIN_LAMP_RED, false);
+    setLamp(PIN_LAMP_GREEN, false);
+    setLamp(PIN_LAMP_YELLOW, false);
+    setLamp(PIN_LAMP_ORANGE, false);
+  };
+
+  // blinking base (250ms tick)
+  if ((uint32_t)(nowMs - _panelLastMs) >= 250) {
+    _panelLastMs = nowMs;
+    _panelBlink = !_panelBlink;
+  }
+
+  // Determine states
+  const bool hasErr = (_rt.error != ErrorCode::NONE);
+  const bool finishNotify = ((int32_t)(nowMs - _finishNotifyUntilMs) < 0);
+  const bool autoRun = (_rt.mode == RunMode::AUTO && _rt.autoRt.running);
+  const bool autoPause = (autoRun && _rt.autoRt.paused);
+
+  // Drying process indicator (yellow): in DRY_WAIT_TIMER or when dryAlarm active
+  const bool inDryTimer = autoRun && (_rt.autoRt.phase == AutoRunner::Phase::DRY_WAIT_TIMER);
+  const bool dryAlarm = _rt.autoRt.dryAlarm;
+
+  // Manual away-from-home and not moving
+  const bool anyMove = (_cmdPct[0] != 0) || (_cmdPct[1] != 0) || (_cmdPct[2] != 0) || (_cmdPct[3] != 0);
+  bool atHome = false;
+  if (_sensors.get().laser[0].valid && _sensors.get().laser[1].valid) {
+    atHome = withinTol(_sensors.get().laser[0].mm, _rt.settings.home_x_mm[0], _rt.settings.x_tol_mm[0]) &&
+             withinTol(_sensors.get().laser[1].mm, _rt.settings.home_x_mm[1], _rt.settings.x_tol_mm[1]);
+  }
+  const bool manualAway = (_rt.mode == RunMode::MANUAL) && (!anyMove) && (!atHome);
+
+  // Clear buzzer by default
+  if (ENABLE_BUZZER) noTone(PIN_BUZZER);
+  digitalWrite(PIN_STATUS_LED, LOW);
+
+  if (hasErr) {
+    // ERROR: all lamps blink 0.5s (toggle every 250ms), buzzer with the blink
+    const bool on = _panelBlink;
+    setLamp(PIN_LAMP_RED, on);
+    setLamp(PIN_LAMP_GREEN, on);
+    setLamp(PIN_LAMP_YELLOW, on);
+    setLamp(PIN_LAMP_ORANGE, on);
+    digitalWrite(PIN_STATUS_LED, on ? HIGH : LOW);
+    if (ENABLE_BUZZER && on) tone(PIN_BUZZER, 1800);
+    return;
+  }
+
+  if (finishNotify) {
+    // FINISH: green blink 1s (toggle every 500ms -> use _panelBlink every 250ms => two ticks per toggle)
+    const bool on = ((nowMs / 500UL) % 2) == 0;
+    allOff();
+    setLamp(PIN_LAMP_GREEN, on);
+    digitalWrite(PIN_STATUS_LED, on ? HIGH : LOW);
+    if (ENABLE_BUZZER && on) tone(PIN_BUZZER, 1600);
+    return;
+  }
+
+  if (inDryTimer) {
+    allOff();
+    // Drying in progress: yellow solid; when timer done (dryAlarm) blink + beep
+    if (dryAlarm) {
+      const bool on = _panelBlink;
+      setLamp(PIN_LAMP_YELLOW, on);
+      digitalWrite(PIN_STATUS_LED, on ? HIGH : LOW);
+      if (ENABLE_BUZZER && on) tone(PIN_BUZZER, 1800);
+    } else {
+      setLamp(PIN_LAMP_YELLOW, true);
+      digitalWrite(PIN_STATUS_LED, HIGH);
+    }
+    return;
+  }
+
+  if (autoRun) {
+    allOff();
+    if (autoPause) {
+      // red blink 1s
+      const bool on = ((nowMs / 500UL) % 2) == 0;
+      setLamp(PIN_LAMP_RED, on);
+      digitalWrite(PIN_STATUS_LED, on ? HIGH : LOW);
+    } else {
+      setLamp(PIN_LAMP_RED, true);
+      digitalWrite(PIN_STATUS_LED, HIGH);
+    }
+    return;
+  }
+
+  if (manualAway) {
+    allOff();
+    setLamp(PIN_LAMP_ORANGE, true);
+    digitalWrite(PIN_STATUS_LED, HIGH);
+    return;
+  }
+
+  // IDLE: green solid
+  allOff();
+  setLamp(PIN_LAMP_GREEN, true);
+  digitalWrite(PIN_STATUS_LED, HIGH);
 }

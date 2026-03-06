@@ -27,6 +27,22 @@ struct AutoRunner {
     RAISE_TRAVEL,    // ступень 2 подъёма: поднять оба на travel
 
     NEXT_ZONE,       // переход к следующей зоне
+
+    // ---- DRY sequence (special zone) ----
+    DRY_GOTO_STAGING,
+    DRY_WAIT_OPEN,
+    DRY_GOTO_DRY,
+    DRY_LOWER_DROP,
+    DRY_WAIT_DETACH,
+    DRY_RAISE_TRAVEL,
+    DRY_WAIT_START,
+    DRY_WAIT_TIMER,
+    DRY_LOWER_PICK,
+    DRY_WAIT_ATTACH,
+    DRY_RAISE_TRAVEL2,
+    DRY_GOTO_STAGING2,
+    DRY_WAIT_CLOSE,
+
     MOVE_HOME,       // домой
     DONE
   };
@@ -34,6 +50,13 @@ struct AutoRunner {
   Phase phase = Phase::IDLE;
   bool running = false;
   bool paused = false;
+
+  // DRY flow runtime
+  bool waitOperator = false;
+  bool dryAlarm = false;
+  uint32_t dryTimerStartMs = 0;
+  uint16_t dryTimeS = 0;
+  uint8_t stagingZoneIndex = 0;
 
   uint8_t orderIndex = 0;   // индекс в program.order
   uint8_t zoneIndex = 0;    // текущая зона (индекс zones[])
@@ -80,6 +103,13 @@ private:
   uint32_t _tUi = 0;
   uint32_t _tSensors = 0;
   uint32_t _tSafety = 0;
+  uint32_t _tNotify = 0;
+  bool _notifyState = false;
+
+  // Signal panel / notifications
+  uint32_t _panelLastMs = 0;
+  bool _panelBlink = false;
+  uint32_t _finishNotifyUntilMs = 0;
 
   ManualButtons _manual{};
   AppActions _actions{};
@@ -97,6 +127,7 @@ private:
   void updateSafety(uint32_t nowMs);
   void updateManual(uint32_t nowMs);
   void updateAuto(uint32_t nowMs);
+  void updateSignalPanel(uint32_t nowMs);
 
   // движение к цели
   bool driveToHorizontal(int32_t targetX1, int32_t targetX2, uint8_t maxPct);
