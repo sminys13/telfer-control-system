@@ -95,8 +95,11 @@ static uint8_t checksum80(const uint8_t* data, uint8_t n) {
   return (uint8_t)(0x100u - (sum & 0xFFu));
 }
 
-// По вашим примерам для команд, начинающихся с 0x04, чек = (0x100 - sum + 0x06) & 0xFF
-static uint8_t checksum04(const uint8_t* data, uint8_t n) {
+// Контрольный байт для 0x04-команд.
+// По вашей документации примеры совпадают с формулой:
+//   chk = (0x100 - (sum & 0xFF) + 0x06) & 0xFF
+// Например: 04 08 01 -> F9, 04 0A 14 -> E4, 04 01 80 -> 81.
+static uint8_t checksum04_plus6(const uint8_t* data, uint8_t n) {
   uint16_t sum = 0;
   for (uint8_t i=0;i<n;i++) sum += data[i];
   return (uint8_t)((0x100u - (sum & 0xFFu) + 0x06u) & 0xFFu);
@@ -105,7 +108,7 @@ static uint8_t checksum04(const uint8_t* data, uint8_t n) {
 void Sensors::sendLaserCmd80(HardwareSerial& s, const uint8_t* payload, uint8_t n) {
   // payload already contains address and bytes WITHOUT checksum
   uint8_t buf[12];
-  if (n + 1 > sizeof(buf)) return;
+  if (((size_t)n + 1u) > sizeof(buf)) return;
   memcpy(buf, payload, n);
   buf[n] = checksum80(buf, n);
   s.write(buf, (size_t)(n + 1));
@@ -114,9 +117,11 @@ void Sensors::sendLaserCmd80(HardwareSerial& s, const uint8_t* payload, uint8_t 
 
 void Sensors::sendLaserCmd04(HardwareSerial& s, const uint8_t* payload, uint8_t n) {
   uint8_t buf[12];
-  if (n + 1 > sizeof(buf)) return;
+  if (((size_t)n + 1u) > sizeof(buf)) return;
   memcpy(buf, payload, n);
-  buf[n] = checksum04(buf, n);
+
+  // Отправляем ровно один вариант — как в вашей документации.
+  buf[n] = checksum04_plus6(buf, n);
   s.write(buf, (size_t)(n + 1));
   s.flush();
 }
@@ -177,9 +182,23 @@ void Sensors::applyLaserDeviceConfig(const GlobalSettings& settings) {
     const bool needSetAddr = (_laserAddr[i] != addr);
     _laserAddr[i] = addr;
 
-    // Очистим UART перед конфигурацией (убираем хвосты continuous потока)
+    // 0) Остановим поток/луч перед 0x04 конфигом (иначе часть датчиков игнорирует команды)
+    // ВАЖНО: делаем это здесь (в member-функции), чтобы использовать приватные sendLaserCmdXX().
+    {
+      // Переводим в одиночный режим + выключаем луч.
+      const uint8_t cmdSingle[]  = {addr, 0x06, 0x02};        // single measurement
+      const uint8_t cmdBeamOff[] = {addr, 0x06, 0x05, 0x00};  // beam OFF
+      sendLaserCmd80(s, cmdSingle, (uint8_t)sizeof(cmdSingle));
+      delay(15);
+      sendLaserCmd80(s, cmdSingle, (uint8_t)sizeof(cmdSingle));
+      delay(20);
+      sendLaserCmd80(s, cmdBeamOff, (uint8_t)sizeof(cmdBeamOff));
+      delay(25);
+    }
+
+    // 1) Очистим UART перед конфигурацией (убираем хвосты continuous потока)
     reopenLaserPort(s);
-    delay(30);
+    delay(60);
 
     // Set address (04 01 addr)
     if (needSetAddr) {

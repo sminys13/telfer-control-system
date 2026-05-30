@@ -553,7 +553,7 @@ void UI::drawMenuValues(const __FlashStringHelper* title,
         if (maxW > 10) {
           const size_t origLen = strlen(lineBuf);
           bool trimmed = false;
-          while (strlen(lineBuf) > 0 && u8g2.getStrWidth(lineBuf) > maxW) {
+	          while (strlen(lineBuf) > 0 && u8g2.getStrWidth(lineBuf) > (uint16_t)maxW) {
             lineBuf[strlen(lineBuf) - 1] = 0;
             trimmed = true;
           }
@@ -904,7 +904,7 @@ void UI::screenProgramView(const SensorsSnapshot&, const UiStateSummary&, Global
         if (maxW > 10) {
           const size_t origLen = strlen(label);
           bool trimmed=false;
-          while (strlen(label) > 0 && u8g2.getStrWidth(label) > maxW) {
+	          while (strlen(label) > 0 && u8g2.getStrWidth(label) > (uint16_t)maxW) {
             label[strlen(label)-1]=0;
             trimmed=true;
           }
@@ -1258,7 +1258,8 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
           const int32_t opts[] = {0,5,10,20};
           int idx = 2; for (int i=0;i<4;i++) if (opts[i]==v) { idx=i; break; }
           idx += (encDelta>0 ? 1 : -1);
-          if (idx < 0) idx = 0; if (idx > 3) idx = 3;
+	          if (idx < 0) idx = 0;
+	          if (idx > 3) idx = 3;
           settings.laser_freq_hz = (uint8_t)opts[idx];
         }
       } break;
@@ -1269,7 +1270,8 @@ void UI::screenSettingsMenu(const SensorsSnapshot&, const UiStateSummary&, Globa
           const int32_t opts[] = {5,10,30,50,80};
           int idx = 1; for (int i=0;i<5;i++) if (opts[i]==v) { idx=i; break; }
           idx += (encDelta>0 ? 1 : -1);
-          if (idx < 0) idx = 0; if (idx > 4) idx = 4;
+	          if (idx < 0) idx = 0;
+	          if (idx > 4) idx = 4;
           settings.laser_range_m = (uint8_t)opts[idx];
         }
       } break;
@@ -1394,6 +1396,7 @@ void UI::screenServiceMenu(const SensorsSnapshot&, const UiStateSummary& st, Glo
 
 void UI::screenManual(const SensorsSnapshot&, const UiStateSummary&, GlobalSettings& settings, ProgramConfig&,
                       AppActions& a, bool click, bool, int8_t) {
+	(void)settings; // currently unused in this screen
   if (click) { _screen = Screen::MAIN_MENU; _sel=0; _scroll=0; }
 
   u8g2.firstPage();
