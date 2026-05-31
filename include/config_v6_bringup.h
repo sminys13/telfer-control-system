@@ -42,3 +42,4 @@ static constexpr uint16_t VP_CMD = 0x1100;
 static constexpr uint16_t MODE_BRINGUP = 6;
 static constexpr uint16_t ERROR_NONE = 0;
 static constexpr uint16_t ERROR_LASER1 = 101;
+static constexpr uint16_t ERROR_LASER2 = 102;
