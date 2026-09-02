@@ -12,9 +12,13 @@ public:
   void writeU16(uint16_t vp, uint16_t value);
   void writeI16(uint16_t vp, int16_t value);
 
-  // Reads DWIN touch/key command frames:
+  // Reads one DWIN auto-upload frame:
   // 5A A5 06 83 VP_H VP_L 01 DATA_H DATA_L
-  // Returns true when a command for expectedVp is received.
+  // Returns the VP and first 16-bit word. This is used both for VP_CMD and
+  // editable settings fields, so non-command frames are no longer discarded.
+  bool pollWriteU16(uint16_t& outVp, uint16_t& outValue);
+
+  // Backward-compatible helper for older environments.
   bool pollCommand(uint16_t expectedVp, uint16_t& outCmd);
 
   void clearCommand(uint16_t cmdVp);

@@ -210,7 +210,8 @@ void handleCommand(uint16_t cmd)
 
   Serial.print(F("DWIN CMD="));
   Serial.println(cmd);
-
+  // ВРЕМЕННО: показываем код нажатой кнопки в поле ERROR
+  g_dwin.writeU16(VP_ERROR, cmd);
   switch (cmd)
   {
   case CMD_ZERO_X1:

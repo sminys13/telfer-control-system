@@ -29,5 +29,5 @@ jobs:
       - name: Install PlatformIO
         run: pip install -U platformio
 
-      - name: Build (megaatmega2560)
-        run: platformio run -e megaatmega2560
+      - name: Build (mega_v6_sensor_core_fast)
+        run: platformio run -e mega_v6_sensor_core_fast

@@ -1,0 +1,194 @@
+diff -ruN '--exclude=STEP9B_TO_STEP9C.patch' '--exclude=README_V6_SYSTEM_STEP9C.md' /mnt/data/step9b_work/telfer-control-system-v6-system-step9b/include/config_v6_bringup.h /mnt/data/telfer-control-system-v6-system-step9c/include/config_v6_bringup.h
+--- /mnt/data/step9b_work/telfer-control-system-v6-system-step9b/include/config_v6_bringup.h	2026-08-10 19:07:10.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9c/include/config_v6_bringup.h	2026-08-10 19:15:56.160849968 +0000
+@@ -3,7 +3,7 @@
+ #include <Arduino.h>
+ #include <stdint.h>
+ 
+-#define FW_VERSION_V6_BRINGUP "v6-system-step9b-auto-timing-console"
++#define FW_VERSION_V6_BRINGUP "v6-system-step9c-dwin-program-editor"
+ 
+ // =====================================================
+ // Debug / UART
+@@ -183,6 +183,10 @@
+ static constexpr uint16_t VP_PROG_ZONE_VALID_MASK= 0x1342;
+ static constexpr uint16_t VP_PROG_DIRTY          = 0x1344;
+ static constexpr uint16_t VP_PROG_TILT_PCT        = 0x1346; // legacy global v_tilt_speed_pct
++// Step9C editor/navigation status.
++static constexpr uint16_t VP_PROG_SLOT_SELECTED    = 0x1348; // 1..4
++static constexpr uint16_t VP_PROG_UI_STATE         = 0x134A; // 0=idle,1=loaded,2=saved,3=dirty,4=error
++static constexpr uint16_t VP_PROG_EDIT_LOCKED      = 0x134C; // AUTO/HOME running
+ 
+ // Команды от кнопок DWIN.
+ // Все кнопки должны писать сюда.
+@@ -283,6 +287,14 @@
+ static constexpr uint16_t CMD_PROGRAM_LOAD        = 0x0310;
+ static constexpr uint16_t CMD_PROGRAM_SAVE        = 0x0311;
+ static constexpr uint16_t CMD_PROGRAM_DEFAULTS    = 0x0312;
++// Step9C direct touch navigation for Program/Zone screen.
++static constexpr uint16_t CMD_PROGRAM_SLOT_1      = 0x0314;
++static constexpr uint16_t CMD_PROGRAM_SLOT_2      = 0x0315;
++static constexpr uint16_t CMD_PROGRAM_SLOT_3      = 0x0316;
++static constexpr uint16_t CMD_PROGRAM_SLOT_4      = 0x0317;
++static constexpr uint16_t CMD_PROGRAM_ZONE_PREV   = 0x0318;
++static constexpr uint16_t CMD_PROGRAM_ZONE_NEXT   = 0x0319;
++static constexpr uint16_t CMD_PROGRAM_ZONE_TOGGLE = 0x031A;
+ static constexpr uint16_t CMD_PROGRAM_CAPTURE_HOME= 0x0320;
+ static constexpr uint16_t CMD_PROGRAM_CAPTURE_TRAVEL=0x0321;
+ static constexpr uint16_t CMD_PROGRAM_CAPTURE_ZONE_X=0x0322;
+diff -ruN '--exclude=STEP9B_TO_STEP9C.patch' '--exclude=README_V6_SYSTEM_STEP9C.md' /mnt/data/step9b_work/telfer-control-system-v6-system-step9b/src/main_v6_fast.cpp /mnt/data/telfer-control-system-v6-system-step9c/src/main_v6_fast.cpp
+--- /mnt/data/step9b_work/telfer-control-system-v6-system-step9b/src/main_v6_fast.cpp	2026-08-10 19:06:54.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9c/src/main_v6_fast.cpp	2026-08-10 19:16:41.627387929 +0000
+@@ -41,6 +41,7 @@
+ static bool g_programDirty = false;
+ static bool g_programIsDemo = false;
+ static bool g_autoSimulation = false;
++static uint16_t g_programUiState = 0; // 0 idle,1 loaded,2 saved,3 dirty,4 error
+ 
+ // USB periodic diagnostics. Event/fault messages are always printed.
+ // NORMAL is intentionally quieter than Step9A so console commands stay readable.
+@@ -194,6 +195,7 @@
+   g_dwin.writeU16(VP_AUTO_REMAIN_S, remain == 0xFFFF ? 0 : remain);
+   g_dwin.writeU16(VP_PROGRAM_READY, ready ? 1 : 0);
+   g_dwin.writeU16(VP_PROGRAM_ACTIVE_SLOT, (uint16_t)(g_programSlot + 1));
++  g_dwin.writeU16(VP_PROG_EDIT_LOCKED, g_auto.running() ? 1 : 0);
+ }
+ 
+ void writeBootScreen()
+@@ -330,13 +332,17 @@
+   g_dwin.writeU16(VP_PROG_VALID_MASK, g_program.validMask);
+   g_dwin.writeU16(VP_PROG_ZONE_VALID_MASK, z.validMask);
+   g_dwin.writeU16(VP_PROG_DIRTY, g_programDirty ? 1 : 0);
++  g_dwin.writeU16(VP_PROG_SLOT_SELECTED, (uint16_t)(g_programSlot + 1));
++  g_dwin.writeU16(VP_PROG_UI_STATE, g_programUiState);
++  g_dwin.writeU16(VP_PROG_EDIT_LOCKED, g_auto.running() ? 1 : 0);
+   writePersistentHeaderToDwin();
+ }
+ 
+ void markProgramDirty()
+ {
+   g_programDirty = true;
+-  g_programIsDemo = false;
++  g_programUiState = 3;
++  // Keep SIM-DEMO RAM-only even if its fields are edited from DWIN/USB.
+   writeProgramToDwin();
+ }
+ 
+@@ -771,6 +777,7 @@
+     g_programDirty = true;
+     g_programIsDemo = false;
+     g_programSelectedZone = 0;
++    g_programUiState = 4;
+     Serial.print(F("Program slot "));
+     Serial.print(slot + 1);
+     Serial.println(F(" invalid/empty: safe uncalibrated defaults loaded in RAM"));
+@@ -783,6 +790,7 @@
+   g_programDirty = false;
+   g_programIsDemo = false;
+   g_programSelectedZone = 0;
++  g_programUiState = 1;
+   Serial.print(F("Program loaded slot="));
+   Serial.print(slot + 1);
+   Serial.print(F(" name="));
+@@ -794,19 +802,26 @@
+ bool saveProgramSlotV6()
+ {
+   if (g_auto.running()) {
++    g_programUiState = 4;
+     Serial.println(F("Program SAVE rejected while AUTO/HOME is running"));
++    writeProgramToDwin();
+     return false;
+   }
+   if (g_programIsDemo) {
++    g_programUiState = 4;
+     Serial.println(F("Program SAVE rejected: SIM-DEMO is RAM-only by design"));
++    writeProgramToDwin();
+     return false;
+   }
+   if (!g_programStorage.save(g_programSlot, g_program)) {
++    g_programUiState = 4;
+     Serial.println(F("Program SAVE failed validation/EEPROM bounds"));
++    writeProgramToDwin();
+     return false;
+   }
+   g_programStorage.saveActiveSlot(g_programSlot);
+   g_programDirty = false;
++  g_programUiState = 2;
+   Serial.print(F("Program saved slot="));
+   Serial.println(g_programSlot + 1);
+   writeProgramToDwin();
+@@ -1234,12 +1249,56 @@
+       g_programStorage.defaults(g_program, g_programSlot);
+       g_programDirty = true;
+       g_programIsDemo = false;
++      g_programUiState = 3;
+       g_programSelectedZone = 0;
+       Serial.println(F("Program safe defaults loaded in RAM; calibration required"));
+       writeProgramToDwin();
+     }
+     break;
+ 
++  case CMD_PROGRAM_SLOT_1:
++  case CMD_PROGRAM_SLOT_2:
++  case CMD_PROGRAM_SLOT_3:
++  case CMD_PROGRAM_SLOT_4:
++    if (g_auto.running()) {
++      g_programUiState = 4;
++      Serial.println(F("Program slot change rejected while AUTO/HOME is running"));
++      writeProgramToDwin();
++    } else {
++      const uint8_t slot = (uint8_t)(cmd - CMD_PROGRAM_SLOT_1);
++      (void)loadProgramSlotV6(slot);
++    }
++    break;
++
++  case CMD_PROGRAM_ZONE_PREV:
++    if (!g_auto.running()) {
++      if (g_programSelectedZone == 0)
++        g_programSelectedZone = (uint8_t)(g_program.zoneCount - 1);
++      else
++        --g_programSelectedZone;
++      writeProgramToDwin();
++    }
++    break;
++
++  case CMD_PROGRAM_ZONE_NEXT:
++    if (!g_auto.running()) {
++      g_programSelectedZone = (uint8_t)((g_programSelectedZone + 1) % g_program.zoneCount);
++      writeProgramToDwin();
++    }
++    break;
++
++  case CMD_PROGRAM_ZONE_TOGGLE:
++    if (!g_auto.running()) {
++      AutoZoneV6 &z = g_program.zones[g_programSelectedZone];
++      z.enabled = z.enabled ? 0 : 1;
++      markProgramDirty();
++      Serial.print(F("Program zone "));
++      Serial.print(g_programSelectedZone + 1);
++      Serial.print(F(" -> "));
++      Serial.println(z.enabled ? F("ON") : F("OFF"));
++    }
++    break;
++
+   case CMD_SETTINGS:
+     setSystemMode(SystemModeV6::SETTINGS);
+     break;
+@@ -1576,7 +1635,7 @@
+   Serial.begin(DBG_BAUD);
+   delay(300);
+   Serial.println();
+-  Serial.println(F("========== V6 SYSTEM STEP9B AUTO TIMING FIX START =========="));
++  Serial.println(F("========== V6 SYSTEM STEP9C DWIN PROGRAM EDITOR START =========="));
+   Serial.print(F("FW: ")); Serial.println(F(FW_VERSION_V6_BRINGUP));
+ 
+   g_dwin.begin(DWIN_BAUD);
+@@ -1628,7 +1687,7 @@
+   Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
+   Serial.println(F("Manual jog: 0x0101..0x010C, 0x010F JOG STOP"));
+   Serial.println(F("AUTO: 0x0300 PAUSE, 0x0301 RESUME, 0x0302 OPERATOR NEXT, 0x0303 SIM TOGGLE"));
+-  Serial.println(F("Program: 0x0310 LOAD, 0x0311 SAVE, 0x0312 DEFAULTS, 0x0320..0x032B capture/accept"));
++  Serial.println(F("Program: 0x0310 LOAD, 0x0311 SAVE, 0x0312 DEFAULTS, 0x0314..0x0317 SLOT1..4, 0x0318/19 PREV/NEXT, 0x031A TOGGLE, 0x0320..0x032B capture/accept"));
+ 
+   if (!VFD_RS485_ENABLED)
+     Serial.println(F("VFD layer: DRY-RUN; MAX485 disabled, exact RTU frames available for manual tests"));

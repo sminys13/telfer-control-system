@@ -1,96 +1,112 @@
-\
 /**
  * @file motors.h
- * @brief Управление 4 частотными приводами (2 горизонталь + 2 вертикаль) через Modbus.
+ * @brief Four-drive NE200 command scheduler reused by the V6 project.
  *
- * Принцип:
- *  - Приводам пишем:
- *      MB_REG_CMD (0001H): forward/reverse/stop/reset
- *      MB_REG_SETPOINT (0002H): -10000..10000 (=-100.00..100.00%)
- *  - Команды отправляются не чаще MOTORS_TICK_MS и только при изменениях.
- *
- * ВНИМАНИЕ по направлению:
- *  - Для каждого привода можно инвертировать направление в config (см. DriveMap).
+ * Important Step7B rule: at most ONE Modbus transaction is executed per tick.
+ * A run request is therefore split into:
+ *   1) write setpoint 0x0002
+ *   2) write direction command 0x0001
+ * A stop request is split into:
+ *   1) write STOP to 0x0001
+ *   2) write zero setpoint to 0x0002
  */
 #pragma once
-#include <stdint.h>
-#include "config.h"
-#include "modbus.h"
 
-enum class DriveId : uint8_t { H1=0, H2=1, V1=2, V2=3, COUNT=4 };
+#include <Arduino.h>
+#include <stdint.h>
+#include "config_v6_bringup.h"
+#include "modbus.h"
+#include "settings_v6.h"
+
+enum class DriveId : uint8_t { H1 = 0, H2 = 1, V1 = 2, V2 = 3, COUNT = 4 };
 
 struct DriveMap {
   uint8_t addr;
-  bool invertDir;   // если true, меняем местами forward/reverse (удобно при перепутанном подключении)
+  bool invertDir;
 };
 
 struct DriveTelemetry {
-  // HE200 monitoring (D0.xx)
-  // Частоты приходят в 0.01 Hz (например 1396 -> 13.96 Hz)
-  uint16_t runFreq01Hz = 0;   // 0x7000
-  uint16_t setFreq01Hz = 0;   // 0x7001
-  uint16_t busV01V    = 0;   // 0x7002 (0.1 V DC bus)
-  uint16_t faultInfo   = 0;   // 0x702D (0 = OK)
-  uint16_t runState    = 0;   // 0x703D
-
+  // HE200 read-only monitoring snapshot (Step9E).
+  uint16_t runningFreq001Hz = 0;
+  uint16_t setFreq001Hz = 0;
+  uint16_t busVoltage01V = 0;
+  uint16_t outputVoltageV = 0;
+  uint16_t outputCurrent001A = 0;
+  uint16_t digitalInputState = 0;
+  uint16_t faultCode = 0;
+  uint16_t currentSetFreq001Pct = 0;
+  uint16_t currentRunFreq001Pct = 0;
+  uint16_t statusWord = 0; // HE200 running state (0x703D)
   bool connected = false;
-  uint8_t lastErr = 0;     // 0=ok, 1=timeout, 2=crc, 3=exception, 4=bad_response
-  uint32_t lastOkMs = 0;   // когда последний раз получили валидный ответ
-  uint8_t regMode = 0;     // 0=unknown,1=03,2=04,3=03@(base-1),4=04@(base-1)
+  uint8_t lastErr = MODBUS_ERROR_NONE;
+  uint32_t lastOkMs = 0;
 };
 
 class Drives {
 public:
-  void begin(ModbusMasterRTU& mb);
+  void begin(ModbusMasterRTU& mb, const SettingsV6& settings);
+  void applySettings(const SettingsV6& settings);
 
-  // speedPct: -100..100
-  //   знак = направление КОМАНДЫ частотнику:
-  //     + => Forward
-  //     - => Reverse
-  //   а что такое Forward/Reverse по механике задаётся вашими словами:
-  //     H Forward = вправо
-  //     V Forward = вниз
-  //   (см. config.h)
+  // speedPct: -100..100. Sign selects requested direction.
   void setSpeed(DriveId id, int16_t speedPct);
   void stop(DriveId id);
   void stopAll();
-
-  // Обновляет физические команды (отправка Modbus) и опрос телеметрии (редко)
-  void tick(uint32_t nowMs);
-
-  // Мягкий сброс ошибок частотника
   void resetFault(DriveId id);
+  void requestSafeStatusRead(DriveId id);
+  void requestSafeStatusReadAll();
 
-  const DriveTelemetry& telemetry(DriveId id) const { return _tel[(uint8_t)id]; }
+  // Executes at most one Modbus transaction.
+  bool tick(uint32_t nowMs);
+
+  const DriveTelemetry& telemetry(DriveId id) const { return _tel[indexOf(id)]; }
+  int16_t targetPct(DriveId id) const { return _st[indexOf(id)].targetPct; }
+  bool hasPendingWork() const;
+
+  static const __FlashStringHelper* driveName(DriveId id);
 
 private:
-  ModbusMasterRTU* _mb = nullptr;
-
-  // Round-robin индексы, чтобы не блокировать loop кучей Modbus-запросов подряд.
-  uint8_t _rrSend = 0;
-  uint8_t _rrPoll = 0;
+  enum class TxPhase : uint8_t {
+    IDLE = 0,
+    WRITE_SETPOINT,
+    WRITE_RUN_COMMAND,
+    WRITE_STOP_COMMAND,
+    WRITE_ZERO_SETPOINT,
+    WRITE_RESET_FAULT,
+    READ_SAFE_STATUS,
+    READ_HE200_FAULT,
+    READ_HE200_STATE
+  };
 
   struct DriveState {
     int16_t targetPct = 0;
-    int16_t sentPct   = 0;
-    uint32_t lastSend = 0;
-    uint32_t lastPoll = 0;
-    uint32_t lastDiag = 0;
-    uint8_t  diagPhase = 0; // 0=fault, 1=state
-    uint8_t  regMode = 0;  // 0=unknown,1=03,2=04,3=03@(base-1),4=04@(base-1)
-    // Авто-пробник для regMode==0. Вместо 4 запросов подряд (что может
-    // «подвешивать» UI при отсутствии привода) пробуем по одному режиму
-    // за тик: 0..3 → (03),(04),(03 base-1),(04 base-1).
-    uint8_t  probePhase = 0;
-    uint8_t  failStreak = 0;
-    bool     needStopCmd = false;
+    int16_t appliedPct = 0;
+    int16_t transactionPct = 0;
+    TxPhase phase = TxPhase::IDLE;
+    uint8_t failStreak = 0;
+    bool forceStop = false;
+    bool resetRequested = false;
+    bool statusReadRequested = false;
   };
 
-  DriveState _st[(uint8_t)DriveId::COUNT];
-  DriveTelemetry _tel[(uint8_t)DriveId::COUNT];
+  ModbusMasterRTU* _mb = nullptr;
+  DriveMap _map[(uint8_t)DriveId::COUNT]{};
+  DriveState _st[(uint8_t)DriveId::COUNT]{};
+  DriveTelemetry _tel[(uint8_t)DriveId::COUNT]{};
+  uint8_t _activeDrive = 0xFF;
+  uint8_t _rrStart = 0;
+  uint16_t _interRequestMs = 10;
+  uint32_t _lastTransactionMs = 0;
 
-  DriveMap _map[(uint8_t)DriveId::COUNT];
-  void sendCommand(DriveId id, int16_t pct);
-  void pollTelemetry(DriveId id, uint32_t nowMs);
+  static uint8_t indexOf(DriveId id) { return (uint8_t)id; }
+  DriveId driveFromIndex(uint8_t i) const { return (DriveId)i; }
+
+  bool selectNextWork();
+  void preparePhase(uint8_t i);
+  bool processActiveDrive(uint32_t nowMs);
+  bool finishTransaction(uint8_t i, const ModbusResult& r, TxPhase nextOnSuccess);
+  uint16_t setpointMagnitude(int16_t effectivePct) const;
+  int16_t effectivePercent(uint8_t i, int16_t requestedPct) const;
+  uint16_t directionCommand(int16_t effectivePct) const;
+  void printPlan(uint8_t i, const __FlashStringHelper* action,
+                 uint16_t reg, uint16_t value) const;
 };
-

@@ -70,28 +70,36 @@ bool DwinLink::readFrame(uint8_t* payload, uint8_t& lenOut) {
   return false;
 }
 
-bool DwinLink::pollCommand(uint16_t expectedVp, uint16_t& outCmd) {
+bool DwinLink::pollWriteU16(uint16_t& outVp, uint16_t& outValue) {
   uint8_t payload[32];
   uint8_t len = 0;
 
   while (readFrame(payload, len)) {
-    // Expected:
+    // Expected auto-upload/read-response payload:
     // payload[0] = 0x83
     // payload[1..2] = VP
     // payload[3] = word count
-    // payload[4..5] = command value
+    // payload[4..5] = first value
     if (len < 6) continue;
     if (payload[0] != 0x83) continue;
+    if (payload[3] < 1) continue;
 
-    const uint16_t vp = ((uint16_t)payload[1] << 8) | payload[2];
-    const uint8_t words = payload[3];
-
-    if (vp != expectedVp) continue;
-    if (words < 1) continue;
-
-    outCmd = ((uint16_t)payload[4] << 8) | payload[5];
+    outVp = ((uint16_t)payload[1] << 8) | payload[2];
+    outValue = ((uint16_t)payload[4] << 8) | payload[5];
     return true;
   }
 
+  return false;
+}
+
+bool DwinLink::pollCommand(uint16_t expectedVp, uint16_t& outCmd) {
+  uint16_t vp = 0;
+  uint16_t value = 0;
+  while (pollWriteU16(vp, value)) {
+    if (vp == expectedVp) {
+      outCmd = value;
+      return true;
+    }
+  }
   return false;
 }

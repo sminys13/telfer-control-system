@@ -1,0 +1,126 @@
+diff -ruN '--exclude=STEP9A_TO_STEP9B.patch' '--exclude=README_V6_SYSTEM_STEP9B.md' /mnt/data/telfer-control-system-v6-system-step9a/include/config_v6_bringup.h /mnt/data/telfer-control-system-v6-system-step9b/include/config_v6_bringup.h
+--- /mnt/data/telfer-control-system-v6-system-step9a/include/config_v6_bringup.h	2026-08-10 18:31:06.249833701 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9b/include/config_v6_bringup.h	2026-08-10 19:07:10.335976615 +0000
+@@ -3,7 +3,7 @@
+ #include <Arduino.h>
+ #include <stdint.h>
+ 
+-#define FW_VERSION_V6_BRINGUP "v6-system-step9a-auto-home-program-sim"
++#define FW_VERSION_V6_BRINGUP "v6-system-step9b-auto-timing-console"
+ 
+ // =====================================================
+ // Debug / UART
+diff -ruN '--exclude=STEP9A_TO_STEP9B.patch' '--exclude=README_V6_SYSTEM_STEP9B.md' /mnt/data/telfer-control-system-v6-system-step9a/src/auto_runner_v6.cpp /mnt/data/telfer-control-system-v6-system-step9b/src/auto_runner_v6.cpp
+--- /mnt/data/telfer-control-system-v6-system-step9a/src/auto_runner_v6.cpp	2026-08-10 18:29:37.538897465 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9b/src/auto_runner_v6.cpp	2026-08-10 19:07:10.336271550 +0000
+@@ -268,6 +268,14 @@
+ }
+ 
+ bool AutoRunnerV6::checkMovementTimeout(uint32_t nowMs) {
++  // A command can start a phase between two timestamp samples in the main loop.
++  // If the caller supplies a timestamp only a few ms older than phaseStart,
++  // unsigned subtraction would look like an almost-49-day elapsed interval.
++  // Treat only a small backwards delta as a stale sample. A real millis() wrap
++  // still produces the correct small unsigned elapsed value below.
++  if (nowMs < _phaseStartMs && (uint32_t)(_phaseStartMs - nowMs) <= 1000UL)
++    return false;
++
+   if ((uint32_t)(nowMs - _phaseStartMs) <= AUTO_MOVE_TIMEOUT_MS_V6) return false;
+   fail(AUTO_ERR_MOVE_TIMEOUT, F("movement phase timeout"));
+   return true;
+diff -ruN '--exclude=STEP9A_TO_STEP9B.patch' '--exclude=README_V6_SYSTEM_STEP9B.md' /mnt/data/telfer-control-system-v6-system-step9a/src/main_v6_fast.cpp /mnt/data/telfer-control-system-v6-system-step9b/src/main_v6_fast.cpp
+--- /mnt/data/telfer-control-system-v6-system-step9a/src/main_v6_fast.cpp	2026-08-10 18:31:06.250129843 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9b/src/main_v6_fast.cpp	2026-08-10 19:06:54.356001314 +0000
+@@ -42,6 +42,11 @@
+ static bool g_programIsDemo = false;
+ static bool g_autoSimulation = false;
+ 
++// USB periodic diagnostics. Event/fault messages are always printed.
++// NORMAL is intentionally quieter than Step9A so console commands stay readable.
++static bool g_consolePeriodicEnabled = true;
++static uint16_t g_consolePrintIntervalMs = 2000;
++
+ static bool g_settingsFault = false;
+ static bool g_settingsDirty = false;
+ static uint16_t g_settingsUiState = SETTINGS_UI_IDLE;
+@@ -1328,6 +1333,7 @@
+ {
+   Serial.println(F("USB console:"));
+   Serial.println(F("  help | clear | diag | estop on/off | limits on/off | save"));
++  Serial.println(F("  log quiet | log normal | log verbose"));
+   Serial.println(F("  test h1/h2/v1/v2/all"));
+   Serial.println(F("  sim on | sim off | sim demo | auto | home | stop | pause | resume | next"));
+   Serial.println(F("  prog show | prog slot 1..4 | prog load | prog save | prog defaults"));
+@@ -1414,6 +1420,20 @@
+     if (line[0] == '\0') continue;
+ 
+     if (!strcmp(line, "help")) printBenchConsoleHelp();
++    else if (!strcmp(line, "log quiet")) {
++      g_consolePeriodicEnabled = false;
++      Serial.println(F("Periodic status log QUIET; events/faults remain visible"));
++    }
++    else if (!strcmp(line, "log normal")) {
++      g_consolePeriodicEnabled = true;
++      g_consolePrintIntervalMs = 2000;
++      Serial.println(F("Periodic status log NORMAL: 2 s"));
++    }
++    else if (!strcmp(line, "log verbose")) {
++      g_consolePeriodicEnabled = true;
++      g_consolePrintIntervalMs = 500;
++      Serial.println(F("Periodic status log VERBOSE: 0.5 s"));
++    }
+     else if (!strcmp(line, "clear")) handleCommand(CMD_SAFETY_CLEAR);
+     else if (!strcmp(line, "diag")) handleCommand(CMD_DIAG_SNAPSHOT);
+     else if (!strcmp(line, "save")) handleCommand(CMD_SAVE);
+@@ -1556,7 +1576,7 @@
+   Serial.begin(DBG_BAUD);
+   delay(300);
+   Serial.println();
+-  Serial.println(F("========== V6 SYSTEM STEP9A AUTO/HOME START =========="));
++  Serial.println(F("========== V6 SYSTEM STEP9B AUTO TIMING FIX START =========="));
+   Serial.print(F("FW: ")); Serial.println(F(FW_VERSION_V6_BRINGUP));
+ 
+   g_dwin.begin(DWIN_BAUD);
+@@ -1640,11 +1660,15 @@
+ 
+ void loop()
+ {
+-  const uint32_t now = millis();
+-
+   serviceSensorsFast();
+   serviceUsbConsole();
+ 
++  // IMPORTANT: take the loop timestamp AFTER the USB console. A console
++  // command may start/resume AUTO using millis(); reusing a timestamp captured
++  // before that command makes unsigned timeout arithmetic look like a 49-day
++  // wrap and can cause an immediate movement timeout.
++  const uint32_t now = millis();
++
+   const bool safetyChanged = g_safety.service();
+   const bool estopBlocked = g_safety.estopActive() || g_safety.estopLatched();
+   if (estopBlocked && (g_auto.running() || g_motor.isMotionActive() || g_systemMode != SystemModeV6::STOP))
+@@ -1732,7 +1756,7 @@
+   }
+ 
+   static uint32_t lastPrintMs = 0;
+-  if (now - lastPrintMs >= 500)
++  if (g_consolePeriodicEnabled && now - lastPrintMs >= g_consolePrintIntervalMs)
+   {
+     lastPrintMs = now;
+     Serial.print(F("mode="));
+diff -ruN '--exclude=STEP9A_TO_STEP9B.patch' '--exclude=README_V6_SYSTEM_STEP9B.md' /mnt/data/telfer-control-system-v6-system-step9a/src/motor_control_v6.cpp /mnt/data/telfer-control-system-v6-system-step9b/src/motor_control_v6.cpp
+--- /mnt/data/telfer-control-system-v6-system-step9a/src/motor_control_v6.cpp	2026-08-10 18:19:01.572969511 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9b/src/motor_control_v6.cpp	2026-08-10 19:06:54.356358974 +0000
+@@ -247,10 +247,10 @@
+       Serial.println(F("Manual mode selected. Physical NE200 write commands are enabled."));
+     break;
+   case SystemModeV6::AUTO:
+-    Serial.println(F("Auto mode selected. Program runner is not connected yet."));
++    Serial.println(F("Auto mode selected. AutoRunnerV6 owns the program sequence."));
+     break;
+   case SystemModeV6::HOME:
+-    Serial.println(F("Home mode selected. Homing motion is not connected yet."));
++    Serial.println(F("Home mode selected. AutoRunnerV6 owns the homing sequence."));
+     break;
+   case SystemModeV6::SERVICE:
+   case SystemModeV6::SETTINGS:

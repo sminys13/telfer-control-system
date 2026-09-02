@@ -1,0 +1,2818 @@
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/README.md /mnt/data/telfer-control-system-v6-system-step9a/README.md
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/README.md	2026-08-01 12:58:49.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/README.md	2026-08-10 18:30:45.642489382 +0000
+@@ -138,3 +138,8 @@
+ ## V6 SYSTEM STEP7A
+ 
+ Добавлена EEPROM-настраиваемая основа RS485/NE200 и карта VP для DWIN. Реальные команды приводам по-прежнему отключены. См. `README_V6_SYSTEM_STEP7A.md`.
++
++
++## Current V6 continuation
++
++See `README_V6_SYSTEM_STEP9A.md` for the AUTO/HOME/program step.
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP9A.md /mnt/data/telfer-control-system-v6-system-step9a/README_V6_SYSTEM_STEP9A.md
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP9A.md	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/README_V6_SYSTEM_STEP9A.md	2026-08-10 18:30:45.642489382 +0000
+@@ -0,0 +1,236 @@
++# V6 System Step9A — AUTO/HOME + programs + safe simulation
++
++Step9A continues directly from Step8B. The sensor/DWIN/NE200 layers are kept; this step restores the old technological AUTO sequence and adapts it to the new four-laser coordinate model:
++
++- horizontal coordinates: `X1`, `X2`;
++- vertical coordinates: `Z1`, `Z2` (replaces legacy `US1`, `US2` targets);
++- H positive = right;
++- logical V positive = up; the NE200 Forward=DOWN sign conversion stays inside `VfdDriverV6`.
++
++## What is implemented
++
++### AUTO process sequence
++
++The legacy sequence from `src/app.cpp` is preserved:
++
++1. move both vertical sides to transport Z;
++2. move H1/H2 to the current zone X;
++3. lower the configured LOW side by the tilt step;
++4. wait after tilt;
++5. lower both sides to the zone Z targets;
++6. immersion dwell;
++7. raise the opposite HIGH side by the tilt step;
++8. drain wait;
++9. raise both sides to transport Z;
++10. continue with the next enabled zone;
++11. optional dryer workflow with operator confirmations;
++12. HOME: transport Z first, then X1/X2 home.
++
++Every movement phase has a 180 s timeout. A lost required sensor, E-stop or a blocking horizontal limit faults AUTO and stops the targets.
++
++The old separate tilt speed is retained: `tiltPercent`, default **35%**.
++
++### Programs
++
++- 4 program slots, same as the legacy project;
++- up to 10 zones, same as the legacy project;
++- per-zone X1/X2 and Z1/Z2 targets;
++- dip time, tilt step, post-tilt wait, horizontal and vertical speed caps;
++- enabled/disabled zone and ordered zone array;
++- HOME X1/X2;
++- transport Z1/Z2;
++- drain time;
++- LOW side selection V1/V2;
++- optional dryer X/Z, timer and staging zone;
++- CRC and explicit calibration-valid flags.
++
++Program data is stored separately from `SettingsV6` (meta at EEPROM 384, slots beginning at 512). An empty/corrupt slot loads **uncalibrated safe defaults in RAM** and cannot start physical AUTO.
++
++A numeric edit of only X1 or only X2 (or one Z) does **not** make an uncalibrated pair valid. Both values must be set as a pair, captured as a pair, or explicitly accepted from DWIN.
++
++### DWIN runtime
++
++The permanent header now receives real AUTO state:
++
++- program slot;
++- current/total zone;
++- current/total step;
++- elapsed time;
++- known timed dwell total;
++- AUTO phase/error/running/paused/simulation/operator wait;
++- remaining wait seconds;
++- program Ready flag.
++
++AUTO runtime VPs: `0x1060..0x1070`.
++Program editor VPs: `0x1300..0x1346`.
++Program/AUTO commands: `0x0300..0x032B`.
++
++### Controller limit switches
++
++E-stop remains mandatory in FIELD builds and cannot be software-disabled there.
++
++Controller-side horizontal limit monitoring **can now be enabled or disabled even in FIELD**, because the final cabinet may implement end limits as a hardwired protection outside the Mega. Use `limits off` / `limits on`, then `save` if the choice must survive reboot. The effective state is always sent to DWIN.
++
++## Build environments / commissioning ladder
++
++### 1. `mega_v6_sensor_core_fast` — today's safe bench build
++
++- MAX485 physical transport disabled;
++- manual commands only print dry-run RTU frames;
++- full AUTO/HOME simulation allowed;
++- bench E-stop/limit monitoring may be disabled from the console.
++
++### 2. `mega_v6_ne200_readonly` — first real RS485 test
++
++- MAX485 / Serial1 physically enabled;
++- register writes and motion are blocked;
++- use `test h1`, `test h2`, `test v1`, `test v2`, `test all`.
++
++### 3. `mega_v6_ne200_field_manual` — real manual commissioning
++
++- FIELD/NC safety interpretation;
++- real NE200 writes enabled;
++- MANUAL motion allowed;
++- physical HOME/AUTO is compile-time blocked.
++
++Use this after READ-ONLY communication is confirmed. Verify each direction separately before proceeding.
++
++### 4. `mega_v6_ne200_field_auto` — full physical AUTO/HOME
++
++- FIELD/NC safety interpretation;
++- NE200 writes enabled;
++- explicit physical AUTO/HOME compile-time enable.
++
++Use only after RS485, drive directions, E-stop, required limits (if controller-side), four sensor channels and program coordinates have all been checked.
++
++The firmware contains `static_assert` interlocks so a physical-write build cannot be compiled with BENCH safety logic.
++
++## Today's recommended test
++
++Build/upload **`mega_v6_sensor_core_fast`** and open PlatformIO Monitor at 115200.
++
++If no physical safety inputs are connected on the bench:
++
++```text
++clear
++estop off
++limits off
++sim demo
++auto
++```
++
++`sim demo` loads a **RAM-only**, two-zone calibrated example and enables simulation. It deliberately cannot be saved to EEPROM.
++
++Expected result:
++
++- `AUTO START ... SIMULATION`;
++- phase transitions through the complete process;
++- DWIN X1/X2/Z1/Z2 show simulated movement while AUTO is running;
++- demo has 21 steps;
++- terminal message `AUTO PROGRAM DONE`;
++- system returns to STOP without transmitting physical RS485 data.
++
++Useful during the run:
++
++```text
++pause
++resume
++stop
++diag
++```
++
++`home` starts a HOME-only sequence (2 steps).
++
++## USB console — Step9A additions
++
++```text
++sim on
++sim off
++sim demo
++auto
++home
++stop
++pause
++resume
++next
++
++prog show
++prog slot 1
++prog load
++prog save
++prog defaults
++
++set home 1000 1000
++set travel 1000 1000
++set zone 1 x 2000 2000
++set zone 1 z 500 500
++zone 1 dip 60
++zone 1 wait 30
++zone 1 tilt 30
++zone 1 speed 55 45
++tilt speed 35
++zone 1 on
++
++cap home
++cap travel
++cap zone 1 x
++cap zone 1 z
++cap dry x
++cap dry z
++```
++
++With only one physical laser, pair capture (`cap ...`) is expected to reject because both channels of the pair must be simultaneously valid. For bench preparation you can use the numeric `set ...` commands. **Physical AUTO still requires all four X1/X2/Z1/Z2 channels usable at the same time.**
++
++## DWIN capture / accept commands
++
++```text
++0x0320 CAP HOME X1/X2
++0x0321 CAP TRAVEL Z1/Z2
++0x0322 CAP current zone X1/X2
++0x0323 CAP current zone Z1/Z2
++0x0324 CAP DRY X1/X2
++0x0325 CAP DRY Z1/Z2
++0x0326 ACCEPT numeric current-zone X pair
++0x0327 ACCEPT numeric current-zone Z pair
++0x0328 ACCEPT numeric HOME pair
++0x0329 ACCEPT numeric TRAVEL pair
++0x032A ACCEPT numeric DRY X pair
++0x032B ACCEPT numeric DRY Z pair
++```
++
++## MAX485 reminder
++
++Mega 2560 Serial1:
++
++```text
++pin 18 TX1 -> MAX485 DI
++pin 19 RX1 <- MAX485 RO
++pin 6      -> MAX485 DE + /RE tied together
++GND        -> common GND
++A/B        -> NE200 RS485 bus
++```
++
++Current defaults: 9600 baud, even parity, 1 stop bit; drive addresses H1/H2/V1/V2 = 1/2/3/4.
++
++## FIELD/NC safety wiring used by the firmware
++
++In FIELD builds the input uses `INPUT_PULLUP` and NC-to-GND logic:
++
++- healthy closed NC contact -> LOW;
++- open/pressed/broken wire -> HIGH -> active fault.
++
++E-stop: Mega pin 2.
++Controller-side limits if enabled: H1 L/R = 36/37, H2 L/R = 38/39.
++
++If limits are implemented only as external/hardwired protection, disable only the **controller limit monitor** with `limits off`. Do not bypass the field E-stop chain.
++
++## Verification performed before packaging
++
++The changed active sources were host-syntax-checked with warnings enabled. The AutoRunner was also executed with an Arduino host stub:
++
++- two-zone demo: `AUTO_SIM_OK`, 21 steps;
++- HOME-only: 2 steps;
++- disabled-zone test: monotonic steps, 12 total;
++- dryer sequence with all operator gates: `DRYER_SIM_OK`, 34 steps.
++
++A real AVR/PlatformIO build still must be confirmed on the user's workstation because PlatformIO/avr-g++ is not installed in the packaging environment.
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/auto_runner_v6.h /mnt/data/telfer-control-system-v6-system-step9a/include/auto_runner_v6.h
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/auto_runner_v6.h	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/include/auto_runner_v6.h	2026-08-10 18:28:06.887332071 +0000
+@@ -0,0 +1,152 @@
++#pragma once
++
++#include <Arduino.h>
++#include <stdint.h>
++#include "settings_v6.h"
++#include "program_v6.h"
++#include "motor_control_v6.h"
++
++struct AutoSensorsV6 {
++  int32_t mm[SENSOR_COUNT] = {0,0,0,0};
++  uint8_t usableMask = 0; // bit per SensorIndex; usable through configured stale timeout
++};
++
++enum AutoErrorV6 : uint16_t {
++  AUTO_ERR_NONE = 0,
++  AUTO_ERR_PROGRAM = 1,
++  AUTO_ERR_SENSORS = 2,
++  AUTO_ERR_ESTOP = 3,
++  AUTO_ERR_LIMIT = 4,
++  AUTO_ERR_MOVE_TIMEOUT = 5,
++  AUTO_ERR_OUTPUT_DISABLED = 6,
++  AUTO_ERR_READONLY = 7
++};
++
++class AutoRunnerV6 {
++public:
++  enum class Phase : uint8_t {
++    IDLE = 0,
++    PREP_TRAVEL,
++    MOVE_ZONE_H,
++    LOWER_TILT,
++    WAIT_AFTER_TILT,
++    LOWER_BASE,
++    WAIT_DIP,
++    RAISE_TILT_HIGH,
++    WAIT_DRAIN,
++    RAISE_TRAVEL,
++    NEXT_ZONE,
++
++    DRY_GOTO_STAGING,
++    DRY_WAIT_OPEN,
++    DRY_GOTO_DRY,
++    DRY_LOWER_DROP,
++    DRY_WAIT_DETACH,
++    DRY_RAISE_TRAVEL,
++    DRY_WAIT_START,
++    DRY_WAIT_TIMER,
++    DRY_LOWER_PICK,
++    DRY_WAIT_ATTACH,
++    DRY_RAISE_TRAVEL2,
++    DRY_GOTO_STAGING2,
++    DRY_WAIT_CLOSE,
++
++    MOVE_HOME_Z,
++    MOVE_HOME_X,
++    DONE,
++    FAULT
++  };
++
++  void begin(MotorControlV6& motor, const SettingsV6& settings);
++  void applySettings(const SettingsV6& settings) { _settings = &settings; }
++
++  bool start(const AutoProgramV6& program, const AutoSensorsV6& sensors,
++             bool simulation, uint32_t nowMs);
++  bool startHome(const AutoProgramV6& program, const AutoSensorsV6& sensors,
++                 bool simulation, uint32_t nowMs);
++  void stop(const __FlashStringHelper* reason);
++  void pause();
++  void resume(uint32_t nowMs);
++  void operatorNext();
++
++  // Returns true when visible state changed and the DWIN header should be refreshed.
++  bool service(uint32_t nowMs, const AutoSensorsV6& sensors,
++               bool estopBlocked, uint8_t limitMask);
++
++  bool running() const { return _running; }
++  bool paused() const { return _paused; }
++  bool simulation() const { return _simulation; }
++  bool waitOperator() const { return _waitOperator; }
++  bool dryAlarm() const { return _dryAlarm; }
++  Phase phase() const { return _phase; }
++  uint8_t zoneIndex() const { return _zoneIndex; }
++  uint8_t orderIndex() const { return _orderIndex; }
++  uint16_t error() const { return _error; }
++  uint32_t elapsedSeconds(uint32_t nowMs) const;
++  uint16_t knownTimedSeconds() const { return _knownTimedSeconds; }
++  uint16_t remainingWaitSeconds(uint32_t nowMs) const;
++  uint16_t currentStep() const;
++  uint16_t totalSteps() const;
++  const __FlashStringHelper* phaseName() const;
++
++  // Bench simulation coordinates for diagnostics/DWIN. Valid only when simulation()==true.
++  int32_t simPosition(SensorIndex idx) const { return idx < SENSOR_COUNT ? _simPos[idx] : 0; }
++
++private:
++  void resetRuntime();
++  void setPhase(Phase p, uint32_t nowMs);
++  void fail(AutoErrorV6 err, const __FlashStringHelper* reason);
++  bool advanceToEnabledZone();
++  bool checkMovementTimeout(uint32_t nowMs);
++  bool realSensorsUsable(const AutoSensorsV6& sensors) const;
++  int32_t pos(const AutoSensorsV6& sensors, SensorIndex idx) const;
++
++  int16_t targetPct(SensorIndex idx, int32_t cur, int32_t target, uint8_t capPct) const;
++  bool moveHorizontal(uint32_t nowMs, const AutoSensorsV6& sensors,
++                      int32_t x1, int32_t x2, uint8_t capPct, uint8_t limitMask);
++  bool moveVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
++                    int32_t z1, int32_t z2, uint8_t capPct);
++  bool moveOneVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
++                       uint8_t side, int32_t target, uint8_t capPct);
++  void commandTargets(int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up);
++  void stopMotion();
++  void integrateSimulation(uint32_t nowMs, int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up);
++  void seedSimulation(const AutoProgramV6& program, const AutoSensorsV6& sensors);
++
++private:
++  MotorControlV6* _motor = nullptr;
++  const SettingsV6* _settings = nullptr;
++  const AutoProgramV6* _program = nullptr;
++
++  Phase _phase = Phase::IDLE;
++  bool _running = false;
++  bool _paused = false;
++  bool _simulation = false;
++  bool _waitOperator = false;
++  bool _operatorNext = false;
++  bool _dryAlarm = false;
++  bool _stateChanged = false;
++  bool _homeOnly = false;
++  SystemModeV6 _motorMode = SystemModeV6::AUTO;
++  uint16_t _error = AUTO_ERR_NONE;
++
++  uint8_t _orderIndex = 0;
++  uint8_t _zoneIndex = 0;
++  uint8_t _cycleZoneOrdinal = 0; // number of enabled zones already completed
++  uint8_t _lowSide = 0;
++  uint8_t _stagingZone = 0;
++  int32_t _baseZ[2] = {0,0};
++  int32_t _lowTiltTarget = 0;
++  int32_t _highLiftTarget = 0;
++
++  uint32_t _runStartMs = 0;
++  uint32_t _runEndMs = 0;
++  uint32_t _phaseStartMs = 0;
++  uint32_t _pauseStartMs = 0;
++  uint32_t _pausedAccumMs = 0;
++  uint32_t _dryTimerStartMs = 0;
++  uint32_t _simLastMs = 0;
++  uint16_t _knownTimedSeconds = 0;
++  uint8_t _enabledZoneCount = 0;
++  int32_t _simPos[SENSOR_COUNT] = {0,0,0,0};
++};
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/config_v6_bringup.h /mnt/data/telfer-control-system-v6-system-step9a/include/config_v6_bringup.h
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/config_v6_bringup.h	2026-08-10 15:27:07.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/include/config_v6_bringup.h	2026-08-10 18:31:06.249833701 +0000
+@@ -3,7 +3,7 @@
+ #include <Arduino.h>
+ #include <stdint.h>
+ 
+-#define FW_VERSION_V6_BRINGUP "v6-system-step8b-configurable-safety-rs485-readonly"
++#define FW_VERSION_V6_BRINGUP "v6-system-step9a-auto-home-program-sim"
+ 
+ // =====================================================
+ // Debug / UART
+@@ -17,7 +17,10 @@
+ // Bench mode keeps the old convenient NO-to-GND logic. Physical VFD TX is
+ // forbidden while bench mode is active. For the cabinet/field build the NC
+ // safety chain must be verified first, then SAFETY_BENCH_MODE is set false.
+-static constexpr bool SAFETY_BENCH_MODE = true;
++#ifndef V6_SAFETY_BENCH_MODE
++  #define V6_SAFETY_BENCH_MODE 1
++#endif
++static constexpr bool SAFETY_BENCH_MODE = (V6_SAFETY_BENCH_MODE != 0);
+ static constexpr uint8_t PIN_ESTOP = 2;
+ static constexpr uint8_t PIN_LIM_H1_LEFT  = 36;
+ static constexpr uint8_t PIN_LIM_H1_RIGHT = 37;
+@@ -138,6 +141,49 @@
+ static constexpr uint16_t VP_ESTOP_ENABLED     = 0x1052; // effective runtime state
+ static constexpr uint16_t VP_LIMITS_ENABLED    = 0x1054; // effective runtime state
+ 
++// AUTO/HOME runtime status. 0x1060..0x107E are reserved for the new runner.
++static constexpr uint16_t VP_AUTO_PHASE         = 0x1060;
++static constexpr uint16_t VP_AUTO_ERROR         = 0x1062;
++static constexpr uint16_t VP_AUTO_RUNNING       = 0x1064;
++static constexpr uint16_t VP_AUTO_PAUSED        = 0x1066;
++static constexpr uint16_t VP_AUTO_SIMULATION    = 0x1068;
++static constexpr uint16_t VP_AUTO_WAIT_OPERATOR = 0x106A;
++static constexpr uint16_t VP_AUTO_REMAIN_S      = 0x106C;
++static constexpr uint16_t VP_PROGRAM_READY      = 0x106E;
++static constexpr uint16_t VP_PROGRAM_ACTIVE_SLOT= 0x1070; // 1..4
++
++// Program editor/status VPs. These are intentionally independent from background images;
++// DGUS objects can be added progressively without changing firmware addresses.
++static constexpr uint16_t VP_PROG_ZONE_SELECTED = 0x1300; // 1..10
++static constexpr uint16_t VP_PROG_ZONE_COUNT     = 0x1302;
++static constexpr uint16_t VP_PROG_ZONE_ENABLED   = 0x1304;
++static constexpr uint16_t VP_PROG_ZONE_X1        = 0x1306;
++static constexpr uint16_t VP_PROG_ZONE_X2        = 0x1308;
++static constexpr uint16_t VP_PROG_ZONE_Z1        = 0x130A;
++static constexpr uint16_t VP_PROG_ZONE_Z2        = 0x130C;
++static constexpr uint16_t VP_PROG_ZONE_DIP_S     = 0x130E;
++static constexpr uint16_t VP_PROG_ZONE_TILT_MM   = 0x1310;
++static constexpr uint16_t VP_PROG_ZONE_WAIT_S    = 0x1312;
++static constexpr uint16_t VP_PROG_ZONE_H_PCT     = 0x1314;
++static constexpr uint16_t VP_PROG_ZONE_V_PCT     = 0x1316;
++static constexpr uint16_t VP_PROG_HOME_X1        = 0x1320;
++static constexpr uint16_t VP_PROG_HOME_X2        = 0x1322;
++static constexpr uint16_t VP_PROG_TRAVEL_Z1      = 0x1324;
++static constexpr uint16_t VP_PROG_TRAVEL_Z2      = 0x1326;
++static constexpr uint16_t VP_PROG_DRIP_S         = 0x1328;
++static constexpr uint16_t VP_PROG_LOW_SIDE       = 0x132A; // 0=V1 low,1=V2 low
++static constexpr uint16_t VP_PROG_DRY_ENABLE     = 0x1330;
++static constexpr uint16_t VP_PROG_DRY_TIME_S     = 0x1332;
++static constexpr uint16_t VP_PROG_STAGING_ZONE   = 0x1334; // 1..N
++static constexpr uint16_t VP_PROG_DRY_X1         = 0x1336;
++static constexpr uint16_t VP_PROG_DRY_X2         = 0x1338;
++static constexpr uint16_t VP_PROG_DRY_Z1         = 0x133A;
++static constexpr uint16_t VP_PROG_DRY_Z2         = 0x133C;
++static constexpr uint16_t VP_PROG_VALID_MASK     = 0x1340;
++static constexpr uint16_t VP_PROG_ZONE_VALID_MASK= 0x1342;
++static constexpr uint16_t VP_PROG_DIRTY          = 0x1344;
++static constexpr uint16_t VP_PROG_TILT_PCT        = 0x1346; // legacy global v_tilt_speed_pct
++
+ // Команды от кнопок DWIN.
+ // Все кнопки должны писать сюда.
+ static constexpr uint16_t VP_CMD   = 0x1100;
+@@ -229,6 +275,29 @@
+ static constexpr uint16_t CMD_SAFETY_TOGGLE_ESTOP = 0x0048; // BENCH only
+ static constexpr uint16_t CMD_SAFETY_TOGGLE_LIMITS= 0x0049; // BENCH only
+ 
++// AUTO / program control. Existing CMD_AUTO starts the selected program; CMD_HOME runs HOME.
++static constexpr uint16_t CMD_AUTO_PAUSE          = 0x0300;
++static constexpr uint16_t CMD_AUTO_RESUME         = 0x0301;
++static constexpr uint16_t CMD_AUTO_OPERATOR_NEXT  = 0x0302;
++static constexpr uint16_t CMD_AUTO_SIM_TOGGLE     = 0x0303; // BENCH + non-write builds only
++static constexpr uint16_t CMD_PROGRAM_LOAD        = 0x0310;
++static constexpr uint16_t CMD_PROGRAM_SAVE        = 0x0311;
++static constexpr uint16_t CMD_PROGRAM_DEFAULTS    = 0x0312;
++static constexpr uint16_t CMD_PROGRAM_CAPTURE_HOME= 0x0320;
++static constexpr uint16_t CMD_PROGRAM_CAPTURE_TRAVEL=0x0321;
++static constexpr uint16_t CMD_PROGRAM_CAPTURE_ZONE_X=0x0322;
++static constexpr uint16_t CMD_PROGRAM_CAPTURE_ZONE_Z=0x0323;
++static constexpr uint16_t CMD_PROGRAM_CAPTURE_DRY_X=0x0324;
++static constexpr uint16_t CMD_PROGRAM_CAPTURE_DRY_Z=0x0325;
++// Explicit acknowledgement after numeric DWIN editing. A single coordinate field
++// never makes a previously uncalibrated pair valid by itself.
++static constexpr uint16_t CMD_PROGRAM_ACCEPT_ZONE_X =0x0326;
++static constexpr uint16_t CMD_PROGRAM_ACCEPT_ZONE_Z =0x0327;
++static constexpr uint16_t CMD_PROGRAM_ACCEPT_HOME   =0x0328;
++static constexpr uint16_t CMD_PROGRAM_ACCEPT_TRAVEL =0x0329;
++static constexpr uint16_t CMD_PROGRAM_ACCEPT_DRY_X  =0x032A;
++static constexpr uint16_t CMD_PROGRAM_ACCEPT_DRY_Z  =0x032B;
++
+ // Настройки RS485/VFD (страница Settings).
+ static constexpr uint16_t CMD_VFD_SETTINGS_APPLY    = 0x0200;
+ static constexpr uint16_t CMD_VFD_SETTINGS_SAVE     = 0x0201;
+@@ -337,9 +406,15 @@
+ #ifndef V6_VFD_WRITE_COMMANDS_ENABLED
+   #define V6_VFD_WRITE_COMMANDS_ENABLED 0
+ #endif
++#ifndef V6_AUTO_PHYSICAL_ENABLED
++  #define V6_AUTO_PHYSICAL_ENABLED 0
++#endif
+ static constexpr bool VFD_RS485_ENABLED = (V6_VFD_RS485_ENABLED != 0);
+ static constexpr bool VFD_DRY_RUN       = (V6_VFD_DRY_RUN != 0);
+ static constexpr bool VFD_WRITE_COMMANDS_ENABLED = (V6_VFD_WRITE_COMMANDS_ENABLED != 0);
++// Separate commissioning interlock: physical manual movement can be enabled
++// without allowing HOME/AUTO. Only the explicit FIELD AUTO build sets this to 1.
++static constexpr bool AUTO_PHYSICAL_ENABLED = (V6_AUTO_PHYSICAL_ENABLED != 0);
+ static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // MAX485 DE+/RE, RO=RX1/19, DI=TX1/18
+ // Baud/parity/stop bits/timeouts are now read from SettingsV6 and EEPROM.
+ 
+@@ -355,6 +430,8 @@
+ // Physical READ-ONLY diagnostics are allowed, because no motion/stop register is written.
+ static_assert(!VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED || !SAFETY_BENCH_MODE,
+               "Physical VFD writes require SAFETY_BENCH_MODE=false and verified NC safety wiring");
++static_assert(!AUTO_PHYSICAL_ENABLED || (VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED && !SAFETY_BENCH_MODE),
++              "Physical AUTO/HOME requires RS485 writes, FIELD safety logic and explicit AUTO enable");
+ 
+ // NE200 network-control map already recorded in the project/manual notes.
+ // Control register: 0x0001; network setpoint: 0x0002.
+@@ -404,6 +481,7 @@
+ // Hardware safety. These bits are intentionally above the sensor/status range.
+ static constexpr uint16_t ERR_ESTOP = 0x0200;
+ static constexpr uint16_t ERR_LIMIT = 0x0400;
++static constexpr uint16_t ERR_AUTO  = 0x0800; // AutoRunner terminal fault; detail in VP_AUTO_ERROR
+ 
+ // Backward-compatible aliases for earlier code.
+ static constexpr uint16_t ERROR_X1_INVALID = ERR_X1_LOST;
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/motor_control_v6.h /mnt/data/telfer-control-system-v6-system-step9a/include/motor_control_v6.h
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/motor_control_v6.h	2026-08-10 12:40:15.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/include/motor_control_v6.h	2026-08-10 18:16:29.232099434 +0000
+@@ -55,6 +55,11 @@
+   void onModeChanged(SystemModeV6 mode);
+ 
+   bool requestManualMove(SystemModeV6 currentMode, MotorAxisV6 axis, MotorDirV6 dir);
++  // AUTO/HOME target interface. Percent signs use logical coordinates:
++  // H + = right, V + = up. Manual watchdog is intentionally not armed here.
++  bool requestAutoTargets(SystemModeV6 currentMode, int16_t h1RightPct, int16_t h2RightPct,
++                          int16_t v1UpPct, int16_t v2UpPct);
++  void autoStop(const __FlashStringHelper* reason);
+   void manualStop(const __FlashStringHelper* reason);
+   void testVfdConnection(uint8_t driveIndex);
+ 
+@@ -72,6 +77,7 @@
+   const __FlashStringHelper* axisName(MotorAxisV6 axis) const;
+   const __FlashStringHelper* dirName(MotorDirV6 dir) const;
+   MotorStateV6 stateForMove(MotorAxisV6 axis, MotorDirV6 dir) const;
++  MotorStateV6 stateForAutoTargets(int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up) const;
+   bool stateMeansMovement() const;
+ 
+ private:
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/program_v6.h /mnt/data/telfer-control-system-v6-system-step9a/include/program_v6.h
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/program_v6.h	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/include/program_v6.h	2026-08-10 18:29:37.538077754 +0000
+@@ -0,0 +1,83 @@
++#pragma once
++
++#include <Arduino.h>
++#include <stdint.h>
++
++static constexpr uint8_t AUTO_MAX_ZONES_V6 = 10;
++static constexpr uint8_t AUTO_PROGRAM_SLOTS_V6 = 4;
++
++enum AutoZoneValidBitsV6 : uint8_t {
++  AUTO_ZONE_VALID_NONE = 0x00,
++  AUTO_ZONE_VALID_X    = 0x01,
++  AUTO_ZONE_VALID_Z    = 0x02,
++  AUTO_ZONE_VALID_ALL  = AUTO_ZONE_VALID_X | AUTO_ZONE_VALID_Z
++};
++
++enum AutoProgramValidBitsV6 : uint8_t {
++  AUTO_PROGRAM_VALID_NONE   = 0x00,
++  AUTO_PROGRAM_VALID_HOME_X = 0x01,
++  AUTO_PROGRAM_VALID_TRAVEL_Z = 0x02,
++  AUTO_PROGRAM_VALID_DRY_X  = 0x04,
++  AUTO_PROGRAM_VALID_DRY_Z  = 0x08
++};
++
++struct AutoZoneV6 {
++  int32_t xMm[2];                 // X1/X2 target, mm
++  int32_t zMm[2];                 // Z1/Z2 target, mm; logical UP increases coordinate
++  uint16_t dipTimeS;              // immersion dwell
++  uint16_t tiltStepMm;            // first-side tilt offset
++  uint16_t stepWaitS;             // wait after tilt
++  uint8_t movePercent;            // horizontal cap
++  uint8_t verticalPercent;        // vertical cap
++  uint8_t enabled;
++  uint8_t validMask;              // AutoZoneValidBitsV6
++};
++
++struct AutoProgramV6 {
++  uint32_t magic;
++  uint16_t version;
++  uint16_t size;
++  char name[12];
++
++  uint8_t zoneCount;
++  uint8_t order[AUTO_MAX_ZONES_V6];
++  AutoZoneV6 zones[AUTO_MAX_ZONES_V6];
++
++  int32_t homeX[2];
++  int32_t travelZ[2];
++  uint16_t dripWaitS;
++  uint8_t tiltPercent;            // legacy v_tilt_speed_pct, default 35%
++  uint8_t lowSide;                // 0=V1 is low side while dipping, 1=V2
++  uint8_t validMask;              // AutoProgramValidBitsV6
++
++  uint8_t dryingEnabled;
++  uint8_t dryValid;
++  uint8_t stagingZone;
++  uint8_t reserved0;
++  uint16_t dryingTimeS;
++  int32_t dryX[2];
++  int32_t dryZ[2];
++
++  uint16_t crc;
++};
++
++class ProgramStorageV6 {
++public:
++  void defaults(AutoProgramV6& p, uint8_t slot) const;
++  void demo(AutoProgramV6& p) const;
++  bool validate(const AutoProgramV6& p) const;
++  bool readyForAuto(const AutoProgramV6& p) const;
++
++  bool load(uint8_t slot, AutoProgramV6& p) const;
++  bool save(uint8_t slot, AutoProgramV6& p) const;
++
++  uint8_t loadActiveSlot() const;
++  void saveActiveSlot(uint8_t slot) const;
++
++  uint16_t knownTimedSeconds(const AutoProgramV6& p) const;
++  uint8_t enabledZoneCount(const AutoProgramV6& p) const;
++
++private:
++  uint16_t calcCrc(const AutoProgramV6& p) const;
++  int slotAddress(uint8_t slot) const;
++};
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/vfd_driver_v6.h /mnt/data/telfer-control-system-v6-system-step9a/include/vfd_driver_v6.h
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/include/vfd_driver_v6.h	2026-08-10 12:40:15.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/include/vfd_driver_v6.h	2026-08-10 18:16:29.231865099 +0000
+@@ -18,6 +18,10 @@
+   bool service(uint32_t nowMs);
+ 
+   void startByMotorState(uint16_t motorStateCode);
++  // Automatic controller uses logical coordinates: H positive=right, V positive=UP.
++  // The V physical sign conversion (NE200 Forward=DOWN in this installation) stays here.
++  bool setAutoLogicalTargets(int16_t h1RightPct, int16_t h2RightPct,
++                             int16_t v1UpPct, int16_t v2UpPct);
+   void stopAll(const __FlashStringHelper* reason);
+   void block(const __FlashStringHelper* reason);
+   void testConnection(uint8_t driveIndex);
+@@ -41,5 +45,7 @@
+   DriveProfileV6 _drive[DRIVE_COUNT_V6]{};
+   ModbusMasterRTU _modbus;
+   Drives _drives;
++  int16_t _lastAutoLogical[DRIVE_COUNT_V6] = {0,0,0,0};
++  bool _autoTargetKnown = false;
+   bool _begun = false;
+ };
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/platformio.ini /mnt/data/telfer-control-system-v6-system-step9a/platformio.ini
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/platformio.ini	2026-08-10 15:27:11.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/platformio.ini	2026-08-10 18:25:07.075763898 +0000
+@@ -84,6 +84,8 @@
+   +<motors.cpp>
+   +<utils.cpp>
+   +<safety_v6.cpp>
++  +<program_v6.cpp>
++  +<auto_runner_v6.cpp>
+ 
+ ; Physical RS485 commissioning mode: Serial1/MAX485 is enabled, but every
+ ; register write/motion command is blocked in VfdDriverV6. Only 0x0204..0x0208
+@@ -115,3 +117,77 @@
+   +<motors.cpp>
+   +<utils.cpp>
+   +<safety_v6.cpp>
++  +<program_v6.cpp>
++  +<auto_runner_v6.cpp>
++
++
++; ------------------------------------------------------------
++; FIELD COMMISSIONING STAGE 2: physical writes are enabled, but
++; HOME/AUTO remain compile-time blocked. Verify NC E-stop chain,
++; horizontal limits, drive directions and manual motion here first.
++[env:mega_v6_ne200_field_manual]
++platform = atmelavr
++board = megaatmega2560
++framework = arduino
++monitor_speed = 115200
++upload_port = COM6
++upload_speed = 115200
++
++build_flags =
++  -DV6_SAFETY_BENCH_MODE=0
++  -DV6_VFD_RS485_ENABLED=1
++  -DV6_VFD_DRY_RUN=0
++  -DV6_VFD_WRITE_COMMANDS_ENABLED=1
++  -DV6_AUTO_PHYSICAL_ENABLED=0
++
++build_src_filter =
++  -<*>
++  +<main_v6_fast.cpp>
++  +<dwin_link.cpp>
++  +<fast_laser_sensor.cpp>
++  +<sc16is752.cpp>
++  +<settings_v6.cpp>
++  +<system_state.cpp>
++  +<motor_control_v6.cpp>
++  +<vfd_driver_v6.cpp>
++  +<modbus.cpp>
++  +<motors.cpp>
++  +<utils.cpp>
++  +<safety_v6.cpp>
++  +<program_v6.cpp>
++  +<auto_runner_v6.cpp>
++
++; FIELD COMMISSIONING STAGE 3: explicit physical AUTO/HOME enable.
++; Use only after READ-ONLY communication and FIELD MANUAL directions
++; have been verified on the real machine.
++[env:mega_v6_ne200_field_auto]
++platform = atmelavr
++board = megaatmega2560
++framework = arduino
++monitor_speed = 115200
++upload_port = COM6
++upload_speed = 115200
++
++build_flags =
++  -DV6_SAFETY_BENCH_MODE=0
++  -DV6_VFD_RS485_ENABLED=1
++  -DV6_VFD_DRY_RUN=0
++  -DV6_VFD_WRITE_COMMANDS_ENABLED=1
++  -DV6_AUTO_PHYSICAL_ENABLED=1
++
++build_src_filter =
++  -<*>
++  +<main_v6_fast.cpp>
++  +<dwin_link.cpp>
++  +<fast_laser_sensor.cpp>
++  +<sc16is752.cpp>
++  +<settings_v6.cpp>
++  +<system_state.cpp>
++  +<motor_control_v6.cpp>
++  +<vfd_driver_v6.cpp>
++  +<modbus.cpp>
++  +<motors.cpp>
++  +<utils.cpp>
++  +<safety_v6.cpp>
++  +<program_v6.cpp>
++  +<auto_runner_v6.cpp>
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/auto_runner_v6.cpp /mnt/data/telfer-control-system-v6-system-step9a/src/auto_runner_v6.cpp
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/auto_runner_v6.cpp	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/src/auto_runner_v6.cpp	2026-08-10 18:29:37.538897465 +0000
+@@ -0,0 +1,640 @@
++#include "auto_runner_v6.h"
++#include "safety_v6.h"
++
++static constexpr uint32_t AUTO_MOVE_TIMEOUT_MS_V6 = 180000UL;
++static constexpr uint16_t AUTO_SIM_MM_PER_S_100_V6 = 4000;
++
++static inline int32_t abs32v6(int32_t v) { return v < 0 ? -v : v; }
++static inline uint8_t minU8v6(uint8_t a, uint8_t b) { return a < b ? a : b; }
++
++void AutoRunnerV6::begin(MotorControlV6& motor, const SettingsV6& settings) {
++  _motor = &motor;
++  _settings = &settings;
++  resetRuntime();
++}
++
++void AutoRunnerV6::resetRuntime() {
++  _phase = Phase::IDLE;
++  _running = false;
++  _paused = false;
++  _simulation = false;
++  _waitOperator = false;
++  _operatorNext = false;
++  _dryAlarm = false;
++  _stateChanged = false;
++  _homeOnly = false;
++  _motorMode = SystemModeV6::AUTO;
++  _error = AUTO_ERR_NONE;
++  _orderIndex = 0;
++  _zoneIndex = 0;
++  _cycleZoneOrdinal = 0;
++  _lowSide = 0;
++  _stagingZone = 0;
++  _baseZ[0] = _baseZ[1] = 0;
++  _lowTiltTarget = 0;
++  _highLiftTarget = 0;
++  _runStartMs = 0;
++  _runEndMs = 0;
++  _phaseStartMs = 0;
++  _pauseStartMs = 0;
++  _pausedAccumMs = 0;
++  _dryTimerStartMs = 0;
++  _simLastMs = 0;
++  _knownTimedSeconds = 0;
++  _enabledZoneCount = 0;
++}
++
++const __FlashStringHelper* AutoRunnerV6::phaseName() const {
++  switch (_phase) {
++    case Phase::IDLE: return F("IDLE");
++    case Phase::PREP_TRAVEL: return F("PREP_TRAVEL");
++    case Phase::MOVE_ZONE_H: return F("MOVE_ZONE_H");
++    case Phase::LOWER_TILT: return F("LOWER_TILT");
++    case Phase::WAIT_AFTER_TILT: return F("WAIT_AFTER_TILT");
++    case Phase::LOWER_BASE: return F("LOWER_BASE");
++    case Phase::WAIT_DIP: return F("WAIT_DIP");
++    case Phase::RAISE_TILT_HIGH: return F("RAISE_TILT_HIGH");
++    case Phase::WAIT_DRAIN: return F("WAIT_DRAIN");
++    case Phase::RAISE_TRAVEL: return F("RAISE_TRAVEL");
++    case Phase::NEXT_ZONE: return F("NEXT_ZONE");
++    case Phase::DRY_GOTO_STAGING: return F("DRY_GOTO_STAGING");
++    case Phase::DRY_WAIT_OPEN: return F("DRY_WAIT_OPEN");
++    case Phase::DRY_GOTO_DRY: return F("DRY_GOTO_DRY");
++    case Phase::DRY_LOWER_DROP: return F("DRY_LOWER_DROP");
++    case Phase::DRY_WAIT_DETACH: return F("DRY_WAIT_DETACH");
++    case Phase::DRY_RAISE_TRAVEL: return F("DRY_RAISE_TRAVEL");
++    case Phase::DRY_WAIT_START: return F("DRY_WAIT_START");
++    case Phase::DRY_WAIT_TIMER: return F("DRY_WAIT_TIMER");
++    case Phase::DRY_LOWER_PICK: return F("DRY_LOWER_PICK");
++    case Phase::DRY_WAIT_ATTACH: return F("DRY_WAIT_ATTACH");
++    case Phase::DRY_RAISE_TRAVEL2: return F("DRY_RAISE_TRAVEL2");
++    case Phase::DRY_GOTO_STAGING2: return F("DRY_GOTO_STAGING2");
++    case Phase::DRY_WAIT_CLOSE: return F("DRY_WAIT_CLOSE");
++    case Phase::MOVE_HOME_Z: return F("MOVE_HOME_Z");
++    case Phase::MOVE_HOME_X: return F("MOVE_HOME_X");
++    case Phase::DONE: return F("DONE");
++    case Phase::FAULT: return F("FAULT");
++  }
++  return F("?");
++}
++
++void AutoRunnerV6::setPhase(Phase p, uint32_t nowMs) {
++  if (_phase == p) return;
++  _phase = p;
++  _stateChanged = true;
++  _phaseStartMs = nowMs;
++  _waitOperator = false;
++  _operatorNext = false;
++  Serial.print(F("AUTO PHASE -> "));
++  Serial.print((uint8_t)_phase);
++  Serial.print(' ');
++  Serial.println(phaseName());
++}
++
++void AutoRunnerV6::seedSimulation(const AutoProgramV6& program, const AutoSensorsV6& sensors) {
++  // Use live coordinates when all four are available; otherwise start at HOME/TRAVEL.
++  if ((sensors.usableMask & 0x0F) == 0x0F) {
++    for (uint8_t i = 0; i < SENSOR_COUNT; ++i) _simPos[i] = sensors.mm[i];
++  } else {
++    _simPos[SENSOR_X1] = program.homeX[0];
++    _simPos[SENSOR_X2] = program.homeX[1];
++    _simPos[SENSOR_Z1] = program.travelZ[0];
++    _simPos[SENSOR_Z2] = program.travelZ[1];
++  }
++  _simLastMs = millis();
++}
++
++bool AutoRunnerV6::realSensorsUsable(const AutoSensorsV6& sensors) const {
++  return (sensors.usableMask & 0x0F) == 0x0F;
++}
++
++int32_t AutoRunnerV6::pos(const AutoSensorsV6& sensors, SensorIndex idx) const {
++  return _simulation ? _simPos[idx] : sensors.mm[idx];
++}
++
++bool AutoRunnerV6::start(const AutoProgramV6& program, const AutoSensorsV6& sensors,
++                         bool simulation, uint32_t nowMs) {
++  resetRuntime();
++  _program = &program;
++  _simulation = simulation;
++  _homeOnly = false;
++  _motorMode = SystemModeV6::AUTO;
++  _lowSide = program.lowSide > 1 ? 0 : program.lowSide;
++  _stagingZone = program.stagingZone < program.zoneCount ? program.stagingZone : 0;
++
++  ProgramStorageV6 validator;
++  if (!validator.readyForAuto(program)) {
++    fail(AUTO_ERR_PROGRAM, F("program not calibrated/valid"));
++    return false;
++  }
++  if (!simulation && !realSensorsUsable(sensors)) {
++    fail(AUTO_ERR_SENSORS, F("X1/X2/Z1/Z2 are not all usable"));
++    return false;
++  }
++  if (!simulation && (!VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED)) {
++    fail(VFD_RS485_ENABLED ? AUTO_ERR_READONLY : AUTO_ERR_OUTPUT_DISABLED,
++         VFD_RS485_ENABLED ? F("physical RS485 build is READ-ONLY") : F("physical RS485 output disabled; use SIM"));
++    return false;
++  }
++  if (!simulation && !AUTO_PHYSICAL_ENABLED) {
++    fail(AUTO_ERR_OUTPUT_DISABLED, F("physical AUTO/HOME interlock disabled in this build"));
++    return false;
++  }
++  if (simulation && VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED) {
++    fail(AUTO_ERR_OUTPUT_DISABLED, F("SIM is forbidden in physical WRITE build"));
++    return false;
++  }
++
++  _knownTimedSeconds = validator.knownTimedSeconds(program);
++  _enabledZoneCount = validator.enabledZoneCount(program);
++  _runStartMs = nowMs;
++  _phaseStartMs = nowMs;
++  _running = true;
++  if (simulation) seedSimulation(program, sensors);
++
++  _orderIndex = 0;
++  if (!advanceToEnabledZone()) {
++    fail(AUTO_ERR_PROGRAM, F("program has no enabled zone"));
++    return false;
++  }
++  setPhase(Phase::PREP_TRAVEL, nowMs);
++  Serial.print(F("AUTO START program="));
++  Serial.print(program.name);
++  Serial.print(F(" mode="));
++  Serial.println(simulation ? F("SIMULATION") : F("PHYSICAL"));
++  return true;
++}
++
++bool AutoRunnerV6::startHome(const AutoProgramV6& program, const AutoSensorsV6& sensors,
++                             bool simulation, uint32_t nowMs) {
++  resetRuntime();
++  _program = &program;
++  _simulation = simulation;
++  _homeOnly = true;
++  _motorMode = SystemModeV6::HOME;
++  const uint8_t required = AUTO_PROGRAM_VALID_HOME_X | AUTO_PROGRAM_VALID_TRAVEL_Z;
++  if ((program.validMask & required) != required) {
++    fail(AUTO_ERR_PROGRAM, F("HOME/TRAVEL not calibrated"));
++    return false;
++  }
++  if (!simulation && !realSensorsUsable(sensors)) {
++    fail(AUTO_ERR_SENSORS, F("X1/X2/Z1/Z2 are not all usable"));
++    return false;
++  }
++  if (!simulation && (!VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED)) {
++    fail(VFD_RS485_ENABLED ? AUTO_ERR_READONLY : AUTO_ERR_OUTPUT_DISABLED,
++         VFD_RS485_ENABLED ? F("physical RS485 build is READ-ONLY") : F("physical RS485 output disabled; use SIM"));
++    return false;
++  }
++  if (!simulation && !AUTO_PHYSICAL_ENABLED) {
++    fail(AUTO_ERR_OUTPUT_DISABLED, F("physical AUTO/HOME interlock disabled in this build"));
++    return false;
++  }
++  if (simulation && VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED) {
++    fail(AUTO_ERR_OUTPUT_DISABLED, F("SIM is forbidden in physical WRITE build"));
++    return false;
++  }
++
++  _runStartMs = nowMs;
++  _phaseStartMs = nowMs;
++  _running = true;
++  if (simulation) seedSimulation(program, sensors);
++  setPhase(Phase::MOVE_HOME_Z, nowMs);
++  Serial.println(simulation ? F("HOME START SIMULATION") : F("HOME START PHYSICAL"));
++  return true;
++}
++
++void AutoRunnerV6::fail(AutoErrorV6 err, const __FlashStringHelper* reason) {
++  _error = err;
++  _running = false;
++  _paused = false;
++  _waitOperator = false;
++  _phase = Phase::FAULT;
++  _runEndMs = millis();
++  _stateChanged = true;
++  stopMotion();
++  Serial.print(F("AUTO FAULT code="));
++  Serial.print((uint16_t)err);
++  Serial.print(F(" reason="));
++  Serial.println(reason ? reason : F("?"));
++}
++
++void AutoRunnerV6::stop(const __FlashStringHelper* reason) {
++  if (_running || _phase != Phase::IDLE) {
++    Serial.print(F("AUTO STOP"));
++    if (reason) { Serial.print(F(" reason=")); Serial.print(reason); }
++    Serial.println();
++  }
++  stopMotion();
++  resetRuntime();
++}
++
++void AutoRunnerV6::pause() {
++  if (!_running || _paused) return;
++  _paused = true;
++  _pauseStartMs = millis();
++  stopMotion();
++  Serial.println(F("AUTO PAUSED"));
++}
++
++void AutoRunnerV6::resume(uint32_t nowMs) {
++  if (!_running || !_paused) return;
++  _paused = false;
++  const uint32_t pauseDur = nowMs - _pauseStartMs;
++  _pausedAccumMs += pauseDur;
++  _phaseStartMs += pauseDur;
++  if (_dryTimerStartMs) _dryTimerStartMs += pauseDur;
++  _simLastMs = nowMs;
++  Serial.println(F("AUTO RESUMED"));
++}
++
++void AutoRunnerV6::operatorNext() {
++  if (!_running) return;
++  _operatorNext = true;
++  Serial.println(F("AUTO OPERATOR NEXT"));
++}
++
++bool AutoRunnerV6::advanceToEnabledZone() {
++  if (!_program) return false;
++  while (_orderIndex < _program->zoneCount) {
++    const uint8_t zid = _program->order[_orderIndex];
++    if (zid < _program->zoneCount && _program->zones[zid].enabled) {
++      _zoneIndex = zid;
++      return true;
++    }
++    ++_orderIndex;
++  }
++  return false;
++}
++
++bool AutoRunnerV6::checkMovementTimeout(uint32_t nowMs) {
++  if ((uint32_t)(nowMs - _phaseStartMs) <= AUTO_MOVE_TIMEOUT_MS_V6) return false;
++  fail(AUTO_ERR_MOVE_TIMEOUT, F("movement phase timeout"));
++  return true;
++}
++
++int16_t AutoRunnerV6::targetPct(SensorIndex idx, int32_t cur, int32_t target, uint8_t capPct) const {
++  if (!_settings) return 0;
++  const uint8_t drive = (idx == SENSOR_X1) ? DRIVE_H1 :
++                        (idx == SENSOR_X2) ? DRIVE_H2 :
++                        (idx == SENSOR_Z1) ? DRIVE_V1 : DRIVE_V2;
++  const DriveProfileV6& p = _settings->drive[drive];
++  const int32_t diff = target - cur;
++  if (abs32v6(diff) <= (int32_t)p.stopToleranceMm) return 0;
++  uint8_t cap = capPct;
++  if (cap < 1 || cap > 100) cap = p.maxPercent;
++  cap = minU8v6(cap, p.maxPercent);
++  uint8_t use = cap;
++  if (abs32v6(diff) <= (int32_t)p.slowdownDistanceMm) use = minU8v6(p.slowPercent, cap);
++  if (use < 1) use = 1;
++  return diff > 0 ? (int16_t)use : (int16_t)-use;
++}
++
++void AutoRunnerV6::integrateSimulation(uint32_t nowMs, int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up) {
++  if (!_simulation) return;
++  if (_simLastMs == 0) _simLastMs = nowMs;
++  uint32_t dt = nowMs - _simLastMs;
++  if (dt > 200) dt = 200;
++  _simLastMs = nowMs;
++  const int16_t pct[SENSOR_COUNT] = {h1, h2, v1Up, v2Up};
++  for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
++    if (pct[i] == 0) continue;
++    int32_t step = (int32_t)AUTO_SIM_MM_PER_S_100_V6 * (int32_t)abs(pct[i]) * (int32_t)dt / 100000L;
++    if (step < 1) step = 1;
++    _simPos[i] += pct[i] > 0 ? step : -step;
++  }
++}
++
++void AutoRunnerV6::commandTargets(int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up) {
++  if (_simulation) return;
++  if (_motor) (void)_motor->requestAutoTargets(_motorMode, h1, h2, v1Up, v2Up);
++}
++
++void AutoRunnerV6::stopMotion() {
++  if (_simulation) return;
++  if (_motor) _motor->autoStop(F("auto phase stop"));
++}
++
++bool AutoRunnerV6::moveHorizontal(uint32_t nowMs, const AutoSensorsV6& sensors,
++                                  int32_t x1, int32_t x2, uint8_t capPct, uint8_t limitMask) {
++  if (checkMovementTimeout(nowMs)) return false;
++  int16_t h1 = targetPct(SENSOR_X1, pos(sensors, SENSOR_X1), x1, capPct);
++  int16_t h2 = targetPct(SENSOR_X2, pos(sensors, SENSOR_X2), x2, capPct);
++
++  if ((h1 > 0 && (limitMask & SafetyV6::LIM_H1_RIGHT)) ||
++      (h1 < 0 && (limitMask & SafetyV6::LIM_H1_LEFT)) ||
++      (h2 > 0 && (limitMask & SafetyV6::LIM_H2_RIGHT)) ||
++      (h2 < 0 && (limitMask & SafetyV6::LIM_H2_LEFT))) {
++    fail(AUTO_ERR_LIMIT, F("horizontal limit blocks automatic direction"));
++    return false;
++  }
++
++  integrateSimulation(nowMs, h1, h2, 0, 0);
++  // Re-evaluate after the virtual movement so simulation cannot oscillate around the target.
++  h1 = targetPct(SENSOR_X1, pos(sensors, SENSOR_X1), x1, capPct);
++  h2 = targetPct(SENSOR_X2, pos(sensors, SENSOR_X2), x2, capPct);
++  commandTargets(h1, h2, 0, 0);
++  return h1 == 0 && h2 == 0;
++}
++
++bool AutoRunnerV6::moveVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
++                                int32_t z1, int32_t z2, uint8_t capPct) {
++  if (checkMovementTimeout(nowMs)) return false;
++  int16_t v1 = targetPct(SENSOR_Z1, pos(sensors, SENSOR_Z1), z1, capPct);
++  int16_t v2 = targetPct(SENSOR_Z2, pos(sensors, SENSOR_Z2), z2, capPct);
++  integrateSimulation(nowMs, 0, 0, v1, v2);
++  v1 = targetPct(SENSOR_Z1, pos(sensors, SENSOR_Z1), z1, capPct);
++  v2 = targetPct(SENSOR_Z2, pos(sensors, SENSOR_Z2), z2, capPct);
++  commandTargets(0, 0, v1, v2);
++  return v1 == 0 && v2 == 0;
++}
++
++bool AutoRunnerV6::moveOneVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
++                                   uint8_t side, int32_t target, uint8_t capPct) {
++  if (checkMovementTimeout(nowMs)) return false;
++  const SensorIndex idx = side == 0 ? SENSOR_Z1 : SENSOR_Z2;
++  int16_t v = targetPct(idx, pos(sensors, idx), target, capPct);
++  integrateSimulation(nowMs, 0, 0, side == 0 ? v : 0, side == 1 ? v : 0);
++  v = targetPct(idx, pos(sensors, idx), target, capPct);
++  commandTargets(0, 0, side == 0 ? v : 0, side == 1 ? v : 0);
++  return v == 0;
++}
++
++uint32_t AutoRunnerV6::elapsedSeconds(uint32_t nowMs) const {
++  if (_runStartMs == 0) return 0;
++  const uint32_t effectiveNow = (!_running && _runEndMs != 0) ? _runEndMs : nowMs;
++  uint32_t paused = _pausedAccumMs;
++  if (_paused) paused += effectiveNow - _pauseStartMs;
++  const uint32_t total = effectiveNow - _runStartMs;
++  return total > paused ? (total - paused) / 1000UL : 0;
++}
++
++uint16_t AutoRunnerV6::remainingWaitSeconds(uint32_t nowMs) const {
++  if (!_program || !_running) return 0xFFFF;
++  uint32_t total = 0;
++  switch (_phase) {
++    case Phase::WAIT_AFTER_TILT: total = (uint32_t)_program->zones[_zoneIndex].stepWaitS * 1000UL; break;
++    case Phase::WAIT_DIP: total = (uint32_t)_program->zones[_zoneIndex].dipTimeS * 1000UL; break;
++    case Phase::WAIT_DRAIN: total = (uint32_t)_program->dripWaitS * 1000UL; break;
++    case Phase::DRY_WAIT_TIMER: total = (uint32_t)_program->dryingTimeS * 1000UL; break;
++    default: return 0xFFFF;
++  }
++  const uint32_t started = (_phase == Phase::DRY_WAIT_TIMER && _dryTimerStartMs) ? _dryTimerStartMs : _phaseStartMs;
++  const uint32_t effectiveNow = _paused ? _pauseStartMs : nowMs;
++  const uint32_t elapsed = effectiveNow - started;
++  if (elapsed >= total) return 0;
++  const uint32_t rem = (total - elapsed + 999UL) / 1000UL;
++  return rem > 65535UL ? 65535 : (uint16_t)rem;
++}
++
++uint16_t AutoRunnerV6::currentStep() const {
++  if (!_running && _phase != Phase::DONE) return 0;
++  if (_homeOnly) {
++    if (_phase == Phase::MOVE_HOME_Z) return 1;
++    if (_phase == Phase::MOVE_HOME_X || _phase == Phase::DONE) return 2;
++    return 0;
++  }
++
++  // Step 1 is the initial move to transport height. Each enabled process zone
++  // then owns exactly nine steps. Disabled zones do not create holes in DWIN.
++  const uint16_t zoneBase = 1u + (uint16_t)_cycleZoneOrdinal * 9u;
++  const uint16_t afterZones = 1u + (uint16_t)_enabledZoneCount * 9u;
++  switch (_phase) {
++    case Phase::PREP_TRAVEL: return 1;
++    case Phase::MOVE_ZONE_H: return zoneBase + 1;
++    case Phase::LOWER_TILT: return zoneBase + 2;
++    case Phase::WAIT_AFTER_TILT: return zoneBase + 3;
++    case Phase::LOWER_BASE: return zoneBase + 4;
++    case Phase::WAIT_DIP: return zoneBase + 5;
++    case Phase::RAISE_TILT_HIGH: return zoneBase + 6;
++    case Phase::WAIT_DRAIN: return zoneBase + 7;
++    case Phase::RAISE_TRAVEL: return zoneBase + 8;
++    case Phase::NEXT_ZONE: return zoneBase + 9;
++    case Phase::DRY_GOTO_STAGING: return afterZones + 1;
++    case Phase::DRY_WAIT_OPEN: return afterZones + 2;
++    case Phase::DRY_GOTO_DRY: return afterZones + 3;
++    case Phase::DRY_LOWER_DROP: return afterZones + 4;
++    case Phase::DRY_WAIT_DETACH: return afterZones + 5;
++    case Phase::DRY_RAISE_TRAVEL: return afterZones + 6;
++    case Phase::DRY_WAIT_START: return afterZones + 7;
++    case Phase::DRY_WAIT_TIMER: return afterZones + 8;
++    case Phase::DRY_LOWER_PICK: return afterZones + 9;
++    case Phase::DRY_WAIT_ATTACH: return afterZones + 10;
++    case Phase::DRY_RAISE_TRAVEL2: return afterZones + 11;
++    case Phase::DRY_GOTO_STAGING2: return afterZones + 12;
++    case Phase::DRY_WAIT_CLOSE: return afterZones + 13;
++    case Phase::MOVE_HOME_Z: return totalSteps() - 1;
++    case Phase::MOVE_HOME_X:
++    case Phase::DONE: return totalSteps();
++    default: return 0;
++  }
++}
++
++uint16_t AutoRunnerV6::totalSteps() const {
++  if (_homeOnly) return 2;
++  uint16_t n = 1u + (uint16_t)_enabledZoneCount * 9u; // PREP + process zones
++  if (_program && _program->dryingEnabled) n += 13;
++  n += 2; // HOME: transport Z then horizontal X
++  return n;
++}
++
++bool AutoRunnerV6::service(uint32_t nowMs, const AutoSensorsV6& sensors,
++                           bool estopBlocked, uint8_t limitMask) {
++  _stateChanged = false;
++  if (!_running) return false;
++  if (_paused) { stopMotion(); return false; }
++  if (estopBlocked) { fail(AUTO_ERR_ESTOP, F("E-STOP active/latched")); return true; }
++  if (!_simulation && !realSensorsUsable(sensors)) { fail(AUTO_ERR_SENSORS, F("sensor became LOST")); return true; }
++  if (!_program) { fail(AUTO_ERR_PROGRAM, F("program pointer missing")); return true; }
++
++  const AutoZoneV6& z = _program->zones[_zoneIndex];
++  const uint8_t low = _lowSide;
++  const uint8_t high = low ? 0 : 1;
++
++  switch (_phase) {
++    case Phase::PREP_TRAVEL:
++      if (moveVertical(nowMs, sensors, _program->travelZ[0], _program->travelZ[1], 0)) {
++        stopMotion(); setPhase(Phase::MOVE_ZONE_H, nowMs);
++      }
++      break;
++
++    case Phase::MOVE_ZONE_H:
++      if (moveHorizontal(nowMs, sensors, z.xMm[0], z.xMm[1], z.movePercent, limitMask)) {
++        stopMotion();
++        _baseZ[0] = z.zMm[0]; _baseZ[1] = z.zMm[1];
++        const SensorIndex lowIdx = low == 0 ? SENSOR_Z1 : SENSOR_Z2;
++        const int32_t curLow = pos(sensors, lowIdx);
++        int32_t intermediate = curLow - (int32_t)z.tiltStepMm; // logical down = decreasing Z
++        if (intermediate < _baseZ[low]) intermediate = _baseZ[low];
++        _lowTiltTarget = intermediate;
++        setPhase(Phase::LOWER_TILT, nowMs);
++      }
++      break;
++
++    case Phase::LOWER_TILT:
++      if (moveOneVertical(nowMs, sensors, low, _lowTiltTarget, _program->tiltPercent)) {
++        stopMotion(); setPhase(Phase::WAIT_AFTER_TILT, nowMs);
++      }
++      break;
++
++    case Phase::WAIT_AFTER_TILT:
++      stopMotion();
++      if ((uint32_t)(nowMs - _phaseStartMs) >= (uint32_t)z.stepWaitS * 1000UL)
++        setPhase(Phase::LOWER_BASE, nowMs);
++      break;
++
++    case Phase::LOWER_BASE:
++      if (moveVertical(nowMs, sensors, _baseZ[0], _baseZ[1], z.verticalPercent)) {
++        stopMotion(); setPhase(Phase::WAIT_DIP, nowMs);
++      }
++      break;
++
++    case Phase::WAIT_DIP:
++      stopMotion();
++      if ((uint32_t)(nowMs - _phaseStartMs) >= (uint32_t)z.dipTimeS * 1000UL) {
++        const SensorIndex highIdx = high == 0 ? SENSOR_Z1 : SENSOR_Z2;
++        int32_t intermediate = pos(sensors, highIdx) + (int32_t)z.tiltStepMm;
++        if (intermediate > _program->travelZ[high]) intermediate = _program->travelZ[high];
++        _highLiftTarget = intermediate;
++        setPhase(Phase::RAISE_TILT_HIGH, nowMs);
++      }
++      break;
++
++    case Phase::RAISE_TILT_HIGH:
++      if (moveOneVertical(nowMs, sensors, high, _highLiftTarget, _program->tiltPercent)) {
++        stopMotion(); setPhase(Phase::WAIT_DRAIN, nowMs);
++      }
++      break;
++
++    case Phase::WAIT_DRAIN:
++      stopMotion();
++      if ((uint32_t)(nowMs - _phaseStartMs) >= (uint32_t)_program->dripWaitS * 1000UL)
++        setPhase(Phase::RAISE_TRAVEL, nowMs);
++      break;
++
++    case Phase::RAISE_TRAVEL:
++      if (moveVertical(nowMs, sensors, _program->travelZ[0], _program->travelZ[1], 0)) {
++        stopMotion(); setPhase(Phase::NEXT_ZONE, nowMs);
++      }
++      break;
++
++    case Phase::NEXT_ZONE:
++      ++_cycleZoneOrdinal;
++      ++_orderIndex;
++      if (advanceToEnabledZone()) setPhase(Phase::MOVE_ZONE_H, nowMs);
++      else if (_program->dryingEnabled) setPhase(Phase::DRY_GOTO_STAGING, nowMs);
++      else setPhase(Phase::MOVE_HOME_Z, nowMs);
++      break;
++
++    case Phase::DRY_GOTO_STAGING: {
++      const AutoZoneV6& stg = _program->zones[_stagingZone];
++      if (!moveVertical(nowMs, sensors, _program->travelZ[0], _program->travelZ[1], 0)) break;
++      if (moveHorizontal(nowMs, sensors, stg.xMm[0], stg.xMm[1], stg.movePercent, limitMask)) {
++        stopMotion(); setPhase(Phase::DRY_WAIT_OPEN, nowMs);
++      }
++    } break;
++
++    case Phase::DRY_WAIT_OPEN:
++      stopMotion(); _waitOperator = true;
++      if (_operatorNext) setPhase(Phase::DRY_GOTO_DRY, nowMs);
++      break;
++
++    case Phase::DRY_GOTO_DRY:
++      if (moveHorizontal(nowMs, sensors, _program->dryX[0], _program->dryX[1], 0, limitMask)) {
++        stopMotion(); setPhase(Phase::DRY_LOWER_DROP, nowMs);
++      }
++      break;
++
++    case Phase::DRY_LOWER_DROP:
++      if (moveVertical(nowMs, sensors, _program->dryZ[0], _program->dryZ[1], 0)) {
++        stopMotion(); setPhase(Phase::DRY_WAIT_DETACH, nowMs);
++      }
++      break;
++
++    case Phase::DRY_WAIT_DETACH:
++      stopMotion(); _waitOperator = true;
++      if (_operatorNext) setPhase(Phase::DRY_RAISE_TRAVEL, nowMs);
++      break;
++
++    case Phase::DRY_RAISE_TRAVEL:
++      if (moveVertical(nowMs, sensors, _program->travelZ[0], _program->travelZ[1], 0)) {
++        stopMotion(); setPhase(Phase::DRY_WAIT_START, nowMs);
++      }
++      break;
++
++    case Phase::DRY_WAIT_START:
++      stopMotion(); _waitOperator = true;
++      if (_operatorNext) {
++        _dryTimerStartMs = nowMs;
++        _dryAlarm = false;
++        setPhase(Phase::DRY_WAIT_TIMER, nowMs);
++      }
++      break;
++
++    case Phase::DRY_WAIT_TIMER:
++      stopMotion();
++      if (_program->dryingTimeS == 0) {
++        _waitOperator = true;
++        if (_operatorNext) setPhase(Phase::DRY_LOWER_PICK, nowMs);
++      } else if ((uint32_t)(nowMs - _dryTimerStartMs) >= (uint32_t)_program->dryingTimeS * 1000UL) {
++        _dryAlarm = true;
++        _waitOperator = true;
++        if (_operatorNext) { _dryAlarm = false; setPhase(Phase::DRY_LOWER_PICK, nowMs); }
++      }
++      break;
++
++    case Phase::DRY_LOWER_PICK:
++      if (moveVertical(nowMs, sensors, _program->dryZ[0], _program->dryZ[1], 0)) {
++        stopMotion(); setPhase(Phase::DRY_WAIT_ATTACH, nowMs);
++      }
++      break;
++
++    case Phase::DRY_WAIT_ATTACH:
++      stopMotion(); _waitOperator = true;
++      if (_operatorNext) setPhase(Phase::DRY_RAISE_TRAVEL2, nowMs);
++      break;
++
++    case Phase::DRY_RAISE_TRAVEL2:
++      if (moveVertical(nowMs, sensors, _program->travelZ[0], _program->travelZ[1], 0)) {
++        stopMotion(); setPhase(Phase::DRY_GOTO_STAGING2, nowMs);
++      }
++      break;
++
++    case Phase::DRY_GOTO_STAGING2: {
++      const AutoZoneV6& stg = _program->zones[_stagingZone];
++      if (moveHorizontal(nowMs, sensors, stg.xMm[0], stg.xMm[1], stg.movePercent, limitMask)) {
++        stopMotion(); setPhase(Phase::DRY_WAIT_CLOSE, nowMs);
++      }
++    } break;
++
++    case Phase::DRY_WAIT_CLOSE:
++      stopMotion(); _waitOperator = true;
++      if (_operatorNext) setPhase(Phase::MOVE_HOME_Z, nowMs);
++      break;
++
++    case Phase::MOVE_HOME_Z:
++      if (moveVertical(nowMs, sensors, _program->travelZ[0], _program->travelZ[1], 0)) {
++        stopMotion(); setPhase(Phase::MOVE_HOME_X, nowMs);
++      }
++      break;
++
++    case Phase::MOVE_HOME_X:
++      if (moveHorizontal(nowMs, sensors, _program->homeX[0], _program->homeX[1], 0, limitMask)) {
++        stopMotion(); setPhase(Phase::DONE, nowMs);
++      }
++      break;
++
++    case Phase::DONE:
++      stopMotion();
++      _running = false;
++      _runEndMs = nowMs;
++      _stateChanged = true;
++      Serial.println(F("AUTO PROGRAM DONE"));
++      return true;
++
++    case Phase::FAULT:
++    case Phase::IDLE:
++      break;
++  }
++  return _stateChanged;
++}
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp /mnt/data/telfer-control-system-v6-system-step9a/src/main_v6_fast.cpp
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp	2026-08-10 15:28:24.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/src/main_v6_fast.cpp	2026-08-10 18:31:06.250129843 +0000
+@@ -1,5 +1,7 @@
+ #include <Arduino.h>
+ #include <string.h>
++#include <stdio.h>
++#include <stdlib.h>
+ #include "config_v6_bringup.h"
+ #include "sc16is752.h"
+ #include "fast_laser_sensor.h"
+@@ -8,6 +10,8 @@
+ #include "system_state.h"
+ #include "motor_control_v6.h"
+ #include "safety_v6.h"
++#include "program_v6.h"
++#include "auto_runner_v6.h"
+ 
+ // =====================================================
+ // v6 sensor core FAST CONTINUOUS working base.
+@@ -29,6 +33,14 @@
+ static SettingsV6 g_editSettings;
+ static MotorControlV6 g_motor;
+ static SafetyV6 g_safety;
++static ProgramStorageV6 g_programStorage;
++static AutoProgramV6 g_program;
++static AutoRunnerV6 g_auto;
++static uint8_t g_programSlot = 0;
++static uint8_t g_programSelectedZone = 0;
++static bool g_programDirty = false;
++static bool g_programIsDemo = false;
++static bool g_autoSimulation = false;
+ 
+ static bool g_settingsFault = false;
+ static bool g_settingsDirty = false;
+@@ -115,33 +127,68 @@
+   (void)g_safety.setLimitsEnabled(safetyLimitsRequestedEnabled(cfg));
+ }
+ 
++AutoSensorsV6 buildAutoSensors()
++{
++  AutoSensorsV6 out{};
++  const uint32_t now = millis();
++  for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
++  {
++    out.mm[i] = g_sensor[i].valueMm;
++    const SensorRuntimeFast &sr = g_sensor[i];
++    if (!g_settings.sensor[i].enabled) continue;
++    if (sr.hwOk && sr.valid && sr.lastValidMs != 0 &&
++        (uint32_t)(now - sr.lastValidMs) <= g_settings.staleTimeoutMs)
++      out.usableMask |= (uint8_t)(1U << i);
++  }
++  return out;
++}
++
++void writeHmsToDwin(uint32_t seconds, uint16_t vpH, uint16_t vpM, uint16_t vpS)
++{
++  const uint16_t h = seconds > 359999UL ? 99 : (uint16_t)(seconds / 3600UL);
++  const uint16_t m = (uint16_t)((seconds / 60UL) % 60UL);
++  const uint16_t sec = (uint16_t)(seconds % 60UL);
++  g_dwin.writeU16(vpH, h);
++  g_dwin.writeU16(vpM, m);
++  g_dwin.writeU16(vpS, sec);
++}
++
+ void writePersistentHeaderToDwin()
+ {
+-  // Program runner is connected in the next step. Keep explicit zeroes now
+-  // instead of showing mock data on the DWIN backgrounds.
+-  g_dwin.writeU16(VP_PROGRAM_INDEX, 0);
+-  g_dwin.writeU16(VP_ZONE_CURRENT, 0);
+-  g_dwin.writeU16(VP_ZONE_TOTAL, 0);
+-  g_dwin.writeU16(VP_STEP_CURRENT, 0);
+-  g_dwin.writeU16(VP_STEP_TOTAL, 0);
+-  g_dwin.writeU16(VP_TIME_ELAPSED_H, 0);
+-  g_dwin.writeU16(VP_TIME_ELAPSED_M, 0);
+-  g_dwin.writeU16(VP_TIME_ELAPSED_S, 0);
+-  g_dwin.writeU16(VP_TIME_TOTAL_H, 0);
+-  g_dwin.writeU16(VP_TIME_TOTAL_M, 0);
+-  g_dwin.writeU16(VP_TIME_TOTAL_S, 0);
++  const uint32_t now = millis();
++  const uint8_t enabledZones = g_programStorage.enabledZoneCount(g_program);
++  const bool ready = g_programStorage.readyForAuto(g_program);
++
++  g_dwin.writeU16(VP_PROGRAM_INDEX, (uint16_t)(g_programSlot + 1));
++  g_dwin.writeU16(VP_ZONE_CURRENT, (g_auto.running() && g_systemMode == SystemModeV6::AUTO) ? (uint16_t)(g_auto.zoneIndex() + 1) : 0);
++  g_dwin.writeU16(VP_ZONE_TOTAL, enabledZones);
++  g_dwin.writeU16(VP_STEP_CURRENT, g_auto.currentStep());
++  g_dwin.writeU16(VP_STEP_TOTAL, g_auto.totalSteps());
++  writeHmsToDwin(g_auto.elapsedSeconds(now), VP_TIME_ELAPSED_H, VP_TIME_ELAPSED_M, VP_TIME_ELAPSED_S);
++  writeHmsToDwin(g_programStorage.knownTimedSeconds(g_program), VP_TIME_TOTAL_H, VP_TIME_TOTAL_M, VP_TIME_TOTAL_S);
+ 
+   g_dwin.writeU16(VP_SENSOR_OK_COUNT, sensorOnlineCount());
+   g_dwin.writeU16(VP_SENSOR_TOTAL, SENSOR_COUNT);
+   g_dwin.writeU16(VP_VFD_OK_COUNT, g_motor.vfdConnectedCount());
+   g_dwin.writeU16(VP_VFD_TOTAL, DRIVE_COUNT_V6);
+   g_dwin.writeU16(VP_RS485_STATE, VFD_RS485_ENABLED ? 1 : (VFD_DRY_RUN ? 2 : 0));
+-  g_dwin.writeU16(VP_NETWORK_STATE, 0); // planned, deliberately no fake status
++  g_dwin.writeU16(VP_NETWORK_STATE, 0);
+   g_dwin.writeU16(VP_SAFETY_STATE, g_safety.stateWord());
+   g_dwin.writeU16(VP_LIMIT_STATE, g_safety.limitMask());
+   g_dwin.writeU16(VP_MODBUS_QUEUE_BUSY, g_motor.vfdHasPendingWork() ? 1 : 0);
+   g_dwin.writeU16(VP_ESTOP_ENABLED, g_safety.estopEnabled() ? 1 : 0);
+   g_dwin.writeU16(VP_LIMITS_ENABLED, g_safety.limitsEnabled() ? 1 : 0);
++
++  g_dwin.writeU16(VP_AUTO_PHASE, (uint16_t)g_auto.phase());
++  g_dwin.writeU16(VP_AUTO_ERROR, g_auto.error());
++  g_dwin.writeU16(VP_AUTO_RUNNING, g_auto.running() ? 1 : 0);
++  g_dwin.writeU16(VP_AUTO_PAUSED, g_auto.paused() ? 1 : 0);
++  g_dwin.writeU16(VP_AUTO_SIMULATION, g_autoSimulation ? 1 : 0);
++  g_dwin.writeU16(VP_AUTO_WAIT_OPERATOR, g_auto.waitOperator() ? 1 : 0);
++  const uint16_t remain = g_auto.remainingWaitSeconds(now);
++  g_dwin.writeU16(VP_AUTO_REMAIN_S, remain == 0xFFFF ? 0 : remain);
++  g_dwin.writeU16(VP_PROGRAM_READY, ready ? 1 : 0);
++  g_dwin.writeU16(VP_PROGRAM_ACTIVE_SLOT, (uint16_t)(g_programSlot + 1));
+ }
+ 
+ void writeBootScreen()
+@@ -194,6 +241,8 @@
+     err |= ERR_ESTOP;
+   if (g_safety.limitMask() != 0)
+     err |= ERR_LIMIT;
++  if (g_auto.error() != AUTO_ERR_NONE)
++    err |= ERR_AUTO;
+ 
+   g_dwin.writeU16(VP_ERROR, err);
+ }
+@@ -243,6 +292,116 @@
+   writeSettingsUiStatus();
+ }
+ 
++void writeProgramToDwin()
++{
++  if (g_programSelectedZone >= g_program.zoneCount) g_programSelectedZone = 0;
++  AutoZoneV6 &z = g_program.zones[g_programSelectedZone];
++  g_dwin.writeU16(VP_PROG_ZONE_SELECTED, (uint16_t)(g_programSelectedZone + 1));
++  g_dwin.writeU16(VP_PROG_ZONE_COUNT, g_program.zoneCount);
++  g_dwin.writeU16(VP_PROG_ZONE_ENABLED, z.enabled ? 1 : 0);
++  g_dwin.writeU16(VP_PROG_ZONE_X1, displayValue(z.xMm[0]));
++  g_dwin.writeU16(VP_PROG_ZONE_X2, displayValue(z.xMm[1]));
++  g_dwin.writeU16(VP_PROG_ZONE_Z1, displayValue(z.zMm[0]));
++  g_dwin.writeU16(VP_PROG_ZONE_Z2, displayValue(z.zMm[1]));
++  g_dwin.writeU16(VP_PROG_ZONE_DIP_S, z.dipTimeS);
++  g_dwin.writeU16(VP_PROG_ZONE_TILT_MM, z.tiltStepMm);
++  g_dwin.writeU16(VP_PROG_ZONE_WAIT_S, z.stepWaitS);
++  g_dwin.writeU16(VP_PROG_ZONE_H_PCT, z.movePercent);
++  g_dwin.writeU16(VP_PROG_ZONE_V_PCT, z.verticalPercent);
++  g_dwin.writeU16(VP_PROG_HOME_X1, displayValue(g_program.homeX[0]));
++  g_dwin.writeU16(VP_PROG_HOME_X2, displayValue(g_program.homeX[1]));
++  g_dwin.writeU16(VP_PROG_TRAVEL_Z1, displayValue(g_program.travelZ[0]));
++  g_dwin.writeU16(VP_PROG_TRAVEL_Z2, displayValue(g_program.travelZ[1]));
++  g_dwin.writeU16(VP_PROG_DRIP_S, g_program.dripWaitS);
++  g_dwin.writeU16(VP_PROG_LOW_SIDE, g_program.lowSide);
++  g_dwin.writeU16(VP_PROG_TILT_PCT, g_program.tiltPercent);
++  g_dwin.writeU16(VP_PROG_DRY_ENABLE, g_program.dryingEnabled ? 1 : 0);
++  g_dwin.writeU16(VP_PROG_DRY_TIME_S, g_program.dryingTimeS);
++  g_dwin.writeU16(VP_PROG_STAGING_ZONE, (uint16_t)(g_program.stagingZone + 1));
++  g_dwin.writeU16(VP_PROG_DRY_X1, displayValue(g_program.dryX[0]));
++  g_dwin.writeU16(VP_PROG_DRY_X2, displayValue(g_program.dryX[1]));
++  g_dwin.writeU16(VP_PROG_DRY_Z1, displayValue(g_program.dryZ[0]));
++  g_dwin.writeU16(VP_PROG_DRY_Z2, displayValue(g_program.dryZ[1]));
++  g_dwin.writeU16(VP_PROG_VALID_MASK, g_program.validMask);
++  g_dwin.writeU16(VP_PROG_ZONE_VALID_MASK, z.validMask);
++  g_dwin.writeU16(VP_PROG_DIRTY, g_programDirty ? 1 : 0);
++  writePersistentHeaderToDwin();
++}
++
++void markProgramDirty()
++{
++  g_programDirty = true;
++  g_programIsDemo = false;
++  writeProgramToDwin();
++}
++
++bool updateProgramFromVp(uint16_t vp, uint16_t value)
++{
++  if (g_auto.running()) {
++    if (vp >= VP_PROG_ZONE_SELECTED && vp <= VP_PROG_TILT_PCT) {
++      Serial.println(F("Program edit ignored while AUTO/HOME is running"));
++      writeProgramToDwin();
++      return true;
++    }
++    return false;
++  }
++
++  if (vp == VP_PROG_ZONE_SELECTED) {
++    if (value < 1 || value > AUTO_MAX_ZONES_V6) return true;
++    g_programSelectedZone = (uint8_t)(value - 1);
++    if (g_programSelectedZone >= g_program.zoneCount) {
++      g_program.zoneCount = (uint8_t)(g_programSelectedZone + 1);
++      for (uint8_t i = 0; i < g_program.zoneCount; ++i) g_program.order[i] = i;
++      g_programDirty = true;
++    }
++    writeProgramToDwin();
++    return true;
++  }
++
++  AutoZoneV6 &z = g_program.zones[g_programSelectedZone];
++  switch (vp) {
++    case VP_PROG_ZONE_COUNT:
++      if (value >= 1 && value <= AUTO_MAX_ZONES_V6) {
++        g_program.zoneCount = (uint8_t)value;
++        if (g_programSelectedZone >= g_program.zoneCount) g_programSelectedZone = (uint8_t)(g_program.zoneCount - 1);
++        for (uint8_t i = 0; i < g_program.zoneCount; ++i) g_program.order[i] = i;
++      } else return true;
++      break;
++    case VP_PROG_ZONE_ENABLED: z.enabled = value ? 1 : 0; break;
++    case VP_PROG_ZONE_X1: z.xMm[0] = value; break;
++    case VP_PROG_ZONE_X2: z.xMm[1] = value; break;
++    case VP_PROG_ZONE_Z1: z.zMm[0] = value; break;
++    case VP_PROG_ZONE_Z2: z.zMm[1] = value; break;
++    case VP_PROG_ZONE_DIP_S: z.dipTimeS = value; break;
++    case VP_PROG_ZONE_TILT_MM: z.tiltStepMm = value; break;
++    case VP_PROG_ZONE_WAIT_S: z.stepWaitS = value; break;
++    case VP_PROG_ZONE_H_PCT: if (value < 1 || value > 100) return true; z.movePercent = (uint8_t)value; break;
++    case VP_PROG_ZONE_V_PCT: if (value < 1 || value > 100) return true; z.verticalPercent = (uint8_t)value; break;
++    case VP_PROG_HOME_X1: g_program.homeX[0] = value; break;
++    case VP_PROG_HOME_X2: g_program.homeX[1] = value; break;
++    case VP_PROG_TRAVEL_Z1: g_program.travelZ[0] = value; break;
++    case VP_PROG_TRAVEL_Z2: g_program.travelZ[1] = value; break;
++    case VP_PROG_DRIP_S: g_program.dripWaitS = value; break;
++    case VP_PROG_LOW_SIDE: if (value > 1) return true; g_program.lowSide = (uint8_t)value; break;
++    case VP_PROG_TILT_PCT: if (value < 1 || value > 100) return true; g_program.tiltPercent = (uint8_t)value; break;
++    case VP_PROG_DRY_ENABLE: g_program.dryingEnabled = value ? 1 : 0; break;
++    case VP_PROG_DRY_TIME_S: g_program.dryingTimeS = value; break;
++    case VP_PROG_STAGING_ZONE:
++      if (value < 1 || value > g_program.zoneCount) return true;
++      g_program.stagingZone = (uint8_t)(value - 1);
++      break;
++    case VP_PROG_DRY_X1: g_program.dryX[0] = value; break;
++    case VP_PROG_DRY_X2: g_program.dryX[1] = value; break;
++    case VP_PROG_DRY_Z1: g_program.dryZ[0] = value; break;
++    case VP_PROG_DRY_Z2: g_program.dryZ[1] = value; break;
++    default: return false;
++  }
++  if ((g_program.validMask & (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) ==
++      (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) g_program.dryValid = 1;
++  markProgramDirty();
++  return true;
++}
++
+ uint8_t valueToU8OrInvalid(uint16_t value)
+ {
+   return value <= 255 ? (uint8_t)value : 255;
+@@ -286,7 +445,7 @@
+     else       g_editSettings.vfd.safetyDisableMask |= SAFETY_DISABLE_ESTOP;
+     break;
+   case VP_SAFETY_LIMITS_ENABLE:
+-    if (value > 1 || (!value && !SAFETY_BENCH_MODE)) {
++    if (value > 1) {
+       g_settingsUiState = SETTINGS_UI_REJECTED;
+       g_settingsUiError = SETTINGS_ERR_UNSAFE_MODE;
+       writeSettingsUiStatus();
+@@ -356,6 +515,7 @@
+ 
+   g_settings = g_editSettings;
+   g_motor.applySettings(g_settings);
++  g_auto.applySettings(g_settings);
+   applySafetySettings(g_settings);
+   g_settingsDirty = false;
+   g_settingsUiError = SETTINGS_VALID;
+@@ -403,6 +563,7 @@
+   g_settings = loaded;
+   g_editSettings = loaded;
+   g_motor.applySettings(g_settings);
++  g_auto.applySettings(g_settings);
+   applySafetySettings(g_settings);
+   g_settingsFault = false;
+   g_settingsDirty = false;
+@@ -463,12 +624,20 @@
+   }
+ }
+ 
+-void writeAllValuesToDwin()
++void writeCoordinatesToDwin()
+ {
++  const bool sim = g_auto.running() && g_auto.simulation();
+   for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
+   {
+-    g_dwin.writeU16(g_sensor[i].vp, (g_sensor[i].lastValidMs > 0) ? displayValue(g_sensor[i].valueMm) : 0);
++    const int32_t value = sim ? g_auto.simPosition((SensorIndex)i) : g_sensor[i].valueMm;
++    const bool haveValue = sim || g_sensor[i].lastValidMs > 0;
++    g_dwin.writeU16(g_sensor[i].vp, haveValue ? displayValue(value) : 0);
+   }
++}
++
++void writeAllValuesToDwin()
++{
++  writeCoordinatesToDwin();
+   writeModeToDwin();
+   writeMotorStateToDwin();
+   updateErrorMask();
+@@ -533,7 +702,8 @@
+       s.valueMm = g_storage.applyCalibration(g_settings, s.idx, s.rawMm);
+       s.valid = true;
+       s.lastValidMs = s.hw->lastUpdateMs();
+-      g_dwin.writeU16(s.vp, displayValue(s.valueMm));
++      if (!(g_auto.running() && g_auto.simulation()))
++        g_dwin.writeU16(s.vp, displayValue(s.valueMm));
+     }
+ 
+     // Do not clear s.valid on stale. It means "has last value" here.
+@@ -585,6 +755,178 @@
+   Serial.println(g_settings.sensor[idx].offsetMm);
+ }
+ 
++bool loadProgramSlotV6(uint8_t slot)
++{
++  if (slot >= AUTO_PROGRAM_SLOTS_V6) return false;
++  AutoProgramV6 loaded{};
++  if (!g_programStorage.load(slot, loaded)) {
++    g_programStorage.defaults(g_program, slot);
++    g_programSlot = slot;
++    g_programStorage.saveActiveSlot(slot);
++    g_programDirty = true;
++    g_programIsDemo = false;
++    g_programSelectedZone = 0;
++    Serial.print(F("Program slot "));
++    Serial.print(slot + 1);
++    Serial.println(F(" invalid/empty: safe uncalibrated defaults loaded in RAM"));
++    writeProgramToDwin();
++    return false;
++  }
++  g_program = loaded;
++  g_programSlot = slot;
++  g_programStorage.saveActiveSlot(slot);
++  g_programDirty = false;
++  g_programIsDemo = false;
++  g_programSelectedZone = 0;
++  Serial.print(F("Program loaded slot="));
++  Serial.print(slot + 1);
++  Serial.print(F(" name="));
++  Serial.println(g_program.name);
++  writeProgramToDwin();
++  return true;
++}
++
++bool saveProgramSlotV6()
++{
++  if (g_auto.running()) {
++    Serial.println(F("Program SAVE rejected while AUTO/HOME is running"));
++    return false;
++  }
++  if (g_programIsDemo) {
++    Serial.println(F("Program SAVE rejected: SIM-DEMO is RAM-only by design"));
++    return false;
++  }
++  if (!g_programStorage.save(g_programSlot, g_program)) {
++    Serial.println(F("Program SAVE failed validation/EEPROM bounds"));
++    return false;
++  }
++  g_programStorage.saveActiveSlot(g_programSlot);
++  g_programDirty = false;
++  Serial.print(F("Program saved slot="));
++  Serial.println(g_programSlot + 1);
++  writeProgramToDwin();
++  return true;
++}
++
++bool sensorPairUsable(SensorIndex a, SensorIndex b)
++{
++  const AutoSensorsV6 s = buildAutoSensors();
++  const uint8_t mask = (uint8_t)((1U << a) | (1U << b));
++  return (s.usableMask & mask) == mask;
++}
++
++bool captureProgramCoordinates(uint16_t cmd)
++{
++  if (g_auto.running()) {
++    Serial.println(F("Program capture rejected while AUTO/HOME is running"));
++    return true;
++  }
++  AutoZoneV6 &z = g_program.zones[g_programSelectedZone];
++  switch (cmd) {
++    case CMD_PROGRAM_CAPTURE_HOME:
++      if (!sensorPairUsable(SENSOR_X1, SENSOR_X2)) { Serial.println(F("CAP HOME rejected: X1+X2 required")); return true; }
++      g_program.homeX[0] = g_sensor[SENSOR_X1].valueMm;
++      g_program.homeX[1] = g_sensor[SENSOR_X2].valueMm;
++      g_program.validMask |= AUTO_PROGRAM_VALID_HOME_X;
++      Serial.println(F("CAP HOME X1/X2 OK"));
++      break;
++    case CMD_PROGRAM_CAPTURE_TRAVEL:
++      if (!sensorPairUsable(SENSOR_Z1, SENSOR_Z2)) { Serial.println(F("CAP TRAVEL rejected: Z1+Z2 required")); return true; }
++      g_program.travelZ[0] = g_sensor[SENSOR_Z1].valueMm;
++      g_program.travelZ[1] = g_sensor[SENSOR_Z2].valueMm;
++      g_program.validMask |= AUTO_PROGRAM_VALID_TRAVEL_Z;
++      Serial.println(F("CAP TRAVEL Z1/Z2 OK"));
++      break;
++    case CMD_PROGRAM_CAPTURE_ZONE_X:
++      if (!sensorPairUsable(SENSOR_X1, SENSOR_X2)) { Serial.println(F("CAP ZONE X rejected: X1+X2 required")); return true; }
++      z.xMm[0] = g_sensor[SENSOR_X1].valueMm;
++      z.xMm[1] = g_sensor[SENSOR_X2].valueMm;
++      z.validMask |= AUTO_ZONE_VALID_X;
++      z.enabled = 1;
++      Serial.println(F("CAP ZONE X1/X2 OK"));
++      break;
++    case CMD_PROGRAM_CAPTURE_ZONE_Z:
++      if (!sensorPairUsable(SENSOR_Z1, SENSOR_Z2)) { Serial.println(F("CAP ZONE Z rejected: Z1+Z2 required")); return true; }
++      z.zMm[0] = g_sensor[SENSOR_Z1].valueMm;
++      z.zMm[1] = g_sensor[SENSOR_Z2].valueMm;
++      z.validMask |= AUTO_ZONE_VALID_Z;
++      z.enabled = 1;
++      Serial.println(F("CAP ZONE Z1/Z2 OK"));
++      break;
++    case CMD_PROGRAM_CAPTURE_DRY_X:
++      if (!sensorPairUsable(SENSOR_X1, SENSOR_X2)) { Serial.println(F("CAP DRY X rejected: X1+X2 required")); return true; }
++      g_program.dryX[0] = g_sensor[SENSOR_X1].valueMm;
++      g_program.dryX[1] = g_sensor[SENSOR_X2].valueMm;
++      g_program.validMask |= AUTO_PROGRAM_VALID_DRY_X;
++      Serial.println(F("CAP DRY X1/X2 OK"));
++      break;
++    case CMD_PROGRAM_CAPTURE_DRY_Z:
++      if (!sensorPairUsable(SENSOR_Z1, SENSOR_Z2)) { Serial.println(F("CAP DRY Z rejected: Z1+Z2 required")); return true; }
++      g_program.dryZ[0] = g_sensor[SENSOR_Z1].valueMm;
++      g_program.dryZ[1] = g_sensor[SENSOR_Z2].valueMm;
++      g_program.validMask |= AUTO_PROGRAM_VALID_DRY_Z;
++      Serial.println(F("CAP DRY Z1/Z2 OK"));
++      break;
++    default: return false;
++  }
++  if ((g_program.validMask & (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) ==
++      (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) g_program.dryValid = 1;
++  markProgramDirty();
++  return true;
++}
++
++bool acceptProgramCoordinates(uint16_t cmd)
++{
++  if (g_auto.running()) return true;
++  AutoZoneV6 &z = g_program.zones[g_programSelectedZone];
++  switch (cmd) {
++    case CMD_PROGRAM_ACCEPT_ZONE_X: z.validMask |= AUTO_ZONE_VALID_X; z.enabled = 1; break;
++    case CMD_PROGRAM_ACCEPT_ZONE_Z: z.validMask |= AUTO_ZONE_VALID_Z; z.enabled = 1; break;
++    case CMD_PROGRAM_ACCEPT_HOME: g_program.validMask |= AUTO_PROGRAM_VALID_HOME_X; break;
++    case CMD_PROGRAM_ACCEPT_TRAVEL: g_program.validMask |= AUTO_PROGRAM_VALID_TRAVEL_Z; break;
++    case CMD_PROGRAM_ACCEPT_DRY_X: g_program.validMask |= AUTO_PROGRAM_VALID_DRY_X; break;
++    case CMD_PROGRAM_ACCEPT_DRY_Z: g_program.validMask |= AUTO_PROGRAM_VALID_DRY_Z; break;
++    default: return false;
++  }
++  g_program.dryValid = ((g_program.validMask & (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) ==
++                       (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) ? 1 : 0;
++  markProgramDirty();
++  Serial.println(F("Program numeric coordinate pair accepted"));
++  return true;
++}
++
++void printProgramSummary()
++{
++  Serial.println(F("--- PROGRAM V6 ---"));
++  Serial.print(F("slot=")); Serial.print(g_programSlot + 1);
++  Serial.print(F(" name=")); Serial.print(g_program.name);
++  Serial.print(F(" dirty=")); Serial.print(g_programDirty ? 1 : 0);
++  Serial.print(F(" ready=")); Serial.print(g_programStorage.readyForAuto(g_program) ? 1 : 0);
++  Serial.print(F(" zones=")); Serial.println(g_program.zoneCount);
++  Serial.print(F("HOME X=")); Serial.print(g_program.homeX[0]); Serial.print('/'); Serial.println(g_program.homeX[1]);
++  Serial.print(F("TRAVEL Z=")); Serial.print(g_program.travelZ[0]); Serial.print('/'); Serial.println(g_program.travelZ[1]);
++  Serial.print(F("validMask=0x")); Serial.print(g_program.validMask, HEX);
++  Serial.print(F(" tiltSpeed=")); Serial.print(g_program.tiltPercent); Serial.println('%');
++  for (uint8_t oi = 0; oi < g_program.zoneCount; ++oi) {
++    const uint8_t zid = g_program.order[oi];
++    if (zid >= g_program.zoneCount) continue;
++    const AutoZoneV6 &z = g_program.zones[zid];
++    Serial.print(F("Z")); Serial.print(zid + 1);
++    Serial.print(F(" en=")); Serial.print(z.enabled);
++    Serial.print(F(" valid=0x")); Serial.print(z.validMask, HEX);
++    Serial.print(F(" X=")); Serial.print(z.xMm[0]); Serial.print('/'); Serial.print(z.xMm[1]);
++    Serial.print(F(" Z=")); Serial.print(z.zMm[0]); Serial.print('/'); Serial.print(z.zMm[1]);
++    Serial.print(F(" dip=")); Serial.print(z.dipTimeS);
++    Serial.print(F(" tilt=")); Serial.print(z.tiltStepMm);
++    Serial.print(F(" wait=")); Serial.print(z.stepWaitS);
++    Serial.print(F(" H%=")); Serial.print(z.movePercent);
++    Serial.print(F(" V%=")); Serial.println(z.verticalPercent);
++  }
++  Serial.print(F("dry=")); Serial.print(g_program.dryingEnabled);
++  Serial.print(F(" time=")); Serial.print(g_program.dryingTimeS);
++  Serial.print(F(" staging=")); Serial.println(g_program.stagingZone + 1);
++}
++
+ void setSystemMode(SystemModeV6 mode)
+ {
+   // A released E-stop remains latched until the operator explicitly clears it.
+@@ -597,6 +939,9 @@
+     mode = SystemModeV6::STOP;
+   }
+ 
++  if (g_auto.running() && mode != SystemModeV6::AUTO && mode != SystemModeV6::HOME)
++    g_auto.stop(F("mode change"));
++
+   // STOP has priority and always goes through MotorControlV6::stopAll().
+   g_systemMode = mode;
+   g_motor.onModeChanged(g_systemMode);
+@@ -728,6 +1073,18 @@
+     return;
+   }
+ 
++  if (captureProgramCoordinates(cmd))
++  {
++    g_dwin.clearCommand(VP_CMD);
++    return;
++  }
++
++  if (acceptProgramCoordinates(cmd))
++  {
++    g_dwin.clearCommand(VP_CMD);
++    return;
++  }
++
+   switch (cmd)
+   {
+   case CMD_ZERO_X1:
+@@ -772,6 +1129,7 @@
+     g_settingsUiState = SETTINGS_UI_LOADED;
+     g_settingsUiError = SETTINGS_VALID;
+     g_motor.applySettings(g_settings);
++    g_auto.applySettings(g_settings);
+     applySafetySettings(g_settings);
+     for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
+     {
+@@ -799,26 +1157,84 @@
+     break;
+ 
+   case CMD_MANUAL:
+-    // Manual mode is restored as a safe state marker now.
+-    // Drive commands will be connected after RS485/frequency-drive checks.
++    g_auto.stop(F("MANUAL selected"));
+     setSystemMode(SystemModeV6::MANUAL);
+     break;
+ 
+-  case CMD_AUTO:
+-    // AUTO is restored as a safe state marker now.
+-    // Program runner will be connected after manual/drive checks.
++  case CMD_AUTO: {
++    if (g_auto.running()) {
++      Serial.println(F("AUTO already running; use PAUSE/RESUME/STOP"));
++      break;
++    }
+     setSystemMode(SystemModeV6::AUTO);
+-    break;
++    if (g_systemMode == SystemModeV6::AUTO) {
++      const AutoSensorsV6 ss = buildAutoSensors();
++      if (!g_auto.start(g_program, ss, g_autoSimulation, millis()))
++        setSystemMode(SystemModeV6::STOP);
++    }
++    writePersistentHeaderToDwin();
++  } break;
+ 
+-  case CMD_HOME:
+-    // HOME is a safe state marker for now. Movement will be connected later.
++  case CMD_HOME: {
++    g_auto.stop(F("new HOME request"));
+     setSystemMode(SystemModeV6::HOME);
+-    break;
++    if (g_systemMode == SystemModeV6::HOME) {
++      const AutoSensorsV6 ss = buildAutoSensors();
++      if (!g_auto.startHome(g_program, ss, g_autoSimulation, millis()))
++        setSystemMode(SystemModeV6::STOP);
++    }
++    writePersistentHeaderToDwin();
++  } break;
+ 
+   case CMD_STOP:
++    g_auto.stop(F("operator STOP"));
+     setSystemMode(SystemModeV6::STOP);
+     break;
+ 
++  case CMD_AUTO_PAUSE:
++    g_auto.pause();
++    writePersistentHeaderToDwin();
++    break;
++
++  case CMD_AUTO_RESUME:
++    g_auto.resume(millis());
++    writePersistentHeaderToDwin();
++    break;
++
++  case CMD_AUTO_OPERATOR_NEXT:
++    g_auto.operatorNext();
++    break;
++
++  case CMD_AUTO_SIM_TOGGLE:
++    if (!SAFETY_BENCH_MODE || (VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED)) {
++      Serial.println(F("AUTO SIM toggle rejected in FIELD/WRITE build"));
++    } else if (!g_auto.running()) {
++      g_autoSimulation = !g_autoSimulation;
++      Serial.print(F("AUTO SIMULATION "));
++      Serial.println(g_autoSimulation ? F("ON") : F("OFF"));
++      writePersistentHeaderToDwin();
++    }
++    break;
++
++  case CMD_PROGRAM_LOAD:
++    if (!g_auto.running()) (void)loadProgramSlotV6(g_programSlot);
++    break;
++
++  case CMD_PROGRAM_SAVE:
++    (void)saveProgramSlotV6();
++    break;
++
++  case CMD_PROGRAM_DEFAULTS:
++    if (!g_auto.running()) {
++      g_programStorage.defaults(g_program, g_programSlot);
++      g_programDirty = true;
++      g_programIsDemo = false;
++      g_programSelectedZone = 0;
++      Serial.println(F("Program safe defaults loaded in RAM; calibration required"));
++      writeProgramToDwin();
++    }
++    break;
++
+   case CMD_SETTINGS:
+     setSystemMode(SystemModeV6::SETTINGS);
+     break;
+@@ -830,7 +1246,10 @@
+   case CMD_CLEAR_STATUS:
+     Serial.println(F("Status clear requested"));
+     (void)g_safety.clearEstopLatch();
++    if (!g_auto.running() && g_auto.error() != AUTO_ERR_NONE)
++      g_auto.stop(F("status clear"));
+     updateErrorMask();
++    writePersistentHeaderToDwin();
+     break;
+ 
+   case CMD_SENSOR_REINIT:
+@@ -884,10 +1303,8 @@
+     break;
+ 
+   case CMD_SAFETY_TOGGLE_LIMITS:
+-    if (!SAFETY_BENCH_MODE) {
+-      Serial.println(F("SAFETY limits toggle rejected outside BENCH mode"));
+-      break;
+-    }
++    // Controller-side limits may be disabled when the cabinet implements them
++    // as an external hardwired safety function. Actual state is always shown.
+     if (g_safety.limitsEnabled()) g_settings.vfd.safetyDisableMask |= SAFETY_DISABLE_LIMITS;
+     else                          g_settings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_LIMITS;
+     g_editSettings = g_settings;
+@@ -909,14 +1326,24 @@
+ 
+ void printBenchConsoleHelp()
+ {
+-  Serial.println(F("USB console: help | clear | diag | estop on/off | limits on/off | save | test h1/h2/v1/v2/all"));
++  Serial.println(F("USB console:"));
++  Serial.println(F("  help | clear | diag | estop on/off | limits on/off | save"));
++  Serial.println(F("  test h1/h2/v1/v2/all"));
++  Serial.println(F("  sim on | sim off | sim demo | auto | home | stop | pause | resume | next"));
++  Serial.println(F("  prog show | prog slot 1..4 | prog load | prog save | prog defaults"));
++  Serial.println(F("  set home X1 X2 | set travel Z1 Z2"));
++  Serial.println(F("  set zone N x X1 X2 | set zone N z Z1 Z2"));
++  Serial.println(F("  set dry x X1 X2 | set dry z Z1 Z2"));
++  Serial.println(F("  zone N on/off | zone N dip S | wait S | tilt MM | speed H V"));
++  Serial.println(F("  tilt speed P   (legacy global tilt speed, 1..100%)"));
++  Serial.println(F("  cap home | cap travel | cap zone N x/z | cap dry x/z"));
+ }
+ 
+ void setBenchSafetyFromConsole(bool estop, bool enabled)
+ {
+-  if (!SAFETY_BENCH_MODE && !enabled)
++  if (estop && !SAFETY_BENCH_MODE && !enabled)
+   {
+-    Serial.println(F("Console safety disable rejected outside BENCH mode"));
++    Serial.println(F("Console E-stop disable rejected outside BENCH mode"));
+     return;
+   }
+ 
+@@ -932,9 +1359,44 @@
+   Serial.println(F("Safety setting changed in RAM; type 'save' to persist"));
+ }
+ 
++bool setSimulationFromConsole(bool enabled)
++{
++  if (g_auto.running()) {
++    Serial.println(F("SIM change rejected while AUTO/HOME is running"));
++    return false;
++  }
++  if (enabled && (!SAFETY_BENCH_MODE || (VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED))) {
++    Serial.println(F("SIM rejected in FIELD/physical WRITE build"));
++    return false;
++  }
++  g_autoSimulation = enabled;
++  Serial.print(F("AUTO SIMULATION "));
++  Serial.println(enabled ? F("ON") : F("OFF"));
++  writePersistentHeaderToDwin();
++  return true;
++}
++
++bool consoleCoordinate(int value)
++{
++  return value >= 0 && value <= (int)LASER_MAX_MM;
++}
++
++bool consoleSetPair(int32_t out[2], int a, int b)
++{
++  if (!consoleCoordinate(a) || !consoleCoordinate(b)) {
++    Serial.print(F("Coordinate rejected; allowed 0.."));
++    Serial.print(LASER_MAX_MM);
++    Serial.println(F(" mm"));
++    return false;
++  }
++  out[0] = a;
++  out[1] = b;
++  return true;
++}
++
+ void serviceUsbConsole()
+ {
+-  static char line[40];
++  static char line[96];
+   static uint8_t len = 0;
+ 
+   while (Serial.available())
+@@ -943,7 +1405,7 @@
+     if (c == '\r') continue;
+     if (c != '\n')
+     {
+-      if (len + 1 < sizeof(line)) line[len++] = c;
++      if ((size_t)len + 1U < sizeof(line)) line[len++] = c;
+       continue;
+     }
+ 
+@@ -964,11 +1426,127 @@
+     else if (!strcmp(line, "test v1")) handleCommand(CMD_VFD_TEST_V1);
+     else if (!strcmp(line, "test v2")) handleCommand(CMD_VFD_TEST_V2);
+     else if (!strcmp(line, "test all")) handleCommand(CMD_VFD_TEST_ALL);
+-    else
+-    {
+-      Serial.print(F("Unknown USB console command: "));
+-      Serial.println(line);
+-      printBenchConsoleHelp();
++    else if (!strcmp(line, "auto")) handleCommand(CMD_AUTO);
++    else if (!strcmp(line, "home")) handleCommand(CMD_HOME);
++    else if (!strcmp(line, "stop")) handleCommand(CMD_STOP);
++    else if (!strcmp(line, "pause")) handleCommand(CMD_AUTO_PAUSE);
++    else if (!strcmp(line, "resume")) handleCommand(CMD_AUTO_RESUME);
++    else if (!strcmp(line, "next")) handleCommand(CMD_AUTO_OPERATOR_NEXT);
++    else if (!strcmp(line, "sim on")) (void)setSimulationFromConsole(true);
++    else if (!strcmp(line, "sim off")) (void)setSimulationFromConsole(false);
++    else if (!strcmp(line, "sim demo")) {
++      if (setSimulationFromConsole(true)) {
++        g_programStorage.demo(g_program);
++        g_programSlot = 0;
++        g_programSelectedZone = 0;
++        g_programDirty = true;
++        g_programIsDemo = true;
++        Serial.println(F("RAM-only SIM-DEMO loaded; it cannot be saved to EEPROM"));
++        writeProgramToDwin();
++        printProgramSummary();
++      }
++    }
++    else if (!strcmp(line, "prog show")) printProgramSummary();
++    else if (!strcmp(line, "prog load")) (void)loadProgramSlotV6(g_programSlot);
++    else if (!strcmp(line, "prog save")) (void)saveProgramSlotV6();
++    else if (!strcmp(line, "prog defaults")) handleCommand(CMD_PROGRAM_DEFAULTS);
++    else {
++      int n=0, a=0, b=0;
++      char word[12] = {0};
++      char word2[12] = {0};
++
++      if (sscanf(line, "prog slot %d", &n) == 1) {
++        if (n >= 1 && n <= AUTO_PROGRAM_SLOTS_V6 && !g_auto.running())
++          (void)loadProgramSlotV6((uint8_t)(n - 1));
++        else Serial.println(F("Program slot rejected; use 1..4 and STOP first"));
++      }
++      else if (sscanf(line, "set home %d %d", &a, &b) == 2) {
++        if (consoleSetPair(g_program.homeX, a, b)) {
++          g_program.validMask |= AUTO_PROGRAM_VALID_HOME_X; markProgramDirty();
++        }
++      }
++      else if (sscanf(line, "set travel %d %d", &a, &b) == 2) {
++        if (consoleSetPair(g_program.travelZ, a, b)) {
++          g_program.validMask |= AUTO_PROGRAM_VALID_TRAVEL_Z; markProgramDirty();
++        }
++      }
++      else if (sscanf(line, "set zone %d %11s %d %d", &n, word, &a, &b) == 4) {
++        if (n < 1 || n > AUTO_MAX_ZONES_V6 || g_auto.running()) {
++          Serial.println(F("Zone SET rejected"));
++        } else {
++          const uint8_t zi = (uint8_t)(n - 1);
++          if (zi >= g_program.zoneCount) {
++            g_program.zoneCount = zi + 1;
++            for (uint8_t i=0; i<g_program.zoneCount; ++i) g_program.order[i]=i;
++          }
++          AutoZoneV6 &z = g_program.zones[zi];
++          bool ok=false;
++          if (!strcmp(word,"x")) { ok=consoleSetPair(z.xMm,a,b); if(ok) z.validMask|=AUTO_ZONE_VALID_X; }
++          else if (!strcmp(word,"z")) { ok=consoleSetPair(z.zMm,a,b); if(ok) z.validMask|=AUTO_ZONE_VALID_Z; }
++          if (ok) { z.enabled=1; g_programSelectedZone=zi; markProgramDirty(); }
++          else if (strcmp(word,"x") && strcmp(word,"z")) Serial.println(F("Use x or z"));
++        }
++      }
++      else if (sscanf(line, "set dry %11s %d %d", word, &a, &b) == 3) {
++        bool ok=false;
++        if (!strcmp(word,"x")) { ok=consoleSetPair(g_program.dryX,a,b); if(ok) g_program.validMask|=AUTO_PROGRAM_VALID_DRY_X; }
++        else if (!strcmp(word,"z")) { ok=consoleSetPair(g_program.dryZ,a,b); if(ok) g_program.validMask|=AUTO_PROGRAM_VALID_DRY_Z; }
++        if (ok) {
++          g_program.dryValid = ((g_program.validMask & (AUTO_PROGRAM_VALID_DRY_X|AUTO_PROGRAM_VALID_DRY_Z)) ==
++                               (AUTO_PROGRAM_VALID_DRY_X|AUTO_PROGRAM_VALID_DRY_Z));
++          markProgramDirty();
++        }
++      }
++      else if (sscanf(line, "tilt speed %d", &a) == 1) {
++        if (a>=1 && a<=100 && !g_auto.running()) { g_program.tiltPercent=(uint8_t)a; markProgramDirty(); }
++        else Serial.println(F("Use: tilt speed 1..100 while stopped"));
++      }
++      else if (sscanf(line, "zone %d %11s %d", &n, word, &a) == 3) {
++        if (n < 1 || n > g_program.zoneCount || g_auto.running()) Serial.println(F("Zone command rejected"));
++        else {
++          AutoZoneV6 &z=g_program.zones[n-1]; bool ok=true;
++          if (!strcmp(word,"dip") && a>=0 && a<=36000) z.dipTimeS=(uint16_t)a;
++          else if (!strcmp(word,"wait") && a>=0 && a<=36000) z.stepWaitS=(uint16_t)a;
++          else if (!strcmp(word,"tilt") && a>=0 && a<=5000) z.tiltStepMm=(uint16_t)a;
++          else ok=false;
++          if(ok) { g_programSelectedZone=n-1; markProgramDirty(); }
++          else Serial.println(F("Use: zone N dip/wait/tilt VALUE"));
++        }
++      }
++      else if (sscanf(line, "zone %d speed %d %d", &n, &a, &b) == 3) {
++        if (n>=1 && n<=g_program.zoneCount && a>=1 && a<=100 && b>=1 && b<=100 && !g_auto.running()) {
++          AutoZoneV6 &z=g_program.zones[n-1]; z.movePercent=(uint8_t)a; z.verticalPercent=(uint8_t)b;
++          g_programSelectedZone=n-1; markProgramDirty();
++        } else Serial.println(F("Use: zone N speed H V, 1..100"));
++      }
++      else if (sscanf(line, "zone %d %11s", &n, word) == 2 && (!strcmp(word,"on") || !strcmp(word,"off"))) {
++        if (n>=1 && n<=g_program.zoneCount && !g_auto.running()) {
++          g_program.zones[n-1].enabled = !strcmp(word,"on") ? 1 : 0;
++          g_programSelectedZone=n-1; markProgramDirty();
++        } else Serial.println(F("Zone enable rejected"));
++      }
++      else if (sscanf(line, "cap zone %d %11s", &n, word) == 2) {
++        if (n>=1 && n<=AUTO_MAX_ZONES_V6 && !g_auto.running()) {
++          const uint8_t zi=(uint8_t)(n-1);
++          if (zi>=g_program.zoneCount) { g_program.zoneCount=zi+1; for(uint8_t i=0;i<g_program.zoneCount;++i)g_program.order[i]=i; }
++          g_programSelectedZone=zi;
++          if (!strcmp(word,"x")) handleCommand(CMD_PROGRAM_CAPTURE_ZONE_X);
++          else if (!strcmp(word,"z")) handleCommand(CMD_PROGRAM_CAPTURE_ZONE_Z);
++          else Serial.println(F("Use x or z"));
++        }
++      }
++      else if (sscanf(line, "cap %11s %11s", word, word2) == 2 && !strcmp(word,"dry")) {
++        if (!strcmp(word2,"x")) handleCommand(CMD_PROGRAM_CAPTURE_DRY_X);
++        else if (!strcmp(word2,"z")) handleCommand(CMD_PROGRAM_CAPTURE_DRY_Z);
++        else Serial.println(F("Use: cap dry x/z"));
++      }
++      else if (!strcmp(line,"cap home")) handleCommand(CMD_PROGRAM_CAPTURE_HOME);
++      else if (!strcmp(line,"cap travel")) handleCommand(CMD_PROGRAM_CAPTURE_TRAVEL);
++      else {
++        Serial.print(F("Unknown USB console command: "));
++        Serial.println(line);
++        printBenchConsoleHelp();
++      }
+     }
+   }
+ }
+@@ -978,11 +1556,11 @@
+   Serial.begin(DBG_BAUD);
+   delay(300);
+   Serial.println();
+-  Serial.println(F("========== V6 SENSOR CORE FAST CONTINUOUS START =========="));
++  Serial.println(F("========== V6 SYSTEM STEP9A AUTO/HOME START =========="));
++  Serial.print(F("FW: ")); Serial.println(F(FW_VERSION_V6_BRINGUP));
+ 
+   g_dwin.begin(DWIN_BAUD);
+   g_safety.begin();
+-  writeBootScreen();
+ 
+   if (!g_storage.load(g_settings))
+   {
+@@ -1005,33 +1583,48 @@
+ 
+   applySafetySettings(g_settings);
+   g_motor.begin(g_settings);
++  g_auto.begin(g_motor, g_settings);
++
++  // Programs live in a separate EEPROM area. Invalid/empty memory is never
++  // auto-filled with runnable coordinates: safe uncalibrated defaults stay in RAM.
++  g_programSlot = g_programStorage.loadActiveSlot();
++  (void)loadProgramSlotV6(g_programSlot);
++
+   if (g_safety.estopActive() || g_safety.estopLatched())
+   {
+-    // Power-up with an open/pressed safety chain must never leave a runnable
+-    // logical mode, even though physical MAX485 TX is still disabled in Step8A.
+     g_motor.stopAll(F("E-STOP at boot"));
+     g_systemMode = SystemModeV6::STOP;
+-    writeModeToDwin();
+   }
+-  writeMotorStateToDwin();
+-  writeSettingsToDwin(g_settings);
+ 
+   initSensorsFast();
++  writeBootScreen();
++  writeSettingsToDwin(g_settings);
++  writeProgramToDwin();
+   writeAllValuesToDwin();
+ 
+-  Serial.println(F("Commands: 0x0001 MANUAL, 0x0002 AUTO, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION"));
++  Serial.println(F("Commands: 0x0001 MANUAL, 0x0002 AUTO START, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION"));
+   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
+   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
+   Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
+-  Serial.println(F("Manual jog: 0x0101..0x010C build NE200 RTU frames, 0x010F JOG STOP"));
++  Serial.println(F("Manual jog: 0x0101..0x010C, 0x010F JOG STOP"));
++  Serial.println(F("AUTO: 0x0300 PAUSE, 0x0301 RESUME, 0x0302 OPERATOR NEXT, 0x0303 SIM TOGGLE"));
++  Serial.println(F("Program: 0x0310 LOAD, 0x0311 SAVE, 0x0312 DEFAULTS, 0x0320..0x032B capture/accept"));
++
+   if (!VFD_RS485_ENABLED)
+-    Serial.println(F("VFD layer: DRY-RUN; exact frames printed, MAX485 disabled"));
++    Serial.println(F("VFD layer: DRY-RUN; MAX485 disabled, exact RTU frames available for manual tests"));
+   else if (!VFD_WRITE_COMMANDS_ENABLED)
+     Serial.println(F("VFD layer: PHYSICAL RS485 READ-ONLY; all writes/motion blocked"));
++  else if (!AUTO_PHYSICAL_ENABLED)
++    Serial.println(F("VFD layer: FIELD MANUAL WRITE; physical AUTO/HOME compile-time BLOCKED"));
+   else
+-    Serial.println(F("VFD layer: PHYSICAL RS485 WRITE ENABLED"));
++    Serial.println(F("VFD layer: FIELD AUTO WRITE ENABLED"));
++
++  Serial.print(F("Physical AUTO/HOME interlock: "));
++  Serial.println(AUTO_PHYSICAL_ENABLED ? F("ENABLED") : F("BLOCKED"));
+   Serial.println(F("VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST"));
+   printBenchConsoleHelp();
++  printProgramSummary();
++
+   Serial.print(F("Safety inputs: "));
+   Serial.print(SAFETY_BENCH_MODE ? F("BENCH active-low") : F("FIELD NC active-high"));
+   Serial.print(F(" E-stop="));
+@@ -1054,17 +1647,19 @@
+ 
+   const bool safetyChanged = g_safety.service();
+   const bool estopBlocked = g_safety.estopActive() || g_safety.estopLatched();
+-  if (estopBlocked && (g_motor.isMotionActive() || g_systemMode != SystemModeV6::STOP))
++  if (estopBlocked && (g_auto.running() || g_motor.isMotionActive() || g_systemMode != SystemModeV6::STOP))
+   {
+-    // One transition to STOP is enough; keeping the latch set prevents any new
+-    // runnable mode until CMD_SAFETY_CLEAR is accepted.
++    if (g_auto.running()) g_auto.stop(g_safety.estopActive() ? F("E-STOP") : F("E-STOP latched"));
+     g_motor.stopAll(g_safety.estopActive() ? F("E-STOP") : F("E-STOP latched"));
+     g_systemMode = SystemModeV6::STOP;
+     writeModeToDwin();
+     writeMotorStateToDwin();
+   }
+-  else if (g_motor.isMotionActive() && g_safety.blocksMotorState(g_motor.stateCode()))
++  else if (g_systemMode == SystemModeV6::MANUAL &&
++           g_motor.isMotionActive() && g_safety.blocksMotorState(g_motor.stateCode()))
+   {
++    // In AUTO the runner knows the target direction and owns directional-limit
++    // handling. This generic check is intentionally MANUAL-only.
+     g_motor.stopAll(F("limit switch"));
+     g_systemMode = SystemModeV6::STOP;
+     writeModeToDwin();
+@@ -1076,6 +1671,33 @@
+     writePersistentHeaderToDwin();
+   }
+ 
++  // Automatic runner continuously generates logical H(+right) / V(+up) targets.
++  // In SIM no motor command is emitted. In physical builds start() itself enforces
++  // RS485 write + FIELD safety + explicit AUTO_PHYSICAL_ENABLED.
++  if ((g_systemMode == SystemModeV6::AUTO || g_systemMode == SystemModeV6::HOME) && g_auto.running())
++  {
++    const bool autoChanged = g_auto.service(now, buildAutoSensors(), estopBlocked, g_safety.limitMask());
++    if (autoChanged) {
++      writeMotorStateToDwin();
++      writePersistentHeaderToDwin();
++    }
++  }
++
++  // DONE or FAULT returns the high-level system to STOP while preserving the
++  // runner's terminal phase/error for DWIN diagnostics.
++  if ((g_systemMode == SystemModeV6::AUTO || g_systemMode == SystemModeV6::HOME) &&
++      !g_auto.running() &&
++      (g_auto.phase() == AutoRunnerV6::Phase::DONE || g_auto.phase() == AutoRunnerV6::Phase::FAULT))
++  {
++    const bool wasSimulation = g_auto.simulation();
++    g_systemMode = SystemModeV6::STOP;
++    if (wasSimulation) g_motor.autoStop(F("simulation terminal state"));
++    else g_motor.onModeChanged(SystemModeV6::STOP);
++    writeModeToDwin();
++    writeMotorStateToDwin();
++    writePersistentHeaderToDwin();
++  }
++
+   if (g_motor.service(now))
+   {
+     writeMotorStateToDwin();
+@@ -1089,7 +1711,7 @@
+     ++dwinFrames;
+     if (rxVp == VP_CMD)
+       handleCommand(rxValue);
+-    else if (!updatePendingSettingsFromVp(rxVp, rxValue))
++    else if (!updatePendingSettingsFromVp(rxVp, rxValue) && !updateProgramFromVp(rxVp, rxValue))
+     {
+       Serial.print(F("DWIN write ignored VP=0x"));
+       Serial.print(rxVp, HEX);
+@@ -1104,6 +1726,7 @@
+     lastUiMs = now;
+     writeModeToDwin();
+     writeMotorStateToDwin();
++    writeCoordinatesToDwin();
+     writePersistentHeaderToDwin();
+     updateErrorMask();
+   }
+@@ -1124,22 +1747,26 @@
+     Serial.print(g_safety.stateWord());
+     Serial.print(F(" lim=0x"));
+     Serial.print(g_safety.limitMask(), HEX);
+-    Serial.print(F(" se="));
+-    Serial.print(g_safety.estopEnabled() ? 1 : 0);
+-    Serial.print(F(" sl="));
+-    Serial.print(g_safety.limitsEnabled() ? 1 : 0);
++    Serial.print(F(" auto="));
++    Serial.print((uint8_t)g_auto.phase());
++    Serial.print('/');
++    Serial.print(g_auto.currentStep());
++    Serial.print('/');
++    Serial.print(g_auto.totalSteps());
++    if (g_auto.simulation()) Serial.print(F(" SIM"));
+     Serial.print(F(" X1="));
+-    Serial.print(g_sensor[SENSOR_X1].valueMm);
++    Serial.print(g_auto.simulation() ? g_auto.simPosition(SENSOR_X1) : g_sensor[SENSOR_X1].valueMm);
+     Serial.print(F(" a1="));
+     Serial.print(g_sensor[SENSOR_X1].lastValidMs ? (now - g_sensor[SENSOR_X1].lastValidMs) : 9999);
+     Serial.print(F(" X2="));
+-    Serial.print(g_sensor[SENSOR_X2].valueMm);
++    Serial.print(g_auto.simulation() ? g_auto.simPosition(SENSOR_X2) : g_sensor[SENSOR_X2].valueMm);
+     Serial.print(F(" a2="));
+     Serial.print(g_sensor[SENSOR_X2].lastValidMs ? (now - g_sensor[SENSOR_X2].lastValidMs) : 9999);
+     Serial.print(F(" Z1="));
+-    Serial.print(g_sensor[SENSOR_Z1].valueMm);
++    Serial.print(g_auto.simulation() ? g_auto.simPosition(SENSOR_Z1) : g_sensor[SENSOR_Z1].valueMm);
+     Serial.print(F(" Z2="));
+-    Serial.print(g_sensor[SENSOR_Z2].valueMm);
++    Serial.print(g_auto.simulation() ? g_auto.simPosition(SENSOR_Z2) : g_sensor[SENSOR_Z2].valueMm);
++    if (g_auto.error()) { Serial.print(F(" autoErr=")); Serial.print(g_auto.error()); }
+     Serial.println();
+   }
+ }
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/motor_control_v6.cpp /mnt/data/telfer-control-system-v6-system-step9a/src/motor_control_v6.cpp
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/motor_control_v6.cpp	2026-08-10 15:28:57.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/src/motor_control_v6.cpp	2026-08-10 18:19:01.572969511 +0000
+@@ -114,6 +114,24 @@
+   return code >= MOTOR_STATE_H1_FWD && code <= MOTOR_STATE_V_BOTH_DOWN;
+ }
+ 
++MotorStateV6 MotorControlV6::stateForAutoTargets(int16_t h1, int16_t h2,
++                                                       int16_t v1Up, int16_t v2Up) const
++{
++  if (h1 > 0 && h2 > 0) return MotorStateV6::H_BOTH_FWD;
++  if (h1 < 0 && h2 < 0) return MotorStateV6::H_BOTH_BWD;
++  if (h1 > 0) return MotorStateV6::H1_FWD;
++  if (h1 < 0) return MotorStateV6::H1_BWD;
++  if (h2 > 0) return MotorStateV6::H2_FWD;
++  if (h2 < 0) return MotorStateV6::H2_BWD;
++  if (v1Up > 0 && v2Up > 0) return MotorStateV6::V_BOTH_UP;
++  if (v1Up < 0 && v2Up < 0) return MotorStateV6::V_BOTH_DOWN;
++  if (v1Up > 0) return MotorStateV6::V1_UP;
++  if (v1Up < 0) return MotorStateV6::V1_DOWN;
++  if (v2Up > 0) return MotorStateV6::V2_UP;
++  if (v2Up < 0) return MotorStateV6::V2_DOWN;
++  return MotorStateV6::IDLE;
++}
++
+ bool MotorControlV6::requestManualMove(SystemModeV6 currentMode, MotorAxisV6 axis, MotorDirV6 dir)
+ {
+   if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED)
+@@ -153,6 +171,49 @@
+   return true;
+ }
+ 
++bool MotorControlV6::requestAutoTargets(SystemModeV6 currentMode,
++                                             int16_t h1RightPct, int16_t h2RightPct,
++                                             int16_t v1UpPct, int16_t v2UpPct)
++{
++  if (currentMode != SystemModeV6::AUTO && currentMode != SystemModeV6::HOME)
++  {
++    _motionActive = false;
++    _state = MotorStateV6::BLOCKED;
++    Serial.println(F("AUTO TARGET ignored: system is not AUTO/HOME"));
++    _vfd.block(F("not AUTO/HOME mode"));
++    return false;
++  }
++
++  if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED)
++  {
++    _motionActive = false;
++    _state = MotorStateV6::BLOCKED;
++    return _vfd.setAutoLogicalTargets(h1RightPct, h2RightPct, v1UpPct, v2UpPct);
++  }
++
++  _lastManualCmdMs = 0; // auto motion must never be killed by the manual jog watchdog
++  _motionActive = h1RightPct || h2RightPct || v1UpPct || v2UpPct;
++  _state = stateForAutoTargets(h1RightPct, h2RightPct, v1UpPct, v2UpPct);
++  return _vfd.setAutoLogicalTargets(h1RightPct, h2RightPct, v1UpPct, v2UpPct);
++}
++
++void MotorControlV6::autoStop(const __FlashStringHelper* reason)
++{
++  const bool announce = _motionActive || _state != MotorStateV6::STOPPED;
++  _motionActive = false;
++  _lastManualCmdMs = 0;
++  _state = MotorStateV6::STOPPED;
++  _vfd.setAutoLogicalTargets(0, 0, 0, 0);
++  if (announce) {
++    Serial.print(F("AUTO MOTION STOP"));
++    if (reason) {
++      Serial.print(F(" reason="));
++      Serial.print(reason);
++    }
++    Serial.println();
++  }
++}
++
+ void MotorControlV6::onModeChanged(SystemModeV6 mode)
+ {
+   Serial.print(F("MotorControlV6 mode hook: "));
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/program_v6.cpp /mnt/data/telfer-control-system-v6-system-step9a/src/program_v6.cpp
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/program_v6.cpp	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/src/program_v6.cpp	2026-08-10 18:29:37.538243114 +0000
+@@ -0,0 +1,218 @@
++#include "program_v6.h"
++#include <EEPROM.h>
++#include <stddef.h>
++#include <string.h>
++#include <stdio.h>
++
++static constexpr uint32_t AUTO_PROGRAM_MAGIC_V6 = 0x41503636UL; // 'AP66'
++static constexpr uint16_t AUTO_PROGRAM_VERSION_V6 = 1;
++static constexpr int EEPROM_AUTO_META_ADDR_V6 = 384;
++static constexpr int EEPROM_AUTO_BASE_ADDR_V6 = 512;
++static constexpr uint32_t AUTO_META_MAGIC_V6 = 0x41504D36UL; // 'APM6'
++
++struct AutoMetaV6 {
++  uint32_t magic;
++  uint8_t activeSlot;
++  uint8_t reserved;
++  uint16_t crc;
++};
++
++static uint16_t rollingCrcV6(const uint8_t* p, size_t n) {
++  uint16_t crc = 0x6A3D;
++  for (size_t i = 0; i < n; ++i) {
++    crc = (uint16_t)((crc << 3) | (crc >> 13));
++    crc ^= p[i];
++    crc = (uint16_t)(crc + 0x31u);
++  }
++  return crc;
++}
++
++static uint16_t metaCrc(const AutoMetaV6& m) {
++  return rollingCrcV6(reinterpret_cast<const uint8_t*>(&m), offsetof(AutoMetaV6, crc));
++}
++
++int ProgramStorageV6::slotAddress(uint8_t slot) const {
++  return EEPROM_AUTO_BASE_ADDR_V6 + (int)slot * (int)sizeof(AutoProgramV6);
++}
++
++uint16_t ProgramStorageV6::calcCrc(const AutoProgramV6& p) const {
++  return rollingCrcV6(reinterpret_cast<const uint8_t*>(&p), offsetof(AutoProgramV6, crc));
++}
++
++void ProgramStorageV6::defaults(AutoProgramV6& p, uint8_t slot) const {
++  memset(&p, 0, sizeof(p));
++  p.magic = AUTO_PROGRAM_MAGIC_V6;
++  p.version = AUTO_PROGRAM_VERSION_V6;
++  p.size = sizeof(AutoProgramV6);
++  snprintf(p.name, sizeof(p.name), "PROG%u", (unsigned)(slot + 1));
++  p.zoneCount = 1;
++  for (uint8_t i = 0; i < AUTO_MAX_ZONES_V6; ++i) {
++    p.order[i] = i;
++    AutoZoneV6& z = p.zones[i];
++    z.xMm[0] = 0;
++    z.xMm[1] = 0;
++    z.zMm[0] = 0;
++    z.zMm[1] = 0;
++    z.dipTimeS = 60;
++    z.tiltStepMm = 30;
++    z.stepWaitS = 30;
++    z.movePercent = 55;
++    z.verticalPercent = 45;
++    z.enabled = (i == 0) ? 1 : 0;
++    z.validMask = AUTO_ZONE_VALID_NONE; // capture is mandatory before real AUTO
++  }
++  p.homeX[0] = p.homeX[1] = 0;
++  p.travelZ[0] = p.travelZ[1] = 0;
++  p.dripWaitS = 45;
++  p.tiltPercent = 35;
++  p.lowSide = 0;
++  p.validMask = AUTO_PROGRAM_VALID_NONE;
++  p.dryingEnabled = 0;
++  p.dryValid = 0;
++  p.stagingZone = 0;
++  p.dryingTimeS = 1800;
++  p.dryX[0] = p.dryX[1] = 0;
++  p.dryZ[0] = p.dryZ[1] = 0;
++  p.crc = calcCrc(p);
++}
++
++void ProgramStorageV6::demo(AutoProgramV6& p) const {
++  defaults(p, 0);
++  strncpy(p.name, "SIM-DEMO", sizeof(p.name) - 1);
++  p.name[sizeof(p.name) - 1] = '\0';
++  p.zoneCount = 2;
++  p.homeX[0] = 1000; p.homeX[1] = 1000;
++  p.travelZ[0] = 1000; p.travelZ[1] = 1000;
++  p.validMask = AUTO_PROGRAM_VALID_HOME_X | AUTO_PROGRAM_VALID_TRAVEL_Z;
++  p.dripWaitS = 2;
++
++  p.zones[0].xMm[0] = 2000; p.zones[0].xMm[1] = 2000;
++  p.zones[0].zMm[0] = 500;  p.zones[0].zMm[1] = 500;
++  p.zones[0].dipTimeS = 3;
++  p.zones[0].tiltStepMm = 100;
++  p.zones[0].stepWaitS = 2;
++  p.zones[0].movePercent = 55;
++  p.zones[0].verticalPercent = 45;
++  p.zones[0].enabled = 1;
++  p.zones[0].validMask = AUTO_ZONE_VALID_ALL;
++
++  p.zones[1].xMm[0] = 3200; p.zones[1].xMm[1] = 3200;
++  p.zones[1].zMm[0] = 450;  p.zones[1].zMm[1] = 450;
++  p.zones[1].dipTimeS = 3;
++  p.zones[1].tiltStepMm = 80;
++  p.zones[1].stepWaitS = 2;
++  p.zones[1].movePercent = 55;
++  p.zones[1].verticalPercent = 45;
++  p.zones[1].enabled = 1;
++  p.zones[1].validMask = AUTO_ZONE_VALID_ALL;
++  p.order[0] = 0;
++  p.order[1] = 1;
++  p.crc = calcCrc(p);
++}
++
++bool ProgramStorageV6::validate(const AutoProgramV6& p) const {
++  if (p.magic != AUTO_PROGRAM_MAGIC_V6 || p.version != AUTO_PROGRAM_VERSION_V6 || p.size != sizeof(AutoProgramV6)) return false;
++  if (p.crc != calcCrc(p)) return false;
++  if (p.zoneCount < 1 || p.zoneCount > AUTO_MAX_ZONES_V6) return false;
++  if (p.lowSide > 1) return false;
++  if (p.tiltPercent < 1 || p.tiltPercent > 100) return false;
++  if (p.stagingZone >= p.zoneCount) return false;
++  for (uint8_t i = 0; i < p.zoneCount; ++i) {
++    if (p.order[i] >= p.zoneCount) return false;
++  }
++  for (uint8_t i = 0; i < AUTO_MAX_ZONES_V6; ++i) {
++    const AutoZoneV6& z = p.zones[i];
++    if (z.movePercent < 1 || z.movePercent > 100) return false;
++    if (z.verticalPercent < 1 || z.verticalPercent > 100) return false;
++    if (z.tiltStepMm > 5000) return false;
++    if (z.stepWaitS > 36000 || z.dipTimeS > 36000) return false;
++    if (z.validMask & (uint8_t)~AUTO_ZONE_VALID_ALL) return false;
++  }
++  return true;
++}
++
++uint8_t ProgramStorageV6::enabledZoneCount(const AutoProgramV6& p) const {
++  uint8_t n = 0;
++  for (uint8_t oi = 0; oi < p.zoneCount; ++oi) {
++    const uint8_t zid = p.order[oi];
++    if (zid < p.zoneCount && p.zones[zid].enabled) ++n;
++  }
++  return n;
++}
++
++bool ProgramStorageV6::readyForAuto(const AutoProgramV6& p) const {
++  AutoProgramV6 tmp = p;
++  tmp.magic = AUTO_PROGRAM_MAGIC_V6;
++  tmp.version = AUTO_PROGRAM_VERSION_V6;
++  tmp.size = sizeof(AutoProgramV6);
++  tmp.crc = calcCrc(tmp);
++  if (!validate(tmp)) return false;
++  const uint8_t required = AUTO_PROGRAM_VALID_HOME_X | AUTO_PROGRAM_VALID_TRAVEL_Z;
++  if ((p.validMask & required) != required) return false;
++  bool hasZone = false;
++  for (uint8_t oi = 0; oi < p.zoneCount; ++oi) {
++    const uint8_t zid = p.order[oi];
++    if (zid >= p.zoneCount) return false;
++    const AutoZoneV6& z = p.zones[zid];
++    if (!z.enabled) continue;
++    hasZone = true;
++    if ((z.validMask & AUTO_ZONE_VALID_ALL) != AUTO_ZONE_VALID_ALL) return false;
++  }
++  if (!hasZone) return false;
++  if (p.dryingEnabled) {
++    const uint8_t dryRequired = AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z;
++    if (!p.dryValid || (p.validMask & dryRequired) != dryRequired) return false;
++    // Staging uses the selected zone's X coordinate even if that process zone
++    // itself is disabled, therefore its X pair must be explicitly calibrated.
++    if (p.stagingZone >= p.zoneCount || (p.zones[p.stagingZone].validMask & AUTO_ZONE_VALID_X) == 0) return false;
++  }
++  return true;
++}
++
++bool ProgramStorageV6::load(uint8_t slot, AutoProgramV6& p) const {
++  if (slot >= AUTO_PROGRAM_SLOTS_V6) return false;
++  EEPROM.get(slotAddress(slot), p);
++  return validate(p);
++}
++
++bool ProgramStorageV6::save(uint8_t slot, AutoProgramV6& p) const {
++  if (slot >= AUTO_PROGRAM_SLOTS_V6) return false;
++  p.magic = AUTO_PROGRAM_MAGIC_V6;
++  p.version = AUTO_PROGRAM_VERSION_V6;
++  p.size = sizeof(AutoProgramV6);
++  p.crc = calcCrc(p);
++  if (!validate(p)) return false;
++  const int end = slotAddress(slot) + (int)sizeof(AutoProgramV6);
++  if (end > EEPROM.length()) return false;
++  EEPROM.put(slotAddress(slot), p);
++  return true;
++}
++
++uint8_t ProgramStorageV6::loadActiveSlot() const {
++  AutoMetaV6 m{};
++  EEPROM.get(EEPROM_AUTO_META_ADDR_V6, m);
++  if (m.magic != AUTO_META_MAGIC_V6 || m.activeSlot >= AUTO_PROGRAM_SLOTS_V6 || m.crc != metaCrc(m)) return 0;
++  return m.activeSlot;
++}
++
++void ProgramStorageV6::saveActiveSlot(uint8_t slot) const {
++  if (slot >= AUTO_PROGRAM_SLOTS_V6) return;
++  AutoMetaV6 m{};
++  m.magic = AUTO_META_MAGIC_V6;
++  m.activeSlot = slot;
++  m.crc = metaCrc(m);
++  EEPROM.put(EEPROM_AUTO_META_ADDR_V6, m);
++}
++
++uint16_t ProgramStorageV6::knownTimedSeconds(const AutoProgramV6& p) const {
++  uint32_t total = 0;
++  for (uint8_t oi = 0; oi < p.zoneCount; ++oi) {
++    const uint8_t zid = p.order[oi];
++    if (zid >= p.zoneCount || !p.zones[zid].enabled) continue;
++    total += p.zones[zid].stepWaitS;
++    total += p.zones[zid].dipTimeS;
++    total += p.dripWaitS;
++  }
++  if (p.dryingEnabled) total += p.dryingTimeS;
++  return total > 65535UL ? 65535 : (uint16_t)total;
++}
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/safety_v6.cpp /mnt/data/telfer-control-system-v6-system-step9a/src/safety_v6.cpp
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/safety_v6.cpp	2026-08-10 15:27:09.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/src/safety_v6.cpp	2026-08-10 18:27:12.149144834 +0000
+@@ -61,10 +61,9 @@
+ }
+ 
+ bool SafetyV6::setLimitsEnabled(bool enabled) {
+-  if (!enabled && !SAFETY_BENCH_MODE) {
+-    Serial.println(F("SAFETY CONFIG rejected: limits cannot be disabled in FIELD mode"));
+-    return false;
+-  }
++  // Controller-side limit monitoring is optional: some cabinets enforce end
++  // limits entirely in the hardwired safety/VFD circuit. E-stop is different
++  // and remains mandatory in FIELD mode.
+   _limitsEnabled = ENABLE_LIMIT_SWITCHES && enabled;
+   _limitMask = readLimitMask();
+   Serial.print(F("SAFETY LIMIT monitoring "));
+diff -ruN '--exclude=STEP8B_TO_STEP9A.patch' /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp /mnt/data/telfer-control-system-v6-system-step9a/src/vfd_driver_v6.cpp
+--- /mnt/data/step8b_work/telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp	2026-08-10 15:28:57.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9a/src/vfd_driver_v6.cpp	2026-08-10 18:16:29.232032820 +0000
+@@ -174,7 +174,52 @@
+   Serial.println(F("NE200 command queued; scheduler will emit one RTU transaction per step"));
+ }
+ 
++bool VfdDriverV6::setAutoLogicalTargets(int16_t h1RightPct, int16_t h2RightPct,
++                                             int16_t v1UpPct, int16_t v2UpPct) {
++  if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED) {
++    _status = VFD_STATUS_BLOCKED;
++    if (h1RightPct || h2RightPct || v1UpPct || v2UpPct)
++      Serial.println(F("AUTO WRITE BLOCKED by physical RS485 READ-ONLY build"));
++    return false;
++  }
++
++  int16_t logical[DRIVE_COUNT_V6] = {h1RightPct, h2RightPct, v1UpPct, v2UpPct};
++  bool changed = !_autoTargetKnown;
++  for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
++    if (logical[i] > 100) logical[i] = 100;
++    if (logical[i] < -100) logical[i] = -100;
++    if (_lastAutoLogical[i] != logical[i]) changed = true;
++  }
++
++  if (changed) {
++    Serial.print(F("AUTO TARGET logical H1/H2/V1up/V2up="));
++    for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
++      if (i) Serial.print('/');
++      Serial.print(logical[i]);
++      _lastAutoLogical[i] = logical[i];
++    }
++    Serial.println();
++    _autoTargetKnown = true;
++  }
++
++  // Existing NE200 convention: positive physical V request is Forward=DOWN.
++  // Automatic logic works in a much safer coordinate convention where +V means UP,
++  // hence the sign inversion for V1/V2 here.
++  _drives.setSpeed(DriveId::H1, logical[DRIVE_H1]);
++  _drives.setSpeed(DriveId::H2, logical[DRIVE_H2]);
++  _drives.setSpeed(DriveId::V1, (int16_t)-logical[DRIVE_V1]);
++  _drives.setSpeed(DriveId::V2, (int16_t)-logical[DRIVE_V2]);
++
++  const bool moving = logical[0] || logical[1] || logical[2] || logical[3];
++  _status = (VFD_DRY_RUN || !VFD_RS485_ENABLED)
++                ? VFD_STATUS_DRY_RUN
++                : (moving ? VFD_STATUS_MOVING : VFD_STATUS_READY);
++  return true;
++}
++
+ void VfdDriverV6::stopAll(const __FlashStringHelper* reason) {
++  _autoTargetKnown = false;
++  for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) _lastAutoLogical[i] = 0;
+   if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED) {
+     _drives.stopAll();
+   }
