@@ -29,7 +29,7 @@ static FastLaserSensor g_laserX2(g_sc16_1, Sc16Is752::Channel::B);
 static FastLaserSensor g_laserZ1(g_sc16_2, Sc16Is752::Channel::A);
 static FastLaserSensor g_laserZ2(g_sc16_2, Sc16Is752::Channel::B);
 
-static DwinLink g_dwin(Serial2);
+static DwinLink g_dwin(DESKTOP_SIMULATION_ENABLED?Serial:Serial2);
 static SettingsStorageV6 g_storage;
 static SettingsV6 g_settings;
 static SettingsV6 g_editSettings;
@@ -127,6 +127,12 @@ static SensorRuntimeFast g_sensor[SENSOR_COUNT] = {
     {&g_laserZ1, "Z1", SENSOR_Z1, VP_Z1, false, false, 0, 0, 0},
     {&g_laserZ2, "Z2", SENSOR_Z2, VP_Z2, false, false, 0, 0, 0},
 };
+#if V6_DESKTOP_SIMULATION_ENABLED
+#include "simulation_plant_v6.h"
+#include "direction_calibration_v6.h"
+static SimulationPlantV6 g_simPlant;
+static DirectionCalibrationV6 g_simDirections;
+#endif
 
 static SensorGuardV6 g_sensorGuard[SENSOR_COUNT];
 static bool g_sensorGuardEnabled = true;
@@ -903,6 +909,11 @@ void writeAllValuesToDwin()
 
 void initSensorsFast()
 {
+#if V6_DESKTOP_SIMULATION_ENABLED
+  for(uint8_t i=0;i<4;i++){g_sensor[i].hwOk=true;g_sensor[i].valid=true;g_sensor[i].rawMm=g_simPlant.raw(i);g_sensor[i].valueMm=g_storage.applyCalibration(g_settings,(SensorIndex)i,g_sensor[i].rawMm);g_sensor[i].lastValidMs=millis();}
+  Serial.println(F("SIM: virtual 5Hz sensors active; SC16IS752/SEN0366 not initialized"));
+  return;
+#endif
   Serial.println(F("=== SC16 SELF TEST FAST ==="));
   configureSensorGuards(millis(), true);
 
@@ -1093,6 +1104,15 @@ void serviceAlternatingX(uint32_t now)
 void serviceSensorsFast()
 {
   const uint32_t now = millis();
+#if V6_DESKTOP_SIMULATION_ENABLED
+  g_simPlant.tick(now);
+  if(g_simPlant.sampleDue(now))for(uint8_t i=0;i<4;i++){
+    auto& sensor=g_sensor[i];sensor.hwOk=true;sensor.valid=!(g_simPlant.sensorLostMask&(1u<<i));
+    if(sensor.valid){sensor.rawMm=g_simPlant.raw(i);sensor.valueMm=g_storage.applyCalibration(g_settings,(SensorIndex)i,sensor.rawMm);sensor.lastValidMs=now;g_simDirections.samples[i].add(sensor.rawMm,now);}
+    else g_simDirections.samples[i].add(-1,now);
+  }
+  return;
+#endif
 
   for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
   {
@@ -1342,9 +1362,10 @@ void zeroSensor(SensorIndex idx)
 
 bool loadProgramSlotV6(uint8_t slot)
 {
-  if (slot >= AUTO_PROGRAM_SLOTS_V6) return false;
-  AutoProgramV6 loaded{};
-  if (!g_programStorage.load(slot, loaded)) {
+  if (slot >= AUTO_PROGRAM_SLOTS_V6 || g_auto.running()) return false;
+  // No concurrent execution: load directly into the idle program instead of
+  // reserving another 336-byte AVR program on the command stack.
+  if (!g_programStorage.load(slot, g_program)) {
     g_programStorage.defaults(g_program, slot);
     g_programSlot = slot;
     g_programSelectedSlot = slot;
@@ -1360,7 +1381,6 @@ bool loadProgramSlotV6(uint8_t slot)
     writeProgramToDwin();
     return false;
   }
-  g_program = loaded;
   g_programSlot = slot;
   g_programSelectedSlot = slot;
   g_programCoordEditMask = 0;
@@ -2290,13 +2310,16 @@ void printStep9IServiceInfo()
 {
   Serial.print(F("@SERVICE_INFO fw=")); Serial.print(F(FW_VERSION_V6_BRINGUP));
   Serial.print(F(" build="));
-  if (HE200_FIELD_SERVICE) Serial.print(F("FIELD"));
+  if (DESKTOP_SIMULATION_ENABLED) Serial.print(F("SIM"));
+  else if (HE200_FIELD_SERVICE) Serial.print(F("FIELD"));
   else if (HE200_COMMISSIONING && VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED) Serial.print(F("READONLY"));
   else Serial.print(F("BENCH"));
   Serial.print(F(" audit=1 diagnosticLock=")); Serial.print(HE200_DIAGNOSTIC_LOCK ? 1 : 0);
   Serial.print(F(" native=")); Serial.print(HE200_NATIVE_PROTOCOL ? 1 : 0);
   Serial.print(F(" auto=")); Serial.print(AUTO_PHYSICAL_ENABLED ? 1 : 0);
   Serial.print(F(" dwinMotion=")); Serial.print(DWIN_MOTION_ENABLED ? 1 : 0);
+  Serial.print(F(" desktopSim="));Serial.print(DESKTOP_SIMULATION_ENABLED);
+  Serial.print(F(" physicalTx="));Serial.print(VFD_RS485_ENABLED&&VFD_WRITE_COMMANDS_ENABLED);
   Serial.print(F(" waveshare=")); Serial.println(RS485_AUTO_DIRECTION ? 1 : 0);
 }
 
@@ -2696,6 +2719,7 @@ void setup()
   if (!g_storage.load(g_settings))
   {
     g_storage.defaults(g_settings);
+    if(DESKTOP_SIMULATION_ENABLED)for(auto& profile:g_settings.drive)profile={10,40,10,0,100,8};
     g_settingsFault = true;
     Serial.println(F("Settings: invalid/missing EEPROM record, defaults in RAM"));
   }
@@ -2720,8 +2744,11 @@ void setup()
   g_settingsUiError = SETTINGS_VALID;
 
   applySafetySettings(g_settings);
-  g_motor.begin(g_settings);
+  if(!DESKTOP_SIMULATION_ENABLED)g_motor.begin(g_settings);
   g_auto.begin(g_motor, g_settings);
+#if V6_DESKTOP_SIMULATION_ENABLED
+  g_auto.externalSimulation(true);g_simPlant.begin(millis());webModelDirections();
+#endif
   g_he200Service.begin(g_motor);
 
   // Programs live in a separate EEPROM area. Invalid/empty memory is never
@@ -2730,7 +2757,7 @@ void setup()
   g_programSelectedSlot = g_programSlot;
   (void)loadProgramSlotV6(g_programSlot);
 
-  if (g_safety.estopActive() || g_safety.estopLatched())
+  if (!DESKTOP_SIMULATION_ENABLED&&(g_safety.estopActive() || g_safety.estopLatched()))
   {
     g_motor.stopAll(F("E-STOP at boot"));
     g_systemMode = SystemModeV6::STOP;
@@ -2746,7 +2773,7 @@ void setup()
   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
   Serial.println(F("Laser profile: SEN0366-compatible continuous 5Hz / 1mm / 10m"));
-  if (WEB_CONTROL_ENABLED) Serial.println(F("Step9K web control: boots DISARMED; measured directions required; program starts by operator button"));
+  if (WEB_CONTROL_ENABLED) Serial.println(F("Step9L web control: boots DISARMED; measured directions required; program starts by operator button"));
   else if (HE200_FIELD_SERVICE) Serial.println(F("Step9I service cockpit: native HE200 0x1000/0x2000/0x3000 writes runtime-gated; physical AUTO/HOME BLOCKED"));
   printStep9IServiceInfo();
   Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
@@ -2802,8 +2829,8 @@ void loop()
 
   const bool safetyChanged = g_safety.service();
   webService(millis());
-  const bool estopBlocked = g_safety.estopActive() || g_safety.estopLatched();
-  if (estopBlocked && (g_auto.running() || g_motor.isMotionActive() || g_systemMode != SystemModeV6::STOP))
+  const bool estopBlocked = DESKTOP_SIMULATION_ENABLED?webSafetyBlocked():(g_safety.estopActive() || g_safety.estopLatched());
+  if (!DESKTOP_SIMULATION_ENABLED&&estopBlocked && (g_auto.running() || g_motor.isMotionActive() || g_systemMode != SystemModeV6::STOP))
   {
     if (g_auto.running()) g_auto.stop(g_safety.estopActive() ? F("E-STOP") : F("E-STOP latched"));
     g_motor.stopAll(g_safety.estopActive() ? F("E-STOP") : F("E-STOP latched"));
@@ -2811,7 +2838,7 @@ void loop()
     writeModeToDwin();
     writeMotorStateToDwin();
   }
-  else if (g_systemMode == SystemModeV6::MANUAL &&
+  else if (!DESKTOP_SIMULATION_ENABLED&&g_systemMode == SystemModeV6::MANUAL &&
            g_motor.isMotionActive() && g_safety.blocksMotorState(g_motor.stateCode()))
   {
     // In AUTO the runner knows the target direction and owns directional-limit
@@ -2832,7 +2859,11 @@ void loop()
   // RS485 write + FIELD safety + explicit AUTO_PHYSICAL_ENABLED.
   if ((g_systemMode == SystemModeV6::AUTO || g_systemMode == SystemModeV6::HOME) && g_auto.running())
   {
-    const bool autoChanged = g_auto.service(now, buildAutoSensors(), estopBlocked, g_safety.limitMask());
+    const bool autoChanged = g_auto.service(webAutoClock(now), buildAutoSensors(), estopBlocked, DESKTOP_SIMULATION_ENABLED?0:g_safety.limitMask());
+#if V6_DESKTOP_SIMULATION_ENABLED
+    int16_t targets[4];for(uint8_t i=0;i<4;i++)targets[i]=g_auto.simulationTarget(i);
+    (void)webOutputTargets(targets);
+#endif
     if (autoChanged) {
       writeMotorStateToDwin();
       writePersistentHeaderToDwin();
@@ -2847,14 +2878,15 @@ void loop()
   {
     const bool wasSimulation = g_auto.simulation();
     g_systemMode = SystemModeV6::STOP;
-    if (wasSimulation) g_motor.autoStop(F("simulation terminal state"));
+    if (DESKTOP_SIMULATION_ENABLED) webReleaseOutput();
+    else if (wasSimulation) g_motor.autoStop(F("simulation terminal state"));
     else g_motor.onModeChanged(SystemModeV6::STOP);
     writeModeToDwin();
     writeMotorStateToDwin();
     writePersistentHeaderToDwin();
   }
 
-  {
+  if(!DESKTOP_SIMULATION_ENABLED){
     uint32_t ages[4];
     uint32_t lastSamples[4];
     for (uint8_t i = 0; i < 4; ++i) {
@@ -2869,7 +2901,7 @@ void loop()
     g_he200Service.service(now, serviceSafetyBlocked, ages, lastSamples);
   }
 
-  if (g_motor.service(now))
+  if (!DESKTOP_SIMULATION_ENABLED&&g_motor.service(now))
   {
     writeMotorStateToDwin();
   }

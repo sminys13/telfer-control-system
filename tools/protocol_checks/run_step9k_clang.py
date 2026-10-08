@@ -16,7 +16,8 @@ web = ['-DV6_WEB_CONTROL_ENABLED=1', '-DV6_VFD_RS485_ENABLED=1',
        '-DV6_VFD_WRITE_COMMANDS_ENABLED=1', '-DV6_HE200_FIELD_SERVICE=1',
        '-DV6_HE200_NATIVE_PROTOCOL=1', '-DV6_AUTO_PHYSICAL_ENABLED=1',
        '-DV6_SAFETY_BENCH_MODE=0', '-DV6_DWIN_MOTION_ENABLED=0']
-cases = [('test/diagnostic/test_web_commands.cpp', web)] + [
+sim = ['-DV6_DESKTOP_SIMULATION_ENABLED=1','-DV6_WEB_CONTROL_ENABLED=1','-DV6_DWIN_MOTION_ENABLED=0','-DV6_VFD_RS485_ENABLED=0','-DV6_VFD_WRITE_COMMANDS_ENABLED=0','-DV6_AUTO_PHYSICAL_ENABLED=0','-DV6_HE200_FIELD_SERVICE=0']
+cases = [('test/diagnostic/test_web_commands.cpp', web), ('test/diagnostic/test_bench_web.cpp',sim),('test/diagnostic/test_simulation_plant.cpp',[])] + [
     (source, []) for source in ['src/auto_runner_v6.cpp', 'src/program_v6.cpp',
                                'src/modbus.cpp', 'src/he200_audit_v6.cpp']]
 logs = []

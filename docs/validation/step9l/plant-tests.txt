@@ -1,0 +1,1 @@
+PASS: virtual ramps, raw directions/P0.09, startup block, named writes, offline, E-STOP latch, rate, coordinate bounds; no I/O

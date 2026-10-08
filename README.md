@@ -1,4 +1,12 @@
-# Active release: Step9K web control
+# Активный выпуск: Step9L — управление и настольная имитация
+
+Начните с [START_HERE_STEP9L_RU.md](START_HERE_STEP9L_RU.md). По умолчанию собирается `mega_v6_web_simulation`: реальные RS485 и SPI датчиков выключены. Пульт: http://127.0.0.1:8766/.
+
+[Анализ функций и интерфейса](docs/STEP9L_DESIGN_RU.md) · [Проверки](docs/VALIDATION_STEP9L.md)
+
+Код хранится в ветке `feature/step9l-simulation-dashboard`. Step9K сохранена отдельно в Git. Ниже — история проекта.
+
+# Архив выпуска Step9K web control
 
 Начните с [START_HERE_STEP9K_RU.md](START_HERE_STEP9K_RU.md). Профиль управления: `mega_v6_he200_web_control`.
 

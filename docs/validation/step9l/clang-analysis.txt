@@ -1,0 +1,13 @@
+test/diagnostic/test_web_commands.cpp: exit=0
+
+test/diagnostic/test_bench_web.cpp: exit=0
+
+test/diagnostic/test_simulation_plant.cpp: exit=0
+
+src/auto_runner_v6.cpp: exit=0
+
+src/program_v6.cpp: exit=0
+
+src/modbus.cpp: exit=0
+
+src/he200_audit_v6.cpp: exit=0

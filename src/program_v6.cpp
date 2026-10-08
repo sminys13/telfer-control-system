@@ -1,4 +1,5 @@
 #include "program_v6.h"
+#include "config_v6_bringup.h"
 #include <EEPROM.h>
 #include <stddef.h>
 #include <string.h>
@@ -6,8 +7,12 @@
 
 static constexpr uint32_t AUTO_PROGRAM_MAGIC_V6 = 0x41503636UL; // 'AP66'
 static constexpr uint16_t AUTO_PROGRAM_VERSION_V6 = 1;
-static constexpr int EEPROM_AUTO_META_ADDR_V6 = 384;
-static constexpr int EEPROM_AUTO_BASE_ADDR_V6 = 512;
+static constexpr int EEPROM_AUTO_META_ADDR_V6 = DESKTOP_SIMULATION_ENABLED ? 2100 : 384;
+static constexpr int EEPROM_AUTO_BASE_ADDR_V6 = DESKTOP_SIMULATION_ENABLED ? 2200 : 512;
+#if defined(__AVR__)
+static_assert(512 + sizeof(AutoProgramV6)*4 < 1920, "field programs must fit before simulation settings");
+static_assert(2200 + sizeof(AutoProgramV6)*4 < 3600, "simulation programs must fit before labels");
+#endif
 static constexpr uint32_t AUTO_META_MAGIC_V6 = 0x41504D36UL; // 'APM6'
 
 struct AutoMetaV6 {
@@ -110,15 +115,15 @@ void ProgramStorageV6::demo(AutoProgramV6& p) const {
   p.crc = calcCrc(p);
 }
 
-bool ProgramStorageV6::validate(const AutoProgramV6& p) const {
-  if (p.magic != AUTO_PROGRAM_MAGIC_V6 || p.version != AUTO_PROGRAM_VERSION_V6 || p.size != sizeof(AutoProgramV6)) return false;
-  if (p.crc != calcCrc(p)) return false;
+static bool validProgramFieldsV6(const AutoProgramV6& p) {
   if (p.zoneCount < 1 || p.zoneCount > AUTO_MAX_ZONES_V6) return false;
   if (p.lowSide > 1) return false;
   if (p.tiltPercent < 1 || p.tiltPercent > 100) return false;
   if (p.stagingZone >= p.zoneCount) return false;
+  uint16_t orderMask=0;
   for (uint8_t i = 0; i < p.zoneCount; ++i) {
-    if (p.order[i] >= p.zoneCount) return false;
+    if (p.order[i] >= p.zoneCount || (orderMask&(1u<<p.order[i]))) return false;
+    orderMask|=1u<<p.order[i];
   }
   for (uint8_t i = 0; i < AUTO_MAX_ZONES_V6; ++i) {
     const AutoZoneV6& z = p.zones[i];
@@ -131,6 +136,11 @@ bool ProgramStorageV6::validate(const AutoProgramV6& p) const {
   return true;
 }
 
+bool ProgramStorageV6::validate(const AutoProgramV6& p) const {
+  if (p.magic != AUTO_PROGRAM_MAGIC_V6 || p.version != AUTO_PROGRAM_VERSION_V6 || p.size != sizeof(AutoProgramV6)) return false;
+  return p.crc == calcCrc(p) && validProgramFieldsV6(p);
+}
+
 uint8_t ProgramStorageV6::enabledZoneCount(const AutoProgramV6& p) const {
   uint8_t n = 0;
   for (uint8_t oi = 0; oi < p.zoneCount; ++oi) {
@@ -141,12 +151,9 @@ uint8_t ProgramStorageV6::enabledZoneCount(const AutoProgramV6& p) const {
 }
 
 bool ProgramStorageV6::readyForAuto(const AutoProgramV6& p) const {
-  AutoProgramV6 tmp = p;
-  tmp.magic = AUTO_PROGRAM_MAGIC_V6;
-  tmp.version = AUTO_PROGRAM_VERSION_V6;
-  tmp.size = sizeof(AutoProgramV6);
-  tmp.crc = calcCrc(tmp);
-  if (!validate(tmp)) return false;
+  // RAM edits have no stored CRC yet; validate fields directly without a
+  // 336-byte AVR stack copy. load()/save() still validate header and CRC.
+  if (!validProgramFieldsV6(p)) return false;
   const uint8_t required = AUTO_PROGRAM_VALID_HOME_X | AUTO_PROGRAM_VALID_TRAVEL_Z;
   if ((p.validMask & required) != required) return false;
   bool hasZone = false;
@@ -183,7 +190,7 @@ bool ProgramStorageV6::save(uint8_t slot, AutoProgramV6& p) const {
   p.crc = calcCrc(p);
   if (!validate(p)) return false;
   const int end = slotAddress(slot) + (int)sizeof(AutoProgramV6);
-  if (end > EEPROM.length()) return false;
+  if (end < 0 || (unsigned)end > (unsigned)EEPROM.length()) return false;
   EEPROM.put(slotAddress(slot), p);
   return true;
 }

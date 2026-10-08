@@ -1,0 +1,1 @@
+PASS: offline table edit/reorder/clone/delete; strict firmware modes; SIM arm; one jog/release; correlated ACK/no heartbeat spam; UTF-8 name and transfer commit; dirty drafts; STOP cancels transfer; dashboard/mobile; zero JS errors

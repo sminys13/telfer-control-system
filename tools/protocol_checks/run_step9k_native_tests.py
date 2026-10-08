@@ -18,7 +18,10 @@ web = ['-DV6_WEB_CONTROL_ENABLED=1', '-DV6_VFD_RS485_ENABLED=1',
        '-DV6_VFD_WRITE_COMMANDS_ENABLED=1', '-DV6_HE200_FIELD_SERVICE=1',
        '-DV6_HE200_NATIVE_PROTOCOL=1', '-DV6_AUTO_PHYSICAL_ENABLED=1',
        '-DV6_SAFETY_BENCH_MODE=0', '-DV6_DWIN_MOTION_ENABLED=0']
+sim = ['-DV6_DESKTOP_SIMULATION_ENABLED=1', '-DV6_WEB_CONTROL_ENABLED=1', '-DV6_DWIN_MOTION_ENABLED=0', '-DV6_VFD_RS485_ENABLED=0', '-DV6_VFD_WRITE_COMMANDS_ENABLED=0', '-DV6_AUTO_PHYSICAL_ENABLED=0', '-DV6_HE200_FIELD_SERVICE=0']
 cases = [
+    ('plant', ['test/diagnostic/test_simulation_plant.cpp'], []),
+    ('bench', ['test/diagnostic/test_bench_web.cpp', 'src/auto_runner_v6.cpp', 'src/program_v6.cpp', 'src/settings_v6.cpp'], sim),
     ('policy', ['test/diagnostic/test_web_policy.cpp'], []),
     ('commands', ['test/diagnostic/test_web_commands.cpp', 'src/program_v6.cpp'], web),
     ('auto', ['test/diagnostic/test_auto_simulation.cpp', 'src/auto_runner_v6.cpp', 'src/program_v6.cpp'], []),
@@ -38,4 +41,10 @@ for name, sources, defines in cases:
     (out / (name + '-tests.log')).write_text(run.stdout + run.stderr, encoding='utf-8')
     print(name, 'exit=' + str(run.returncode), run.stdout.strip(), run.stderr.strip())
     failed |= run.returncode != 0
+bad = [flag for flag in sim if not flag.startswith('-DV6_VFD_RS485_ENABLED=')] + ['-DV6_VFD_RS485_ENABLED=1']
+barrier = subprocess.run(common + bad + ['-c', 'test/diagnostic/test_bench_web.cpp', '-o', str(out/'invalid-sim.o')], cwd=repo, capture_output=True, text=True)
+blocked = barrier.returncode != 0 and 'Desktop simulation must have all physical VFD outputs' in barrier.stderr
+(out/'barrier-tests.log').write_text(('PASS' if blocked else 'FAIL') + ': SIM with physical RS485 fails the required static_assert\n', encoding='utf-8')
+print('compile-time physical-output barrier:', 'PASS' if blocked else 'FAIL')
+failed |= not blocked
 raise SystemExit(failed)

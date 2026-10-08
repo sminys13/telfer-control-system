@@ -1,0 +1,28 @@
+{
+  "complete_byte_backup": false,
+  "reason": "bootloader EEPROM read duplicates output halves and skips alternate 8-byte blocks",
+  "regions": [
+    {
+      "name": "FIELD settings/programs",
+      "logical_start": 0,
+      "logical_end_exclusive": 1920,
+      "sampled_bytes": 960,
+      "sample_unchanged": true
+    },
+    {
+      "name": "FIELD names",
+      "logical_start": 3600,
+      "logical_end_exclusive": 3800,
+      "sampled_bytes": 104,
+      "sample_unchanged": true
+    },
+    {
+      "name": "FIELD directions",
+      "logical_start": 4000,
+      "logical_end_exclusive": 4032,
+      "sampled_bytes": 16,
+      "sample_unchanged": true
+    }
+  ],
+  "all_sampled_field_bytes_unchanged": true
+}

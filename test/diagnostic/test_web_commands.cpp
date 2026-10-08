@@ -26,7 +26,8 @@ static FakeSafety g_safety;
 struct FakeAuto {
  bool run=false,pauseFlag=false;unsigned starts=0;
  bool running(){return run;}bool paused(){return pauseFlag;}bool simulation(){return false;}bool waitOperator(){return false;}bool dryAlarm(){return false;}
- void stop(const __FlashStringHelper*){run=false;}void pause(){pauseFlag=true;}void resume(uint32_t){pauseFlag=false;}void operatorNext(){}
+ void stop(const __FlashStringHelper*){run=false;}void pause(uint32_t=0){pauseFlag=true;}void resume(uint32_t){pauseFlag=false;}void operatorNext(){}
+ uint32_t elapsedSeconds(uint32_t){return 0;}
  const __FlashStringHelper* phaseName(){return F("IDLE");}uint8_t zoneIndex(){return 0;}uint16_t currentStep(){return 1;}uint16_t totalSteps(){return 3;}uint16_t remainingWaitSeconds(uint32_t){return 0;}uint16_t error(){return 0;}
  int32_t simPosition(SensorIndex){return 0;}
  bool start(const AutoProgramV6&,int,bool,uint32_t){starts++;run=true;return true;}bool startHome(const AutoProgramV6&,int,bool,uint32_t){starts++;run=true;return true;}

@@ -1,0 +1,183 @@
+Processing mega_v6_sensor_core_fast (platform: atmelavr; board: megaatmega2560; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/atmelavr/megaatmega2560.html
+PLATFORM: Atmel AVR (5.1.0) > Arduino Mega or Mega 2560 ATmega2560 (Mega 2560)
+HARDWARE: ATMEGA2560 16MHz, 8KB RAM, 248KB Flash
+DEBUG: Current (avr-stub) External (avr-stub, simavr)
+PACKAGES:
+ - framework-arduino-avr @ 5.2.0
+ - toolchain-atmelavr @ 1.70300.191015 (7.3.0)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 5 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- EEPROM @ 2.0
+|-- SPI @ 1.0
+Building in release mode
+Compiling .pio\build\mega_v6_sensor_core_fast\src\main_v6_fast.cpp.o
+src\main_v6_fast.cpp: In function 'void serviceUsbConsole()':
+src\main_v6_fast.cpp:2662:47: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           if (!strcmp(word,"dip") && a>=0 && a<=36000) z.dipTimeS=(uint16_t)a;
+                                              ~^~~~~~~
+src\main_v6_fast.cpp:2663:53: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           else if (!strcmp(word,"wait") && a>=0 && a<=36000) z.stepWaitS=(uint16_t)a;
+                                                    ~^~~~~~~
+Linking .pio\build\mega_v6_sensor_core_fast\firmware.elf
+Checking size .pio\build\mega_v6_sensor_core_fast\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [======    ]  62.5% (used 5119 bytes from 8192 bytes)
+Flash: [===       ]  34.8% (used 88458 bytes from 253952 bytes)
+Building .pio\build\mega_v6_sensor_core_fast\firmware.hex
+_after_build(["buildprog"], [".pio\build\mega_v6_sensor_core_fast\firmware.hex"])
+========================= [SUCCESS] Took 2.77 seconds =========================
+
+Processing mega_v6_he200_waveshare_readonly (platform: atmelavr; board: megaatmega2560; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/atmelavr/megaatmega2560.html
+PLATFORM: Atmel AVR (5.1.0) > Arduino Mega or Mega 2560 ATmega2560 (Mega 2560)
+HARDWARE: ATMEGA2560 16MHz, 8KB RAM, 248KB Flash
+DEBUG: Current (avr-stub) External (avr-stub, simavr)
+PACKAGES:
+ - framework-arduino-avr @ 5.2.0
+ - toolchain-atmelavr @ 1.70300.191015 (7.3.0)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 5 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- EEPROM @ 2.0
+|-- SPI @ 1.0
+Building in release mode
+Compiling .pio\build\mega_v6_he200_waveshare_readonly\src\main_v6_fast.cpp.o
+src\main_v6_fast.cpp: In function 'void serviceUsbConsole()':
+src\main_v6_fast.cpp:2662:47: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           if (!strcmp(word,"dip") && a>=0 && a<=36000) z.dipTimeS=(uint16_t)a;
+                                              ~^~~~~~~
+src\main_v6_fast.cpp:2663:53: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           else if (!strcmp(word,"wait") && a>=0 && a<=36000) z.stepWaitS=(uint16_t)a;
+                                                    ~^~~~~~~
+Linking .pio\build\mega_v6_he200_waveshare_readonly\firmware.elf
+Checking size .pio\build\mega_v6_he200_waveshare_readonly\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [======    ]  62.3% (used 5107 bytes from 8192 bytes)
+Flash: [===       ]  34.5% (used 87652 bytes from 253952 bytes)
+Building .pio\build\mega_v6_he200_waveshare_readonly\firmware.hex
+_after_build(["buildprog"], [".pio\build\mega_v6_he200_waveshare_readonly\firmware.hex"])
+========================= [SUCCESS] Took 2.68 seconds =========================
+
+Processing mega_v6_he200_field_service (platform: atmelavr; board: megaatmega2560; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/atmelavr/megaatmega2560.html
+PLATFORM: Atmel AVR (5.1.0) > Arduino Mega or Mega 2560 ATmega2560 (Mega 2560)
+HARDWARE: ATMEGA2560 16MHz, 8KB RAM, 248KB Flash
+DEBUG: Current (avr-stub) External (avr-stub, simavr)
+PACKAGES:
+ - framework-arduino-avr @ 5.2.0
+ - toolchain-atmelavr @ 1.70300.191015 (7.3.0)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 5 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- EEPROM @ 2.0
+|-- SPI @ 1.0
+Building in release mode
+Compiling .pio\build\mega_v6_he200_field_service\src\main_v6_fast.cpp.o
+src\main_v6_fast.cpp: In function 'void serviceUsbConsole()':
+src\main_v6_fast.cpp:2662:47: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           if (!strcmp(word,"dip") && a>=0 && a<=36000) z.dipTimeS=(uint16_t)a;
+                                              ~^~~~~~~
+src\main_v6_fast.cpp:2663:53: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           else if (!strcmp(word,"wait") && a>=0 && a<=36000) z.stepWaitS=(uint16_t)a;
+                                                    ~^~~~~~~
+Linking .pio\build\mega_v6_he200_field_service\firmware.elf
+Checking size .pio\build\mega_v6_he200_field_service\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [======    ]  62.2% (used 5095 bytes from 8192 bytes)
+Flash: [====      ]  35.3% (used 89650 bytes from 253952 bytes)
+Building .pio\build\mega_v6_he200_field_service\firmware.hex
+_after_build(["buildprog"], [".pio\build\mega_v6_he200_field_service\firmware.hex"])
+========================= [SUCCESS] Took 2.74 seconds =========================
+
+Processing mega_v6_he200_web_control (platform: atmelavr; board: megaatmega2560; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/atmelavr/megaatmega2560.html
+PLATFORM: Atmel AVR (5.1.0) > Arduino Mega or Mega 2560 ATmega2560 (Mega 2560)
+HARDWARE: ATMEGA2560 16MHz, 8KB RAM, 248KB Flash
+DEBUG: Current (avr-stub) External (avr-stub, simavr)
+PACKAGES:
+ - framework-arduino-avr @ 5.2.0
+ - toolchain-atmelavr @ 1.70300.191015 (7.3.0)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 5 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- EEPROM @ 2.0
+|-- SPI @ 1.0
+Building in release mode
+Compiling .pio\build\mega_v6_he200_web_control\src\main_v6_fast.cpp.o
+src\main_v6_fast.cpp: In function 'void serviceUsbConsole()':
+src\main_v6_fast.cpp:2662:47: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           if (!strcmp(word,"dip") && a>=0 && a<=36000) z.dipTimeS=(uint16_t)a;
+                                              ~^~~~~~~
+src\main_v6_fast.cpp:2663:53: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           else if (!strcmp(word,"wait") && a>=0 && a<=36000) z.stepWaitS=(uint16_t)a;
+                                                    ~^~~~~~~
+Linking .pio\build\mega_v6_he200_web_control\firmware.elf
+Checking size .pio\build\mega_v6_he200_web_control\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [========  ]  83.9% (used 6877 bytes from 8192 bytes)
+Flash: [====      ]  42.9% (used 108932 bytes from 253952 bytes)
+Building .pio\build\mega_v6_he200_web_control\firmware.hex
+_after_build(["buildprog"], [".pio\build\mega_v6_he200_web_control\firmware.hex"])
+========================= [SUCCESS] Took 3.27 seconds =========================
+
+Processing mega_v6_web_simulation (platform: atmelavr; board: megaatmega2560; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/atmelavr/megaatmega2560.html
+PLATFORM: Atmel AVR (5.1.0) > Arduino Mega or Mega 2560 ATmega2560 (Mega 2560)
+HARDWARE: ATMEGA2560 16MHz, 8KB RAM, 248KB Flash
+DEBUG: Current (avr-stub) External (avr-stub, simavr)
+PACKAGES:
+ - framework-arduino-avr @ 5.2.0
+ - toolchain-atmelavr @ 1.70300.191015 (7.3.0)
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 5 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- EEPROM @ 2.0
+|-- SPI @ 1.0
+Building in release mode
+Compiling .pio\build\mega_v6_web_simulation\src\main_v6_fast.cpp.o
+src\main_v6_fast.cpp: In function 'void serviceUsbConsole()':
+src\main_v6_fast.cpp:2662:47: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           if (!strcmp(word,"dip") && a>=0 && a<=36000) z.dipTimeS=(uint16_t)a;
+                                              ~^~~~~~~
+src\main_v6_fast.cpp:2663:53: warning: comparison is always true due to limited range of data type [-Wtype-limits]
+           else if (!strcmp(word,"wait") && a>=0 && a<=36000) z.stepWaitS=(uint16_t)a;
+                                                    ~^~~~~~~
+Linking .pio\build\mega_v6_web_simulation\firmware.elf
+Checking size .pio\build\mega_v6_web_simulation\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [========  ]  83.3% (used 6820 bytes from 8192 bytes)
+Flash: [===       ]  33.5% (used 85030 bytes from 253952 bytes)
+Building .pio\build\mega_v6_web_simulation\firmware.hex
+_after_build(["buildprog"], [".pio\build\mega_v6_web_simulation\firmware.hex"])
+========================= [SUCCESS] Took 2.92 seconds =========================
+
+Environment                       Status    Duration
+--------------------------------  --------  ------------
+mega_v6_sensor_core_fast          SUCCESS   00:00:02.773
+mega_v6_he200_waveshare_readonly  SUCCESS   00:00:02.685
+mega_v6_he200_field_service       SUCCESS   00:00:02.736
+mega_v6_he200_web_control         SUCCESS   00:00:03.271
+mega_v6_web_simulation            SUCCESS   00:00:02.922
+========================= 5 succeeded in 00:00:14.387 =========================

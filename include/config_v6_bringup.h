@@ -3,14 +3,18 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-#define FW_VERSION_V6_BRINGUP "v6-system-step9k-web-control"
+#define FW_VERSION_V6_BRINGUP "v6-system-step9l-web-control"
 
 // Release lock: all physical FC06 writes are rejected at the transport boundary.
 #ifndef V6_WEB_CONTROL_ENABLED
   #define V6_WEB_CONTROL_ENABLED 0
 #endif
 static constexpr bool WEB_CONTROL_ENABLED = V6_WEB_CONTROL_ENABLED != 0;
-static constexpr bool HE200_DIAGNOSTIC_LOCK = !WEB_CONTROL_ENABLED;
+#ifndef V6_DESKTOP_SIMULATION_ENABLED
+  #define V6_DESKTOP_SIMULATION_ENABLED 0
+#endif
+static constexpr bool DESKTOP_SIMULATION_ENABLED = V6_DESKTOP_SIMULATION_ENABLED != 0;
+static constexpr bool HE200_DIAGNOSTIC_LOCK = !WEB_CONTROL_ENABLED || DESKTOP_SIMULATION_ENABLED;
 
 // =====================================================
 // Debug / UART
@@ -486,9 +490,12 @@ static constexpr bool RS485_AUTO_DIRECTION = (V6_RS485_AUTO_DIRECTION != 0);
 static constexpr bool HE200_NATIVE_PROTOCOL = (V6_HE200_NATIVE_PROTOCOL != 0);
 static constexpr bool HE200_FIELD_SERVICE = (V6_HE200_FIELD_SERVICE != 0);
 static constexpr bool DWIN_MOTION_ENABLED = (V6_DWIN_MOTION_ENABLED != 0);
-static_assert(!WEB_CONTROL_ENABLED || (HE200_FIELD_SERVICE && HE200_NATIVE_PROTOCOL &&
+static_assert(!WEB_CONTROL_ENABLED || DESKTOP_SIMULATION_ENABLED || (HE200_FIELD_SERVICE && HE200_NATIVE_PROTOCOL &&
               AUTO_PHYSICAL_ENABLED && VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED && !SAFETY_BENCH_MODE && !DWIN_MOTION_ENABLED),
               "Web control requires dedicated HE200 FIELD/NC native WRITE/AUTO build; DWIN input disabled");
+static_assert(!DESKTOP_SIMULATION_ENABLED || (WEB_CONTROL_ENABLED && !VFD_RS485_ENABLED &&
+              !VFD_WRITE_COMMANDS_ENABLED && !AUTO_PHYSICAL_ENABLED && !HE200_FIELD_SERVICE && !DWIN_MOTION_ENABLED),
+              "Desktop simulation must have all physical VFD outputs and DWIN commands disabled");
 static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // used only by manual-direction MAX485 builds
 // Baud/parity/stop bits/timeouts are now read from SettingsV6 and EEPROM.
 

@@ -1,0 +1,1 @@
+PASS: SIM with physical RS485 fails the required static_assert

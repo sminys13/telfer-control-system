@@ -1,0 +1,1 @@
+PASS: actual SIM web parser plus external AutoRunner/plant; jog, two-zone DONE, transfer commit, slot 4, EEPROM isolation, faults/E-STOP/frequency guard/lease; zero physical I/O

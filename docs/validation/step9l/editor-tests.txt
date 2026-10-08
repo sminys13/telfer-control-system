@@ -1,0 +1,1 @@
+PASS: zone reorder/duplicate/delete/resize 1..10, stage remap, ranges/UTF-8 name, all-disabled gate, 36000 s, JSON roundtrip

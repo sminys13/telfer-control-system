@@ -45,6 +45,7 @@ void AutoRunnerV6::resetRuntime() {
   _simLastMs = 0;
   _knownTimedSeconds = 0;
   _enabledZoneCount = 0;
+  for (uint8_t i=0;i<4;i++) _simTargets[i]=0;
 }
 
 const __FlashStringHelper* AutoRunnerV6::phaseName() const {
@@ -104,7 +105,7 @@ void AutoRunnerV6::seedSimulation(const AutoProgramV6& program, const AutoSensor
     _simPos[SENSOR_Z1] = program.travelZ[0];
     _simPos[SENSOR_Z2] = program.travelZ[1];
   }
-  _simLastMs = millis();
+  _simLastMs = _runStartMs;
 }
 
 bool AutoRunnerV6::realSensorsUsable(const AutoSensorsV6& sensors) const {
@@ -112,12 +113,13 @@ bool AutoRunnerV6::realSensorsUsable(const AutoSensorsV6& sensors) const {
 }
 
 int32_t AutoRunnerV6::pos(const AutoSensorsV6& sensors, SensorIndex idx) const {
-  return _simulation ? _simPos[idx] : sensors.mm[idx];
+  return _simulation && !_externalSimulation ? _simPos[idx] : sensors.mm[idx];
 }
 
 bool AutoRunnerV6::start(const AutoProgramV6& program, const AutoSensorsV6& sensors,
                          bool simulation, uint32_t nowMs) {
   resetRuntime();
+  _lastServiceMs = nowMs;
   _program = &program;
   _simulation = simulation;
   _homeOnly = false;
@@ -171,6 +173,7 @@ bool AutoRunnerV6::start(const AutoProgramV6& program, const AutoSensorsV6& sens
 bool AutoRunnerV6::startHome(const AutoProgramV6& program, const AutoSensorsV6& sensors,
                              bool simulation, uint32_t nowMs) {
   resetRuntime();
+  _lastServiceMs = nowMs;
   _program = &program;
   _simulation = simulation;
   _homeOnly = true;
@@ -213,7 +216,7 @@ void AutoRunnerV6::fail(AutoErrorV6 err, const __FlashStringHelper* reason) {
   _paused = false;
   _waitOperator = false;
   _phase = Phase::FAULT;
-  _runEndMs = millis();
+  _runEndMs = _lastServiceMs;
   _stateChanged = true;
   stopMotion();
   Serial.print(F("AUTO FAULT code="));
@@ -232,10 +235,10 @@ void AutoRunnerV6::stop(const __FlashStringHelper* reason) {
   resetRuntime();
 }
 
-void AutoRunnerV6::pause() {
+void AutoRunnerV6::pause(uint32_t nowMs) {
   if (!_running || _paused) return;
   _paused = true;
-  _pauseStartMs = millis();
+  _pauseStartMs = nowMs;
   stopMotion();
   Serial.println(F("AUTO PAUSED"));
 }
@@ -302,7 +305,7 @@ int16_t AutoRunnerV6::targetPct(SensorIndex idx, int32_t cur, int32_t target, ui
 }
 
 void AutoRunnerV6::integrateSimulation(uint32_t nowMs, int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up) {
-  if (!_simulation) return;
+  if (!_simulation || _externalSimulation) return;
   if (_simLastMs == 0) _simLastMs = nowMs;
   uint32_t dt = nowMs - _simLastMs;
   if (dt > 200) dt = 200;
@@ -317,13 +320,13 @@ void AutoRunnerV6::integrateSimulation(uint32_t nowMs, int16_t h1, int16_t h2, i
 }
 
 void AutoRunnerV6::commandTargets(int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up) {
-  if (_simulation) return;
+  if (_simulation) { _simTargets[0]=h1;_simTargets[1]=h2;_simTargets[2]=v1Up;_simTargets[3]=v2Up;return; }
   if (_motor && !_motor->requestAutoTargets(_motorMode, h1, h2, v1Up, v2Up))
     fail(AUTO_ERR_OUTPUT_DISABLED,F("runtime motion permit/direction missing"));
 }
 
 void AutoRunnerV6::stopMotion() {
-  if (_simulation) return;
+  if (_simulation) { for(uint8_t i=0;i<4;i++) _simTargets[i]=0;return; }
   if (_motor) _motor->autoStop(F("auto phase stop"));
 }
 
@@ -343,7 +346,7 @@ bool AutoRunnerV6::moveHorizontal(uint32_t nowMs, const AutoSensorsV6& sensors,
 
   const int32_t before1=_simPos[SENSOR_X1],before2=_simPos[SENSOR_X2];
   integrateSimulation(nowMs, h1, h2, 0, 0);
-  if(_simulation){_simPos[SENSOR_X1]=clippedSimulation(before1,_simPos[SENSOR_X1],x1);_simPos[SENSOR_X2]=clippedSimulation(before2,_simPos[SENSOR_X2],x2);}
+  if(_simulation&&!_externalSimulation){_simPos[SENSOR_X1]=clippedSimulation(before1,_simPos[SENSOR_X1],x1);_simPos[SENSOR_X2]=clippedSimulation(before2,_simPos[SENSOR_X2],x2);}
   // Re-evaluate after the virtual movement so simulation cannot oscillate around the target.
   h1 = targetPct(SENSOR_X1, pos(sensors, SENSOR_X1), x1, capPct);
   h2 = targetPct(SENSOR_X2, pos(sensors, SENSOR_X2), x2, capPct);
@@ -358,7 +361,7 @@ bool AutoRunnerV6::moveVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
   int16_t v2 = targetPct(SENSOR_Z2, pos(sensors, SENSOR_Z2), z2, capPct);
   const int32_t before1=_simPos[SENSOR_Z1],before2=_simPos[SENSOR_Z2];
   integrateSimulation(nowMs, 0, 0, v1, v2);
-  if(_simulation){_simPos[SENSOR_Z1]=clippedSimulation(before1,_simPos[SENSOR_Z1],z1);_simPos[SENSOR_Z2]=clippedSimulation(before2,_simPos[SENSOR_Z2],z2);}
+  if(_simulation&&!_externalSimulation){_simPos[SENSOR_Z1]=clippedSimulation(before1,_simPos[SENSOR_Z1],z1);_simPos[SENSOR_Z2]=clippedSimulation(before2,_simPos[SENSOR_Z2],z2);}
   v1 = targetPct(SENSOR_Z1, pos(sensors, SENSOR_Z1), z1, capPct);
   v2 = targetPct(SENSOR_Z2, pos(sensors, SENSOR_Z2), z2, capPct);
   commandTargets(0, 0, v1, v2);
@@ -372,7 +375,7 @@ bool AutoRunnerV6::moveOneVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
   int16_t v = targetPct(idx, pos(sensors, idx), target, capPct);
   const int32_t before=_simPos[idx];
   integrateSimulation(nowMs, 0, 0, side == 0 ? v : 0, side == 1 ? v : 0);
-  if(_simulation)_simPos[idx]=clippedSimulation(before,_simPos[idx],target);
+  if(_simulation&&!_externalSimulation)_simPos[idx]=clippedSimulation(before,_simPos[idx],target);
   v = targetPct(idx, pos(sensors, idx), target, capPct);
   commandTargets(0, 0, side == 0 ? v : 0, side == 1 ? v : 0);
   return v == 0;
@@ -458,6 +461,8 @@ uint16_t AutoRunnerV6::totalSteps() const {
 
 bool AutoRunnerV6::service(uint32_t nowMs, const AutoSensorsV6& sensors,
                            bool estopBlocked, uint8_t limitMask) {
+  _lastServiceMs=nowMs;
+  if(_simulation&&_externalSimulation)for(uint8_t i=0;i<4;i++)_simPos[i]=sensors.mm[i];
   _stateChanged = false;
   if (!_running) return false;
   if (_paused) { stopMotion(); return false; }

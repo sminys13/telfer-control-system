@@ -1,0 +1,1 @@
+PASS: actual web command parser with mock I/O; session/arm/calibration/frequency gates; jog/release; motion blocks writes; allowlist/range/compare-and-set; uint16 dwell; atomic readiness reset; STOP/deadman/E-STOP

@@ -1,0 +1,1497 @@
+[2026-10-08T20:17:42.680+04:00] RX ========== V6 SYSTEM STEP9I HE200 SERVICE COCKPIT START ==========
+[2026-10-08T20:17:42.683+04:00] RX FW: v6-system-step9l-web-control
+[2026-10-08T20:17:42.686+04:00] RX SafetyV6: mode=BENCH estop=ACTIVE limits=0x0
+[2026-10-08T20:17:42.691+04:00] RX Settings: invalid/missing EEPROM record, defaults in RAM
+[2026-10-08T20:17:42.696+04:00] RX HE200 commissioning profile enforced in RAM: 9600 8-N-1, addresses 1/2/3/4
+[2026-10-08T20:17:42.702+04:00] RX EEPROM is not modified automatically
+[2026-10-08T20:17:42.704+04:00] RX SAFETY E-STOP monitoring ENABLED
+[2026-10-08T20:17:42.706+04:00] RX SAFETY LIMIT monitoring ENABLED
+[2026-10-08T20:17:42.710+04:00] RX @GATE name=ALL result=RESET
+[2026-10-08T20:17:42.715+04:00] RX HE200 ServiceV6: runtime commissioning gates initialized
+[2026-10-08T20:17:42.721+04:00] RX Program slot 4 invalid/empty: safe uncalibrated defaults loaded in RAM
+[2026-10-08T20:17:42.729+04:00] RX SIM: virtual 5Hz sensors active; SC16IS752/SEN0366 not initialized
+[2026-10-08T20:17:42.737+04:00] RX Commands: 0x0001 MANUAL, 0x0002 AUTO START, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION
+[2026-10-08T20:17:42.742+04:00] RX Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL
+[2026-10-08T20:17:42.750+04:00] RX Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR
+[2026-10-08T20:17:42.756+04:00] RX Laser profile: SEN0366-compatible continuous 5Hz / 1mm / 10m
+[2026-10-08T20:17:42.764+04:00] RX Step9L web control: boots DISARMED; measured directions required; program starts by operator button
+[2026-10-08T20:17:42.778+04:00] RX @SERVICE_INFO fw=v6-system-step9l-web-control build=SIM audit=1 diagnosticLock=1 native=1 auto=0 dwinMotion=0 desktopSim=1 physicalTx=0 waveshare=1
+[2026-10-08T20:17:42.786+04:00] RX Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists
+[2026-10-08T20:17:42.789+04:00] RX Manual jog legacy: 0x0101..0x010C, 0x010F JOG STOP
+[2026-10-08T20:17:42.797+04:00] RX Manual hold-to-run: VP 0x1110 bit0..11, DGUS Bit Button/Inching; release=STOP
+[2026-10-08T20:17:42.802+04:00] RX AUTO: 0x0300 PAUSE, 0x0301 RESUME, 0x0302 OPERATOR NEXT, 0x0303 SIM TOGGLE
+[2026-10-08T20:17:42.816+04:00] RX Program: 0x0314..0x0317 SELECT SLOT, 0x0310 LOAD SELECTED, 0x0311 SAVE LOADED, 0x0312 DEFAULTS, 0x0318/19 PREV/NEXT, 0x031A TOGGLE, 0x0320..0x032B capture/accept
+[2026-10-08T20:17:42.824+04:00] RX VFD layer: DRY-RUN; MAX485 disabled, exact RTU frames available for manual tests
+[2026-10-08T20:17:42.829+04:00] RX RS485 transceiver direction: AUTO/Waveshare (Mega pin 6 unused)
+[2026-10-08T20:17:42.832+04:00] RX Physical AUTO/HOME interlock: BLOCKED
+[2026-10-08T20:17:42.840+04:00] RX VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST
+[2026-10-08T20:17:42.840+04:00] RX USB console:
+[2026-10-08T20:17:42.843+04:00] RX Step9I service cockpit commands:
+[2026-10-08T20:17:42.846+04:00] RX service info
+[2026-10-08T20:17:42.854+04:00] RX service preflight | service gate status | service gate reset | service stop  (all 4 drives)
+[2026-10-08T20:17:42.859+04:00] RX he200 audit all | he200 audit cancel (FC03 only, all four drives)
+[2026-10-08T20:17:42.865+04:00] RX he200 probe h1/h2/v1/v2/all (BLOCKED in diagnostic release)
+[2026-10-08T20:17:42.870+04:00] RX service pulse h1/h2/v1/v2/h/z pos/neg [pct 5..20] [ms 500..3000]
+[2026-10-08T20:17:42.873+04:00] RX service confirm h1/h2/v1/v2 pos/neg
+[2026-10-08T20:17:42.881+04:00] RX assist x/z pos/neg [basePct] | assist stop  (active pair) | assist clear
+[2026-10-08T20:17:42.884+04:00] RX help | clear | diag | estop on/off | limits on/off | save
+[2026-10-08T20:17:42.889+04:00] RX log quiet | log normal | log verbose
+[2026-10-08T20:17:42.892+04:00] RX test h1/h2/v1/v2/all | he200 comm | report
+[2026-10-08T20:17:42.897+04:00] RX laser profile [all/x/z]   (field profile: continuous 5Hz, 1mm, 10m)
+[2026-10-08T20:17:42.903+04:00] RX laser status | laser reset | laser reinit
+[2026-10-08T20:17:42.906+04:00] RX guard status | guard reset | guard on/off
+[2026-10-08T20:17:42.911+04:00] RX guard motion x/z on/off   (SHADOW stop evaluation only)
+[2026-10-08T20:17:42.916+04:00] RX laser config all/x/z/x1/x2/z1/z2 5/10/20   (experimental)
+[2026-10-08T20:17:42.922+04:00] RX laser continuous all/x/z/x1/x2/z1/z2 5/10/20 1/01   (experimental)
+[2026-10-08T20:17:42.927+04:00] RX laser alternate start 1/2/5/10 1/01 | laser alternate stop
+[2026-10-08T20:17:42.933+04:00] RX laser single x1/x2   (manual request while in single mode)
+[2026-10-08T20:17:42.938+04:00] RX sim on | sim off | sim demo | auto | home | stop | pause | resume | next
+[2026-10-08T20:17:42.946+04:00] RX prog show | prog slot 1..4 | prog load | prog save | prog defaults
+[2026-10-08T20:17:42.949+04:00] RX set home X1 X2 | set travel Z1 Z2
+[2026-10-08T20:17:42.952+04:00] RX set zone N x X1 X2 | set zone N z Z1 Z2
+[2026-10-08T20:17:42.954+04:00] RX set dry x X1 X2 | set dry z Z1 Z2
+[2026-10-08T20:17:42.960+04:00] RX zone N on/off | zone N dip S | wait S | tilt MM | speed H V
+[2026-10-08T20:17:42.965+04:00] RX tilt speed P   (legacy global tilt speed, 1..100%)
+[2026-10-08T20:17:42.971+04:00] RX cap home | cap travel | cap zone N x/z | cap dry x/z
+[2026-10-08T20:17:42.971+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:17:42.976+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=0 zones=1
+[2026-10-08T20:17:42.979+04:00] RX HOME X=0/0
+[2026-10-08T20:17:42.979+04:00] RX TRAVEL Z=0/0
+[2026-10-08T20:17:42.982+04:00] RX validMask=0x0 tiltSpeed=35%
+[2026-10-08T20:17:42.987+04:00] RX Z1 en=1 valid=0x0 X=0/0 Z=0/0 dip=60 tiltDiffMm=30 wait=30 H%=55 V%=45
+[2026-10-08T20:17:42.990+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:17:43.003+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=0 zones=1 home1=0 home2=0 travel1=0 travel2=0 drip=45 tiltPct=35 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:17:43.009+04:00] RX @ZONE n=1 en=1 valid=0x0 x1=0 x2=0 z1=0 z2=0 dip=60 wait=30 tilt=30 hpct=55 vpct=45
+[2026-10-08T20:17:43.020+04:00] RX SENSOR GUARD thresholds warning/stop/fault=450/650/5000ms recoveryFrames=5 SHADOW ONLY; no motor command
+[2026-10-08T20:17:43.044+04:00] RX @SENSOR_GUARD name=X1 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+[2026-10-08T20:17:43.069+04:00] RX @SENSOR_GUARD name=X2 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+[2026-10-08T20:17:43.096+04:00] RX @SENSOR_GUARD name=Z1 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+[2026-10-08T20:17:43.120+04:00] RX @SENSOR_GUARD name=Z2 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+[2026-10-08T20:17:43.126+04:00] RX @AXIS_GUARD axis=X state=NO_DATA motion=0 shadowStop=0
+[2026-10-08T20:17:43.131+04:00] RX @AXIS_GUARD axis=Z state=NO_DATA motion=0 shadowStop=0
+[2026-10-08T20:17:43.163+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:43.166+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:43.171+04:00] RX @WEB_MEMORY free=1127 minimum=1035 tx1=0 spi=0
+[2026-10-08T20:17:43.176+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:43.182+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.187+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.195+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.201+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.212+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=482 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.223+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=493 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.233+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=504 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.244+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=516 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.250+04:00] RX Safety inputs: BENCH active-low E-stop=ACTIVE limits=0x0
+[2026-10-08T20:17:43.253+04:00] RX Manual jog watchdog from EEPROM: ON 2500ms
+[2026-10-08T20:17:43.280+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:43.282+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:43.288+04:00] RX @WEB_MEMORY free=1127 minimum=976 tx1=0 spi=0
+[2026-10-08T20:17:43.293+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:43.299+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.304+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.310+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.318+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.329+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=68 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.340+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=79 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.350+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=89 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.360+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=100 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.777+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:43.780+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:43.785+04:00] RX @WEB_MEMORY free=1127 minimum=976 tx1=0 spi=0
+[2026-10-08T20:17:43.791+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:43.796+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.801+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.810+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.815+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:43.826+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=163 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.837+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=175 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.848+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=186 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:43.859+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=196 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.277+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:44.280+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:44.285+04:00] RX @WEB_MEMORY free=1127 minimum=967 tx1=0 spi=0
+[2026-10-08T20:17:44.291+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:44.296+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.302+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.310+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.315+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.326+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=259 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.337+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=270 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.348+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=281 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.359+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.477+04:00] TX service info
+[2026-10-08T20:17:44.477+04:00] TX web sim 9 reset @1001
+[2026-10-08T20:17:44.478+04:00] TX web ping 9
+[2026-10-08T20:17:44.495+04:00] RX @SERVICE_INFO fw=v6-system-step9l-web-control build=SIM audit=1 diagnosticLock=1 native=1 auto=0 dwinMotion=0 desktopSim=1 physicalTx=0 waveshare=1
+[2026-10-08T20:17:44.499+04:00] RX @WEB_ACK id=1001 ok=1
+[2026-10-08T20:17:44.526+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:44.528+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:44.534+04:00] RX @WEB_MEMORY free=669 minimum=577 tx1=0 spi=0
+[2026-10-08T20:17:44.539+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:44.545+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.550+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.556+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.564+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.575+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=208 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.585+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=219 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.596+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=230 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.607+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=242 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.729+04:00] TX web ping 9
+[2026-10-08T20:17:44.779+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:44.782+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:44.787+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:44.794+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:44.798+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.804+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.812+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.817+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:44.828+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=127 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.839+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=138 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.850+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=149 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.861+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=160 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:44.979+04:00] TX web ping 9
+[2026-10-08T20:17:45.230+04:00] TX web arm 9 @1002
+[2026-10-08T20:17:45.230+04:00] TX web ping 9
+[2026-10-08T20:17:45.240+04:00] RX @GATE name=PREFLIGHT result=PASS reason=WEB_READBACK_STOPPED
+[2026-10-08T20:17:45.245+04:00] RX @GATE name=PROTOCOL drive=H1 result=PASS
+[2026-10-08T20:17:45.248+04:00] RX @GATE name=PROTOCOL drive=H2 result=PASS
+[2026-10-08T20:17:45.250+04:00] RX @GATE name=PROTOCOL drive=V1 result=PASS
+[2026-10-08T20:17:45.256+04:00] RX @GATE name=PROTOCOL drive=V2 result=PASS
+[2026-10-08T20:17:45.256+04:00] RX @WEB_ACK id=1002 ok=1
+[2026-10-08T20:17:45.256+04:00] TX web info @1003
+[2026-10-08T20:17:45.283+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:45.286+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:45.291+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:45.297+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:45.302+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.307+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.313+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.321+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.332+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=231 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.343+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=241 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.354+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=252 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.365+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.392+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:45.394+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:45.397+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:45.403+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:45.411+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.416+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.422+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.427+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.438+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=338 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.449+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=348 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.460+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=360 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.460+04:00] TX web ping 9
+[2026-10-08T20:17:45.471+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=371 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.473+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:17:45.476+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:17:45.479+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:17:45.482+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:17:45.482+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:17:45.487+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=0 zones=1
+[2026-10-08T20:17:45.490+04:00] RX HOME X=0/0
+[2026-10-08T20:17:45.490+04:00] RX TRAVEL Z=0/0
+[2026-10-08T20:17:45.492+04:00] RX validMask=0x0 tiltSpeed=35%
+[2026-10-08T20:17:45.498+04:00] RX Z1 en=1 valid=0x0 X=0/0 Z=0/0 dip=60 tiltDiffMm=30 wait=30 H%=55 V%=45
+[2026-10-08T20:17:45.501+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:17:45.514+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=0 zones=1 home1=0 home2=0 travel1=0 travel2=0 drip=45 tiltPct=35 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:17:45.520+04:00] RX @ZONE n=1 en=1 valid=0x0 x1=0 x2=0 z1=0 z2=0 dip=60 wait=30 tilt=30 hpct=55 vpct=45
+[2026-10-08T20:17:45.522+04:00] RX @WEB_ORDER values=1
+[2026-10-08T20:17:45.528+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:17:45.530+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:17:45.531+04:00] RX @WEB_ACK id=1003 ok=1
+[2026-10-08T20:17:45.531+04:00] TX web jog 9 h1 pos 10 @1004
+[2026-10-08T20:17:45.558+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:45.561+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:45.566+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:45.571+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:45.577+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.582+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.590+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.596+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:45.607+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=505 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.618+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=516 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.628+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=528 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.640+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=538 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:45.642+04:00] RX @WEB_ACK id=1004 ok=1
+[2026-10-08T20:17:45.702+04:00] TX web ping 9
+[2026-10-08T20:17:45.828+04:00] TX web jog 9 h1 pos 10 @1005
+[2026-10-08T20:17:45.839+04:00] RX @WEB_ACK id=1005 ok=1
+[2026-10-08T20:17:45.953+04:00] TX web ping 9
+[2026-10-08T20:17:46.015+04:00] TX web jog 9 h1 pos 10 @1006
+[2026-10-08T20:17:46.024+04:00] RX @WEB_ACK id=1006 ok=1
+[2026-10-08T20:17:46.054+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=1 pulse=0 mode=1 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:46.057+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:46.062+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:46.068+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:46.073+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:46.081+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.087+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.092+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.103+04:00] RX @WEB_AXIS i=0 mm=1001 raw=1001 valid=1 hwOk=1 age=257 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.114+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=268 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.125+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=279 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.136+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=290 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.190+04:00] TX web jog 9 h1 pos 10 @1007
+[2026-10-08T20:17:46.190+04:00] TX web ping 9
+[2026-10-08T20:17:46.200+04:00] RX @WEB_ACK id=1007 ok=1
+[2026-10-08T20:17:46.376+04:00] TX web release 9 @1008
+[2026-10-08T20:17:46.383+04:00] RX @WEB_ACK id=1008 ok=1
+[2026-10-08T20:17:46.440+04:00] TX web ping 9
+[2026-10-08T20:17:46.556+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=1 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:46.558+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:46.564+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:46.569+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:46.575+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.580+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.588+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.594+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.605+04:00] RX @WEB_AXIS i=0 mm=1010 raw=1010 valid=1 hwOk=1 age=260 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.616+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.626+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.637+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.703+04:00] TX web ping 9
+[2026-10-08T20:17:46.889+04:00] TX web info @1009
+[2026-10-08T20:17:46.919+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=1 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:46.922+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:46.927+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:46.927+04:00] TX web ping 9
+[2026-10-08T20:17:46.932+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:46.938+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.943+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.951+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.957+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:46.968+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=122 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.979+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=133 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:46.990+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=144 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.000+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=156 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.003+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:17:47.006+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:17:47.008+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:17:47.009+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:17:47.011+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:17:47.017+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=0 zones=1
+[2026-10-08T20:17:47.017+04:00] RX HOME X=0/0
+[2026-10-08T20:17:47.019+04:00] RX TRAVEL Z=0/0
+[2026-10-08T20:17:47.022+04:00] RX validMask=0x0 tiltSpeed=35%
+[2026-10-08T20:17:47.028+04:00] RX Z1 en=1 valid=0x0 X=0/0 Z=0/0 dip=60 tiltDiffMm=30 wait=30 H%=55 V%=45
+[2026-10-08T20:17:47.030+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:17:47.041+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=0 zones=1 home1=0 home2=0 travel1=0 travel2=0 drip=45 tiltPct=35 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:17:47.049+04:00] RX @ZONE n=1 en=1 valid=0x0 x1=0 x2=0 z1=0 z2=0 dip=60 wait=30 tilt=30 hpct=55 vpct=45
+[2026-10-08T20:17:47.052+04:00] RX @WEB_ORDER values=1
+[2026-10-08T20:17:47.057+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:17:47.058+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:17:47.060+04:00] RX @WEB_ACK id=1009 ok=1
+[2026-10-08T20:17:47.060+04:00] TX web read v1 P6.03 @1010
+[2026-10-08T20:17:47.087+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=1 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=0
+[2026-10-08T20:17:47.090+04:00] RX @WEB_TIME elapsed=0 timed=135
+[2026-10-08T20:17:47.093+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:47.098+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:47.106+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:47.112+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:47.117+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:47.123+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:47.134+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=290 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.145+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=300 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.156+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=311 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.156+04:00] TX web ping 9
+[2026-10-08T20:17:47.169+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=323 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.173+04:00] RX @WEB_PARAM id=1010 drive=v1 key=P6.03 ok=1 raw=0 error=0 exception=0
+[2026-10-08T20:17:47.173+04:00] TX web write 9 v1 P6.03 0 1000 @1011
+[2026-10-08T20:17:47.189+04:00] RX @WEB_WRITE drive=v1 key=P6.03 before=0 requested=1000 after=1000 ok=1
+[2026-10-08T20:17:47.189+04:00] RX @WEB_ACK id=1011 ok=1
+[2026-10-08T20:17:47.189+04:00] TX web read v1 P6.03 @1012
+[2026-10-08T20:17:47.201+04:00] RX @WEB_PARAM id=1012 drive=v1 key=P6.03 ok=1 raw=1000 error=0 exception=0
+[2026-10-08T20:17:47.201+04:00] TX web write 9 v1 P6.03 1000 0 @1013
+[2026-10-08T20:17:47.216+04:00] RX @WEB_WRITE drive=v1 key=P6.03 before=1000 requested=0 after=0 ok=1
+[2026-10-08T20:17:47.216+04:00] RX @WEB_ACK id=1013 ok=1
+[2026-10-08T20:17:47.216+04:00] TX web sim 9 startup 1 @1014
+[2026-10-08T20:17:47.224+04:00] RX @WEB_ACK id=1014 ok=1
+[2026-10-08T20:17:47.224+04:00] TX web jog 9 v1 pos 10 @1015
+[2026-10-08T20:17:47.234+04:00] RX @WEB_ACK id=1015 ok=0 reason=JOG_FREQUENCY
+[2026-10-08T20:17:47.234+04:00] TX web sim 9 startup 0 @1016
+[2026-10-08T20:17:47.242+04:00] RX @WEB_ACK id=1016 ok=1
+[2026-10-08T20:17:47.242+04:00] TX web program 9 slot 4 @1017
+[2026-10-08T20:17:47.256+04:00] RX Program slot 4 invalid/empty: safe uncalibrated defaults loaded in RAM
+[2026-10-08T20:17:47.256+04:00] RX @WEB_ACK id=1017 ok=1
+[2026-10-08T20:17:47.256+04:00] TX web testplan 9 50 30 1 @1018
+[2026-10-08T20:17:47.258+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:17:47.261+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:17:47.264+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:17:47.266+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:17:47.267+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:17:47.272+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=0 zones=1
+[2026-10-08T20:17:47.275+04:00] RX HOME X=0/0
+[2026-10-08T20:17:47.275+04:00] RX TRAVEL Z=0/0
+[2026-10-08T20:17:47.277+04:00] RX validMask=0x0 tiltSpeed=35%
+[2026-10-08T20:17:47.283+04:00] RX Z1 en=1 valid=0x0 X=0/0 Z=0/0 dip=60 tiltDiffMm=30 wait=30 H%=55 V%=45
+[2026-10-08T20:17:47.286+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:17:47.299+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=0 zones=1 home1=0 home2=0 travel1=0 travel2=0 drip=45 tiltPct=35 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:17:47.305+04:00] RX @ZONE n=1 en=1 valid=0x0 x1=0 x2=0 z1=0 z2=0 dip=60 wait=30 tilt=30 hpct=55 vpct=45
+[2026-10-08T20:17:47.307+04:00] RX @WEB_ORDER values=1
+[2026-10-08T20:17:47.313+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:17:47.315+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:17:47.316+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:17:47.321+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=1 zones=2
+[2026-10-08T20:17:47.324+04:00] RX HOME X=1012/1000
+[2026-10-08T20:17:47.324+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:17:47.326+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:17:47.334+04:00] RX Z1 en=1 valid=0x3 X=1012/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:17:47.340+04:00] RX Z2 en=1 valid=0x3 X=1062/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:17:47.343+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:17:47.356+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=1 zones=2 home1=1012 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:17:47.364+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1012 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:17:47.373+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1062 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:17:47.374+04:00] RX @WEB_ACK id=1018 ok=1
+[2026-10-08T20:17:47.374+04:00] TX web start 9 auto @1019
+[2026-10-08T20:17:47.387+04:00] RX AUTO PHASE -> 1 PREP_TRAVEL
+[2026-10-08T20:17:47.387+04:00] TX web ping 9
+[2026-10-08T20:17:47.392+04:00] RX AUTO START program=PROG4 mode=SIMULATION
+[2026-10-08T20:17:47.392+04:00] RX @WEB_ACK id=1019 ok=1
+[2026-10-08T20:17:47.395+04:00] RX AUTO PHASE -> 2 MOVE_ZONE_H
+[2026-10-08T20:17:47.398+04:00] RX AUTO PHASE -> 3 LOWER_TILT
+[2026-10-08T20:17:47.400+04:00] RX AUTO PHASE -> 4 WAIT_AFTER_TILT
+[2026-10-08T20:17:47.403+04:00] RX AUTO PHASE -> 5 LOWER_BASE
+[2026-10-08T20:17:47.586+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=LOWER_BASE zone=1 step=5 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:47.589+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:17:47.592+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:47.597+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:47.602+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:47.610+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:47.610+04:00] TX web ping 9
+[2026-10-08T20:17:47.616+04:00] RX @HE200 name=V1 online=1 run001=184 set001=500 fault=0 outV=8 source=MODEL
+[2026-10-08T20:17:47.621+04:00] RX @HE200 name=V2 online=1 run001=184 set001=500 fault=0 outV=8 source=MODEL
+[2026-10-08T20:17:47.632+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=251 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.643+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.654+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=274 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.666+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=285 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:47.847+04:00] TX web ping 9
+[2026-10-08T20:17:48.087+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=LOWER_BASE zone=1 step=5 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:48.087+04:00] TX web ping 9
+[2026-10-08T20:17:48.090+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:17:48.093+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:48.098+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:48.104+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:48.112+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:48.117+04:00] RX @HE200 name=V1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:48.123+04:00] RX @HE200 name=V2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:48.134+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.145+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=273 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.156+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.168+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.346+04:00] TX web ping 9
+[2026-10-08T20:17:48.589+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=LOWER_BASE zone=1 step=5 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:48.589+04:00] TX web ping 9
+[2026-10-08T20:17:48.591+04:00] RX @WEB_TIME elapsed=1 timed=4
+[2026-10-08T20:17:48.594+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:48.599+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:48.605+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:48.613+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:48.618+04:00] RX @HE200 name=V1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:48.624+04:00] RX @HE200 name=V2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:48.635+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=262 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.646+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.657+04:00] RX @WEB_AXIS i=2 mm=984 raw=984 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.667+04:00] RX @WEB_AXIS i=3 mm=984 raw=984 valid=1 hwOk=1 age=295 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:48.671+04:00] RX AUTO PHASE -> 6 WAIT_DIP
+[2026-10-08T20:17:48.849+04:00] TX web ping 9
+[2026-10-08T20:17:49.088+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DIP zone=1 step=6 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:49.088+04:00] TX web ping 9
+[2026-10-08T20:17:49.090+04:00] RX @WEB_TIME elapsed=1 timed=4
+[2026-10-08T20:17:49.096+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:49.101+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:49.107+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.112+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.120+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.126+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.136+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.147+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.158+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.169+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.347+04:00] TX web ping 9
+[2026-10-08T20:17:49.589+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DIP zone=1 step=6 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:49.589+04:00] TX web ping 9
+[2026-10-08T20:17:49.591+04:00] RX @WEB_TIME elapsed=2 timed=4
+[2026-10-08T20:17:49.597+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:49.602+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:49.608+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.613+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.621+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.627+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:49.637+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.648+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.659+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.670+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:49.673+04:00] RX AUTO PHASE -> 7 RAISE_TILT_HIGH
+[2026-10-08T20:17:49.675+04:00] RX AUTO PHASE -> 8 WAIT_DRAIN
+[2026-10-08T20:17:49.865+04:00] TX web ping 9
+[2026-10-08T20:17:50.093+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DRAIN zone=1 step=8 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:50.093+04:00] TX web ping 9
+[2026-10-08T20:17:50.094+04:00] RX @WEB_TIME elapsed=2 timed=4
+[2026-10-08T20:17:50.099+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:50.104+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:50.110+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.115+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.123+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.129+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.140+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.150+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=274 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.162+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=286 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.172+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=296 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.362+04:00] TX web ping 9
+[2026-10-08T20:17:50.594+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DRAIN zone=1 step=8 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:50.594+04:00] TX web ping 9
+[2026-10-08T20:17:50.595+04:00] RX @WEB_TIME elapsed=3 timed=4
+[2026-10-08T20:17:50.600+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:50.605+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:50.611+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.616+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.624+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.630+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:50.641+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.652+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.662+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.673+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:50.676+04:00] RX AUTO PHASE -> 9 RAISE_TRAVEL
+[2026-10-08T20:17:50.859+04:00] TX web ping 9
+[2026-10-08T20:17:51.099+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=RAISE_TRAVEL zone=1 step=9 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:51.099+04:00] TX web ping 9
+[2026-10-08T20:17:51.102+04:00] RX @WEB_TIME elapsed=3 timed=4
+[2026-10-08T20:17:51.104+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:51.110+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:51.116+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:51.123+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:51.129+04:00] RX @HE200 name=V1 online=1 run001=467 set001=500 fault=0 outV=21 source=MODEL
+[2026-10-08T20:17:51.135+04:00] RX @HE200 name=V2 online=1 run001=467 set001=500 fault=0 outV=21 source=MODEL
+[2026-10-08T20:17:51.145+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=265 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.156+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=275 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.167+04:00] RX @WEB_AXIS i=2 mm=979 raw=979 valid=1 hwOk=1 age=286 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.179+04:00] RX @WEB_AXIS i=3 mm=979 raw=979 valid=1 hwOk=1 age=298 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.359+04:00] TX web ping 9
+[2026-10-08T20:17:51.600+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=RAISE_TRAVEL zone=1 step=9 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:51.600+04:00] TX web ping 9
+[2026-10-08T20:17:51.603+04:00] RX @WEB_TIME elapsed=4 timed=4
+[2026-10-08T20:17:51.605+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:51.611+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:51.616+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:51.624+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:51.630+04:00] RX @HE200 name=V1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:51.635+04:00] RX @HE200 name=V2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:51.646+04:00] RX @WEB_AXIS i=0 mm=1012 raw=1012 valid=1 hwOk=1 age=259 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.657+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=270 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.668+04:00] RX @WEB_AXIS i=2 mm=988 raw=988 valid=1 hwOk=1 age=280 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.679+04:00] RX @WEB_AXIS i=3 mm=988 raw=988 valid=1 hwOk=1 age=291 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:51.682+04:00] RX AUTO PHASE -> 10 NEXT_ZONE
+[2026-10-08T20:17:51.685+04:00] RX AUTO PHASE -> 2 MOVE_ZONE_H
+[2026-10-08T20:17:51.872+04:00] TX web ping 9
+[2026-10-08T20:17:52.103+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:52.103+04:00] TX web pause 9 @1020
+[2026-10-08T20:17:52.103+04:00] TX web ping 9
+[2026-10-08T20:17:52.105+04:00] RX @WEB_TIME elapsed=4 timed=4
+[2026-10-08T20:17:52.108+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:52.114+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:52.122+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:52.127+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:52.133+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.138+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.149+04:00] RX @WEB_AXIS i=0 mm=1013 raw=1013 valid=1 hwOk=1 age=260 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.160+04:00] RX @WEB_AXIS i=1 mm=1001 raw=1001 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.171+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.182+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.184+04:00] RX AUTO PAUSED
+[2026-10-08T20:17:52.186+04:00] RX @WEB_ACK id=1020 ok=1
+[2026-10-08T20:17:52.372+04:00] TX web ping 9
+[2026-10-08T20:17:52.605+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=1 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:52.605+04:00] TX web ping 9
+[2026-10-08T20:17:52.608+04:00] RX @WEB_TIME elapsed=4 timed=4
+[2026-10-08T20:17:52.611+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:52.616+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:52.622+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.630+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.635+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.641+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.651+04:00] RX @WEB_AXIS i=0 mm=1020 raw=1020 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.662+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.673+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.684+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.805+04:00] TX web info @1021
+[2026-10-08T20:17:52.837+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=1 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:52.837+04:00] TX web ping 9
+[2026-10-08T20:17:52.840+04:00] RX @WEB_TIME elapsed=4 timed=4
+[2026-10-08T20:17:52.843+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:52.848+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:52.854+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.862+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.867+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.873+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:52.884+04:00] RX @WEB_AXIS i=0 mm=1020 raw=1020 valid=1 hwOk=1 age=193 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.895+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=204 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.905+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=215 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.916+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=225 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:52.919+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:17:52.922+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:17:52.924+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:17:52.925+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:17:52.927+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:17:52.933+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=1 zones=2
+[2026-10-08T20:17:52.935+04:00] RX HOME X=1012/1000
+[2026-10-08T20:17:52.935+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:17:52.938+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:17:52.946+04:00] RX Z1 en=1 valid=0x3 X=1012/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:17:52.952+04:00] RX Z2 en=1 valid=0x3 X=1062/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:17:52.954+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:17:52.968+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=1 zones=2 home1=1012 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:17:52.976+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1012 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:17:52.984+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1062 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:17:52.984+04:00] RX @WEB_ORDER values=1,2
+[2026-10-08T20:17:52.990+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:17:52.992+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:17:52.994+04:00] RX @WEB_ACK id=1021 ok=1
+[2026-10-08T20:17:53.108+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=1 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:53.108+04:00] TX web ping 9
+[2026-10-08T20:17:53.111+04:00] RX @WEB_TIME elapsed=4 timed=4
+[2026-10-08T20:17:53.114+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:53.119+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:53.125+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.133+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.138+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.144+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.154+04:00] RX @WEB_AXIS i=0 mm=1020 raw=1020 valid=1 hwOk=1 age=154 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.165+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=165 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.176+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=175 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.188+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=187 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.364+04:00] TX web ping 9
+[2026-10-08T20:17:53.428+04:00] TX web info @1022
+[2026-10-08T20:17:53.459+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=1 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:53.462+04:00] RX @WEB_TIME elapsed=4 timed=4
+[2026-10-08T20:17:53.465+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:53.470+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:53.476+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.484+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.489+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.495+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.506+04:00] RX @WEB_AXIS i=0 mm=1020 raw=1020 valid=1 hwOk=1 age=104 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.517+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=115 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.528+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=126 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.538+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=137 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.541+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:17:53.544+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:17:53.546+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:17:53.547+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:17:53.549+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:17:53.555+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=1 zones=2
+[2026-10-08T20:17:53.557+04:00] RX HOME X=1012/1000
+[2026-10-08T20:17:53.557+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:17:53.560+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:17:53.568+04:00] RX Z1 en=1 valid=0x3 X=1012/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:17:53.574+04:00] RX Z2 en=1 valid=0x3 X=1062/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:17:53.576+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:17:53.590+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=1 zones=2 home1=1012 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:17:53.590+04:00] TX web ping 9
+[2026-10-08T20:17:53.598+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1012 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:17:53.606+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1062 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:17:53.606+04:00] RX @WEB_ORDER values=1,2
+[2026-10-08T20:17:53.612+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:17:53.615+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:17:53.617+04:00] RX @WEB_ACK id=1022 ok=1
+[2026-10-08T20:17:53.617+04:00] TX web resume 9 @1023
+[2026-10-08T20:17:53.644+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=1 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:53.647+04:00] RX @WEB_TIME elapsed=4 timed=4
+[2026-10-08T20:17:53.650+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:53.655+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:53.663+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.669+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.674+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.680+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:53.691+04:00] RX @WEB_AXIS i=0 mm=1020 raw=1020 valid=1 hwOk=1 age=289 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.702+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=301 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.713+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=311 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.723+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=322 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:53.727+04:00] RX AUTO RESUMED
+[2026-10-08T20:17:53.727+04:00] RX @WEB_ACK id=1023 ok=1
+[2026-10-08T20:17:53.852+04:00] TX web ping 9
+[2026-10-08T20:17:54.104+04:00] TX web ping 9
+[2026-10-08T20:17:54.142+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:54.144+04:00] RX @WEB_TIME elapsed=5 timed=4
+[2026-10-08T20:17:54.147+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:54.153+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:54.161+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:54.166+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:54.172+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:54.177+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:54.188+04:00] RX @WEB_AXIS i=0 mm=1021 raw=1021 valid=1 hwOk=1 age=257 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.199+04:00] RX @WEB_AXIS i=1 mm=1009 raw=1009 valid=1 hwOk=1 age=268 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.210+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=279 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.222+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=290 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.340+04:00] TX web ping 9
+[2026-10-08T20:17:54.595+04:00] TX web ping 9
+[2026-10-08T20:17:54.646+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:54.649+04:00] RX @WEB_TIME elapsed=5 timed=4
+[2026-10-08T20:17:54.651+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:54.657+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:54.665+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:54.670+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:54.676+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:54.681+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:54.692+04:00] RX @WEB_AXIS i=0 mm=1031 raw=1031 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.703+04:00] RX @WEB_AXIS i=1 mm=1018 raw=1018 valid=1 hwOk=1 age=274 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.714+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=285 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.726+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=296 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:54.844+04:00] TX web ping 9
+[2026-10-08T20:17:55.096+04:00] TX web ping 9
+[2026-10-08T20:17:55.147+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:55.149+04:00] RX @WEB_TIME elapsed=6 timed=4
+[2026-10-08T20:17:55.152+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:55.158+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:55.166+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:55.171+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:55.177+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:55.182+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:55.193+04:00] RX @WEB_AXIS i=0 mm=1041 raw=1041 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.204+04:00] RX @WEB_AXIS i=1 mm=1028 raw=1028 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.215+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.227+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.350+04:00] TX web ping 9
+[2026-10-08T20:17:55.603+04:00] TX web ping 9
+[2026-10-08T20:17:55.648+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=2 step=11 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:55.650+04:00] RX @WEB_TIME elapsed=6 timed=4
+[2026-10-08T20:17:55.653+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:55.659+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:55.667+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:55.672+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:55.678+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:55.683+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:55.694+04:00] RX @WEB_AXIS i=0 mm=1051 raw=1051 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.705+04:00] RX @WEB_AXIS i=1 mm=1038 raw=1038 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.716+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.727+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:55.729+04:00] RX AUTO PHASE -> 3 LOWER_TILT
+[2026-10-08T20:17:55.732+04:00] RX AUTO PHASE -> 4 WAIT_AFTER_TILT
+[2026-10-08T20:17:55.735+04:00] RX AUTO PHASE -> 5 LOWER_BASE
+[2026-10-08T20:17:55.854+04:00] TX web ping 9
+[2026-10-08T20:17:56.106+04:00] TX web ping 9
+[2026-10-08T20:17:56.149+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=LOWER_BASE zone=2 step=14 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:56.152+04:00] RX @WEB_TIME elapsed=7 timed=4
+[2026-10-08T20:17:56.155+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:56.160+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:56.166+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:56.174+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:56.179+04:00] RX @HE200 name=V1 online=1 run001=454 set001=500 fault=0 outV=20 source=MODEL
+[2026-10-08T20:17:56.185+04:00] RX @HE200 name=V2 online=1 run001=454 set001=500 fault=0 outV=20 source=MODEL
+[2026-10-08T20:17:56.196+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.207+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=273 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.217+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=285 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.229+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=295 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.356+04:00] TX web ping 9
+[2026-10-08T20:17:56.609+04:00] TX web ping 9
+[2026-10-08T20:17:56.650+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=LOWER_BASE zone=2 step=14 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:56.653+04:00] RX @WEB_TIME elapsed=7 timed=4
+[2026-10-08T20:17:56.656+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:56.661+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:56.667+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:56.675+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:56.680+04:00] RX @HE200 name=V1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:56.686+04:00] RX @HE200 name=V2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:56.697+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=262 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.708+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=273 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.719+04:00] RX @WEB_AXIS i=2 mm=984 raw=984 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.730+04:00] RX @WEB_AXIS i=3 mm=984 raw=984 valid=1 hwOk=1 age=295 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:56.733+04:00] RX AUTO PHASE -> 6 WAIT_DIP
+[2026-10-08T20:17:56.846+04:00] TX web ping 9
+[2026-10-08T20:17:57.100+04:00] TX web ping 9
+[2026-10-08T20:17:57.152+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DIP zone=2 step=15 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:57.153+04:00] RX @WEB_TIME elapsed=8 timed=4
+[2026-10-08T20:17:57.158+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:57.163+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:57.169+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.174+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.182+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.188+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.199+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=260 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.210+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.220+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=281 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.231+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=292 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.353+04:00] TX web ping 9
+[2026-10-08T20:17:57.603+04:00] TX web ping 9
+[2026-10-08T20:17:57.653+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DIP zone=2 step=15 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:57.654+04:00] RX @WEB_TIME elapsed=8 timed=4
+[2026-10-08T20:17:57.659+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:57.664+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:57.670+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.675+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.683+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.689+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:57.700+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=259 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.711+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.722+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.732+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=292 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:57.735+04:00] RX AUTO PHASE -> 7 RAISE_TILT_HIGH
+[2026-10-08T20:17:57.737+04:00] RX AUTO PHASE -> 8 WAIT_DRAIN
+[2026-10-08T20:17:57.854+04:00] TX web ping 9
+[2026-10-08T20:17:58.103+04:00] TX web ping 9
+[2026-10-08T20:17:58.154+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DRAIN zone=2 step=17 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:58.154+04:00] RX @WEB_TIME elapsed=9 timed=4
+[2026-10-08T20:17:58.159+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:58.165+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:58.170+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.176+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.184+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.189+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.200+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=260 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.211+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.222+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.233+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.355+04:00] TX web ping 9
+[2026-10-08T20:17:58.603+04:00] TX web ping 9
+[2026-10-08T20:17:58.657+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=WAIT_DRAIN zone=2 step=17 steps=21 wait=1 error=0 ready=1
+[2026-10-08T20:17:58.657+04:00] RX @WEB_TIME elapsed=9 timed=4
+[2026-10-08T20:17:58.663+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:58.668+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:58.673+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.679+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.687+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.692+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:58.703+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.714+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=274 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.725+04:00] RX @WEB_AXIS i=2 mm=978 raw=978 valid=1 hwOk=1 age=285 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.736+04:00] RX @WEB_AXIS i=3 mm=978 raw=978 valid=1 hwOk=1 age=296 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:58.738+04:00] RX AUTO PHASE -> 9 RAISE_TRAVEL
+[2026-10-08T20:17:58.853+04:00] TX web ping 9
+[2026-10-08T20:17:59.102+04:00] TX web ping 9
+[2026-10-08T20:17:59.159+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=RAISE_TRAVEL zone=2 step=18 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:59.161+04:00] RX @WEB_TIME elapsed=10 timed=4
+[2026-10-08T20:17:59.164+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:59.170+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:59.175+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:59.183+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:59.189+04:00] RX @HE200 name=V1 online=1 run001=464 set001=500 fault=0 outV=21 source=MODEL
+[2026-10-08T20:17:59.194+04:00] RX @HE200 name=V2 online=1 run001=464 set001=500 fault=0 outV=21 source=MODEL
+[2026-10-08T20:17:59.205+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.219+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=274 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.229+04:00] RX @WEB_AXIS i=2 mm=979 raw=979 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.239+04:00] RX @WEB_AXIS i=3 mm=979 raw=979 valid=1 hwOk=1 age=296 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.366+04:00] TX web ping 9
+[2026-10-08T20:17:59.617+04:00] TX web ping 9
+[2026-10-08T20:17:59.660+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=RAISE_TRAVEL zone=2 step=18 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:17:59.663+04:00] RX @WEB_TIME elapsed=10 timed=4
+[2026-10-08T20:17:59.665+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:17:59.671+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:17:59.676+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:59.684+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:17:59.690+04:00] RX @HE200 name=V1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:59.695+04:00] RX @HE200 name=V2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:17:59.706+04:00] RX @WEB_AXIS i=0 mm=1058 raw=1058 valid=1 hwOk=1 age=259 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.720+04:00] RX @WEB_AXIS i=1 mm=1045 raw=1045 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.730+04:00] RX @WEB_AXIS i=2 mm=988 raw=988 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.741+04:00] RX @WEB_AXIS i=3 mm=988 raw=988 valid=1 hwOk=1 age=292 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:17:59.742+04:00] RX AUTO PHASE -> 10 NEXT_ZONE
+[2026-10-08T20:17:59.744+04:00] RX AUTO PHASE -> 24 MOVE_HOME_Z
+[2026-10-08T20:17:59.748+04:00] RX AUTO PHASE -> 25 MOVE_HOME_X
+[2026-10-08T20:17:59.867+04:00] TX web ping 9
+[2026-10-08T20:18:00.119+04:00] TX web ping 9
+[2026-10-08T20:18:00.161+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_HOME_X zone=2 step=21 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:00.164+04:00] RX @WEB_TIME elapsed=11 timed=4
+[2026-10-08T20:18:00.166+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:00.172+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:00.180+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:00.186+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:00.191+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:00.196+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:00.207+04:00] RX @WEB_AXIS i=0 mm=1057 raw=1057 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.221+04:00] RX @WEB_AXIS i=1 mm=1044 raw=1044 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.229+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.240+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.357+04:00] TX web ping 9
+[2026-10-08T20:18:00.608+04:00] TX web ping 9
+[2026-10-08T20:18:00.665+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_HOME_X zone=2 step=21 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:00.667+04:00] RX @WEB_TIME elapsed=11 timed=4
+[2026-10-08T20:18:00.670+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:00.676+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:00.684+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:00.689+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:00.695+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:00.700+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:00.711+04:00] RX @WEB_AXIS i=0 mm=1047 raw=1047 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.724+04:00] RX @WEB_AXIS i=1 mm=1035 raw=1035 valid=1 hwOk=1 age=274 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.733+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=286 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.744+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=296 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:00.860+04:00] TX web ping 9
+[2026-10-08T20:18:01.109+04:00] TX web ping 9
+[2026-10-08T20:18:01.168+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_HOME_X zone=2 step=21 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:01.171+04:00] RX @WEB_TIME elapsed=12 timed=4
+[2026-10-08T20:18:01.174+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:01.179+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:01.187+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:01.193+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:01.198+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:01.204+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:01.214+04:00] RX @WEB_AXIS i=0 mm=1037 raw=1037 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.228+04:00] RX @WEB_AXIS i=1 mm=1024 raw=1024 valid=1 hwOk=1 age=274 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.236+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.247+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=296 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.374+04:00] TX web ping 9
+[2026-10-08T20:18:01.627+04:00] TX web ping 9
+[2026-10-08T20:18:01.669+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_HOME_X zone=2 step=21 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:01.672+04:00] RX @WEB_TIME elapsed=12 timed=4
+[2026-10-08T20:18:01.674+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:01.680+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:01.688+04:00] RX @HE200 name=H1 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:01.693+04:00] RX @HE200 name=H2 online=1 run001=500 set001=500 fault=0 outV=23 source=MODEL
+[2026-10-08T20:18:01.699+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:01.704+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:01.715+04:00] RX @WEB_AXIS i=0 mm=1027 raw=1027 valid=1 hwOk=1 age=258 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.729+04:00] RX @WEB_AXIS i=1 mm=1014 raw=1014 valid=1 hwOk=1 age=269 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.737+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=279 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.748+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=290 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:01.863+04:00] TX web ping 9
+[2026-10-08T20:18:01.951+04:00] RX AUTO PHASE -> 26 DONE
+[2026-10-08T20:18:01.953+04:00] RX AUTO PROGRAM DONE
+[2026-10-08T20:18:02.171+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=DONE zone=2 step=21 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:02.171+04:00] TX web ping 9
+[2026-10-08T20:18:02.171+04:00] RX @WEB_TIME elapsed=13 timed=4
+[2026-10-08T20:18:02.176+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:02.182+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:02.187+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.193+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.201+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.206+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.217+04:00] RX @WEB_AXIS i=0 mm=1017 raw=1017 valid=1 hwOk=1 age=258 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.228+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=270 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.239+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=280 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.250+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=291 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.429+04:00] TX web ping 9
+[2026-10-08T20:18:02.671+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=DONE zone=2 step=21 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:02.671+04:00] TX web start 9 steps @1024
+[2026-10-08T20:18:02.672+04:00] TX web ping 9
+[2026-10-08T20:18:02.672+04:00] RX @WEB_TIME elapsed=13 timed=4
+[2026-10-08T20:18:02.677+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:02.682+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:02.688+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.693+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.701+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.707+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:02.718+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=262 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.728+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.739+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.750+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=295 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:02.755+04:00] RX AUTO PHASE -> 1 PREP_TRAVEL
+[2026-10-08T20:18:02.760+04:00] RX AUTO START program=PROG4 mode=SIMULATION
+[2026-10-08T20:18:02.760+04:00] RX @WEB_ACK id=1024 ok=1
+[2026-10-08T20:18:02.763+04:00] RX AUTO PHASE -> 2 MOVE_ZONE_H
+[2026-10-08T20:18:02.765+04:00] RX AUTO PAUSED
+[2026-10-08T20:18:02.951+04:00] TX web ping 9
+[2026-10-08T20:18:03.174+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=1 waitOperator=0 dryAlarm=0 sim=1 phase=MOVE_ZONE_H zone=1 step=2 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:03.174+04:00] TX web next 9 @1025
+[2026-10-08T20:18:03.175+04:00] TX web ping 9
+[2026-10-08T20:18:03.177+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:03.180+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:03.185+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:03.191+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.199+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.204+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.210+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.221+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.232+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=274 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.242+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=285 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.253+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=296 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.256+04:00] RX AUTO RESUMED
+[2026-10-08T20:18:03.256+04:00] RX @WEB_ACK id=1025 ok=1
+[2026-10-08T20:18:03.259+04:00] RX AUTO PHASE -> 3 LOWER_TILT
+[2026-10-08T20:18:03.260+04:00] RX AUTO PAUSED
+[2026-10-08T20:18:03.452+04:00] TX web ping 9
+[2026-10-08T20:18:03.676+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=1 waitOperator=0 dryAlarm=0 sim=1 phase=LOWER_TILT zone=1 step=3 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:03.676+04:00] TX web ping 9
+[2026-10-08T20:18:03.679+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:03.681+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:03.687+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:03.692+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.700+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.706+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.711+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.722+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=262 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.733+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=273 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.744+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=283 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.755+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.812+04:00] TX web stop @1026
+[2026-10-08T20:18:03.818+04:00] RX AUTO STOP reason=web STOP
+[2026-10-08T20:18:03.820+04:00] RX @WEB_ACK id=1026 ok=1
+[2026-10-08T20:18:03.847+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:03.850+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:03.853+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:03.858+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:03.866+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.872+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.877+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.883+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:03.894+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=132 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.905+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=143 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.905+04:00] TX web ping 9
+[2026-10-08T20:18:03.915+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=154 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:03.927+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=164 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.175+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:04.175+04:00] TX web ping 9
+[2026-10-08T20:18:04.178+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:04.183+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:04.189+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:04.194+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.200+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.208+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.213+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.224+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=260 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.235+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.246+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.256+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.378+04:00] TX web arm 9 @1027
+[2026-10-08T20:18:04.387+04:00] RX @GATE name=PREFLIGHT result=PASS reason=WEB_READBACK_STOPPED
+[2026-10-08T20:18:04.392+04:00] RX @GATE name=PROTOCOL drive=H1 result=PASS
+[2026-10-08T20:18:04.395+04:00] RX @GATE name=PROTOCOL drive=H2 result=PASS
+[2026-10-08T20:18:04.398+04:00] RX @GATE name=PROTOCOL drive=V1 result=PASS
+[2026-10-08T20:18:04.398+04:00] TX web ping 9
+[2026-10-08T20:18:04.403+04:00] RX @GATE name=PROTOCOL drive=V2 result=PASS
+[2026-10-08T20:18:04.403+04:00] RX @WEB_ACK id=1027 ok=1
+[2026-10-08T20:18:04.403+04:00] TX web start 9 auto @1028
+[2026-10-08T20:18:04.430+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:04.433+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:04.438+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:04.444+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:04.449+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.455+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.460+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.468+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.479+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=216 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.490+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=227 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.501+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=238 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.511+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=248 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.514+04:00] RX AUTO PHASE -> 1 PREP_TRAVEL
+[2026-10-08T20:18:04.520+04:00] RX AUTO START program=PROG4 mode=SIMULATION
+[2026-10-08T20:18:04.520+04:00] RX @WEB_ACK id=1028 ok=1
+[2026-10-08T20:18:04.520+04:00] TX web sim 9 sensor v1 1 @1029
+[2026-10-08T20:18:04.522+04:00] RX AUTO PHASE -> 2 MOVE_ZONE_H
+[2026-10-08T20:18:04.525+04:00] RX AUTO PHASE -> 3 LOWER_TILT
+[2026-10-08T20:18:04.528+04:00] RX AUTO PHASE -> 4 WAIT_AFTER_TILT
+[2026-10-08T20:18:04.531+04:00] RX @WEB_ACK id=1029 ok=1
+[2026-10-08T20:18:04.533+04:00] RX AUTO PHASE -> 5 LOWER_BASE
+[2026-10-08T20:18:04.646+04:00] TX web ping 9
+[2026-10-08T20:18:04.679+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=2 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=1 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=LOWER_BASE zone=1 step=5 steps=21 wait=65535 error=0 ready=1
+[2026-10-08T20:18:04.682+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:04.685+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:04.690+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=4 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:04.695+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.703+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:04.709+04:00] RX @HE200 name=V1 online=1 run001=141 set001=500 fault=0 outV=6 source=MODEL
+[2026-10-08T20:18:04.714+04:00] RX @HE200 name=V2 online=1 run001=141 set001=500 fault=0 outV=6 source=MODEL
+[2026-10-08T20:18:04.725+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=203 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.736+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=214 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.747+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=1 hwOk=1 age=226 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.758+04:00] RX @WEB_AXIS i=3 mm=994 raw=994 valid=1 hwOk=1 age=236 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:04.762+04:00] RX AUTO STOP reason=web lease/sensor/safety
+[2026-10-08T20:18:04.883+04:00] TX web ping 9
+[2026-10-08T20:18:05.136+04:00] TX web info @1030
+[2026-10-08T20:18:05.136+04:00] TX web ping 9
+[2026-10-08T20:18:05.166+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=2 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:05.168+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:05.174+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:05.179+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=4 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:05.185+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.190+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.198+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.204+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.215+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=249 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.225+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=260 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.236+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=0 hwOk=1 age=713 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.247+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=281 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.250+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:18:05.253+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:18:05.253+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:18:05.255+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:18:05.258+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:18:05.264+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=1 zones=2
+[2026-10-08T20:18:05.264+04:00] RX HOME X=1012/1000
+[2026-10-08T20:18:05.266+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:18:05.269+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:18:05.275+04:00] RX Z1 en=1 valid=0x3 X=1012/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:05.283+04:00] RX Z2 en=1 valid=0x3 X=1062/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:05.285+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:18:05.299+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=1 zones=2 home1=1012 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:18:05.305+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1012 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:05.313+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1062 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:05.315+04:00] RX @WEB_ORDER values=1,2
+[2026-10-08T20:18:05.321+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:18:05.323+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:18:05.324+04:00] RX @WEB_ACK id=1030 ok=1
+[2026-10-08T20:18:05.324+04:00] TX web sim 9 sensor v1 0 @1031
+[2026-10-08T20:18:05.351+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=2 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:05.353+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:05.359+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:05.359+04:00] TX web ping 9
+[2026-10-08T20:18:05.364+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=4 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:05.370+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.375+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.381+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.389+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.400+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=433 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.410+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=444 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.421+04:00] RX @WEB_AXIS i=2 mm=994 raw=994 valid=0 hwOk=1 age=898 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.433+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=466 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.434+04:00] RX @WEB_ACK id=1031 ok=1
+[2026-10-08T20:18:05.625+04:00] TX web ping 9
+[2026-10-08T20:18:05.845+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=2 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:05.845+04:00] TX web ping 9
+[2026-10-08T20:18:05.848+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:05.853+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:05.859+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:05.864+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.870+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.878+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.883+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:05.894+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=253 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.905+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=265 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.916+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=275 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.927+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=286 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:05.987+04:00] TX web arm 9 @1032
+[2026-10-08T20:18:05.997+04:00] RX @GATE name=PREFLIGHT result=PASS reason=WEB_READBACK_STOPPED
+[2026-10-08T20:18:06.002+04:00] RX @GATE name=PROTOCOL drive=H1 result=PASS
+[2026-10-08T20:18:06.005+04:00] RX @GATE name=PROTOCOL drive=H2 result=PASS
+[2026-10-08T20:18:06.008+04:00] RX @GATE name=PROTOCOL drive=V1 result=PASS
+[2026-10-08T20:18:06.013+04:00] RX @GATE name=PROTOCOL drive=V2 result=PASS
+[2026-10-08T20:18:06.013+04:00] RX @WEB_ACK id=1032 ok=1
+[2026-10-08T20:18:06.013+04:00] TX web jog 9 v1 pos 10 @1033
+[2026-10-08T20:18:06.041+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:06.043+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:06.048+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:06.054+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:06.060+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.065+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.070+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.070+04:00] TX web ping 9
+[2026-10-08T20:18:06.078+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.089+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=156 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.100+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=167 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.111+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=178 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.123+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=189 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.123+04:00] RX @WEB_ACK id=1033 ok=1
+[2026-10-08T20:18:06.123+04:00] TX web sim 9 fault v1 1 @1034
+[2026-10-08T20:18:06.131+04:00] RX @WEB_ACK id=1034 ok=1
+[2026-10-08T20:18:06.318+04:00] TX web ping 9
+[2026-10-08T20:18:06.347+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=4 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:06.350+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:06.355+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:06.361+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=4 stuck=0
+[2026-10-08T20:18:06.366+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.372+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.380+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=1 outV=0 source=MODEL
+[2026-10-08T20:18:06.385+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.396+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=262 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.407+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.418+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.428+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=295 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.558+04:00] TX web ping 9
+[2026-10-08T20:18:06.750+04:00] TX web info @1035
+[2026-10-08T20:18:06.779+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=4 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:06.779+04:00] TX web ping 9
+[2026-10-08T20:18:06.782+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:06.787+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:06.793+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=4 stuck=0
+[2026-10-08T20:18:06.798+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.804+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.812+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=1 outV=0 source=MODEL
+[2026-10-08T20:18:06.817+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.828+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=192 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.839+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=203 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.850+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=214 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.861+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=225 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:06.863+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:18:06.866+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:18:06.866+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:18:06.869+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:18:06.872+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:18:06.877+04:00] RX loadedSlot=4 selectedSlot=4 name=PROG4 dirty=1 ready=1 zones=2
+[2026-10-08T20:18:06.877+04:00] RX HOME X=1012/1000
+[2026-10-08T20:18:06.880+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:18:06.883+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:18:06.888+04:00] RX Z1 en=1 valid=0x3 X=1012/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:06.896+04:00] RX Z2 en=1 valid=0x3 X=1062/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:06.899+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:18:06.912+04:00] RX @PROGRAM slot=4 selected=4 dirty=1 ready=1 zones=2 home1=1012 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:18:06.918+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1012 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:06.926+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1062 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:06.929+04:00] RX @WEB_ORDER values=1,2
+[2026-10-08T20:18:06.934+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:18:06.937+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:18:06.937+04:00] RX @WEB_ACK id=1035 ok=1
+[2026-10-08T20:18:06.937+04:00] TX web sim 9 fault v1 0 @1036
+[2026-10-08T20:18:06.964+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=4 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:06.967+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:06.972+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:06.978+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=4 stuck=0
+[2026-10-08T20:18:06.983+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.989+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:06.994+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=1 outV=0 source=MODEL
+[2026-10-08T20:18:07.002+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.002+04:00] TX web ping 9
+[2026-10-08T20:18:07.013+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=377 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.024+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=388 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.035+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=398 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.047+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=409 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.047+04:00] RX @WEB_ACK id=1036 ok=1
+[2026-10-08T20:18:07.237+04:00] TX web ping 9
+[2026-10-08T20:18:07.459+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=4 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:07.459+04:00] TX web arm 9 @1037
+[2026-10-08T20:18:07.459+04:00] TX web ping 9
+[2026-10-08T20:18:07.462+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:07.467+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:07.472+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:07.478+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.483+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.491+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.497+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.508+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=254 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.519+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=265 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.530+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=276 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.541+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=287 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.546+04:00] RX @GATE name=PREFLIGHT result=PASS reason=WEB_READBACK_STOPPED
+[2026-10-08T20:18:07.549+04:00] RX @GATE name=PROTOCOL drive=H1 result=PASS
+[2026-10-08T20:18:07.552+04:00] RX @GATE name=PROTOCOL drive=H2 result=PASS
+[2026-10-08T20:18:07.557+04:00] RX @GATE name=PROTOCOL drive=V1 result=PASS
+[2026-10-08T20:18:07.560+04:00] RX @GATE name=PROTOCOL drive=V2 result=PASS
+[2026-10-08T20:18:07.562+04:00] RX @WEB_ACK id=1037 ok=1
+[2026-10-08T20:18:07.562+04:00] TX web sim 9 estop 1 @1038
+[2026-10-08T20:18:07.589+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:07.592+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:07.595+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:07.600+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:07.606+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.614+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.619+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.625+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.636+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=89 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.647+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=101 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.657+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=111 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.669+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=122 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:07.670+04:00] RX @WEB_ACK id=1038 ok=1
+[2026-10-08T20:18:07.724+04:00] TX web ping 9
+[2026-10-08T20:18:07.960+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=3 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=3 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:07.960+04:00] TX web ping 9
+[2026-10-08T20:18:07.962+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:07.968+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:07.973+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:07.979+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.984+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.992+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:07.998+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.009+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=61 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.019+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=72 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.030+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=84 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.040+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=94 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.226+04:00] TX web clear 9 @1039
+[2026-10-08T20:18:08.226+04:00] TX web ping 9
+[2026-10-08T20:18:08.235+04:00] RX @WEB_ACK id=1039 ok=0 reason=ESTOP_STILL_ACTIVE_OR_BUSY
+[2026-10-08T20:18:08.235+04:00] TX web sim 9 estop 0 @1040
+[2026-10-08T20:18:08.241+04:00] RX @WEB_ACK id=1040 ok=1
+[2026-10-08T20:18:08.241+04:00] TX web clear 9 @1041
+[2026-10-08T20:18:08.246+04:00] RX @WEB_ACK id=1041 ok=1
+[2026-10-08T20:18:08.246+04:00] TX web arm 9 @1042
+[2026-10-08T20:18:08.273+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=3 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:08.276+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:08.281+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:08.287+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:08.292+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.298+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.303+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.309+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.322+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=174 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.333+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=186 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.344+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=196 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.355+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=207 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.358+04:00] RX @GATE name=PREFLIGHT result=PASS reason=WEB_READBACK_STOPPED
+[2026-10-08T20:18:08.363+04:00] RX @GATE name=PROTOCOL drive=H1 result=PASS
+[2026-10-08T20:18:08.366+04:00] RX @GATE name=PROTOCOL drive=H2 result=PASS
+[2026-10-08T20:18:08.368+04:00] RX @GATE name=PROTOCOL drive=V1 result=PASS
+[2026-10-08T20:18:08.374+04:00] RX @GATE name=PROTOCOL drive=V2 result=PASS
+[2026-10-08T20:18:08.374+04:00] RX @WEB_ACK id=1042 ok=1
+[2026-10-08T20:18:08.401+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:08.404+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:08.409+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:08.414+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:08.420+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.425+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.431+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.439+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.450+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=302 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.461+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=314 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.472+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=325 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.482+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=335 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.510+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:08.512+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:08.515+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:08.521+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:08.526+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.534+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.540+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.545+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:08.556+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=410 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.567+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=421 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.578+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=431 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:08.589+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=443 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.004+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:09.007+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:09.012+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:09.017+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:09.023+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.028+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.036+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.042+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.053+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=256 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.064+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=267 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.075+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=278 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.085+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=288 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.506+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:09.508+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:09.514+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:09.519+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:09.525+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.530+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.538+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.544+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:09.554+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.565+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=273 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.576+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:09.587+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.008+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=1 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:10.010+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:10.015+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:10.021+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:10.026+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.032+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.040+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.045+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.056+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.067+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.078+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.088+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.511+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=1 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:10.513+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:10.519+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:10.524+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:10.530+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.535+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.543+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.549+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.560+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=264 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.570+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=275 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.581+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=285 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.592+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=297 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.832+04:00] TX web sim 9 reset @1043
+[2026-10-08T20:18:10.832+04:00] TX web ping 9
+[2026-10-08T20:18:10.844+04:00] RX @WEB_ACK id=1043 ok=1
+[2026-10-08T20:18:10.871+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:10.874+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:10.879+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:10.885+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:10.890+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.896+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.901+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.907+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:10.920+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=120 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.931+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=132 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.942+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=143 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:10.952+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=153 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.012+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:11.015+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:11.020+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:11.025+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:11.031+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.036+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.044+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.050+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.061+04:00] RX @WEB_AXIS i=0 mm=1016 raw=1016 valid=1 hwOk=1 age=262 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.061+04:00] TX web ping 9
+[2026-10-08T20:18:11.072+04:00] RX @WEB_AXIS i=1 mm=1007 raw=1007 valid=1 hwOk=1 age=273 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.082+04:00] RX @WEB_AXIS i=2 mm=993 raw=993 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.093+04:00] RX @WEB_AXIS i=3 mm=993 raw=993 valid=1 hwOk=1 age=294 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.334+04:00] TX web ping 9
+[2026-10-08T20:18:11.459+04:00] TX web arm 9 @1044
+[2026-10-08T20:18:11.468+04:00] RX @GATE name=PREFLIGHT result=PASS reason=WEB_READBACK_STOPPED
+[2026-10-08T20:18:11.473+04:00] RX @GATE name=PROTOCOL drive=H1 result=PASS
+[2026-10-08T20:18:11.476+04:00] RX @GATE name=PROTOCOL drive=H2 result=PASS
+[2026-10-08T20:18:11.479+04:00] RX @GATE name=PROTOCOL drive=V1 result=PASS
+[2026-10-08T20:18:11.484+04:00] RX @GATE name=PROTOCOL drive=V2 result=PASS
+[2026-10-08T20:18:11.484+04:00] RX @WEB_ACK id=1044 ok=1
+[2026-10-08T20:18:11.484+04:00] TX web program 9 slot 1 @1045
+[2026-10-08T20:18:11.511+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=4 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:11.514+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:11.519+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:11.525+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:11.530+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.536+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.541+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.549+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.560+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=259 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.560+04:00] TX web ping 9
+[2026-10-08T20:18:11.571+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=270 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.582+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=281 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.592+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=292 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.603+04:00] RX Program slot 1 invalid/empty: safe uncalibrated defaults loaded in RAM
+[2026-10-08T20:18:11.603+04:00] RX @WEB_ACK id=1045 ok=1
+[2026-10-08T20:18:11.603+04:00] TX web testplan 9 50 30 1 @1046
+[2026-10-08T20:18:11.606+04:00] RX @WEB_SLOT slot=1 nameHex=
+[2026-10-08T20:18:11.609+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:18:11.611+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:18:11.614+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:18:11.614+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:18:11.620+04:00] RX loadedSlot=1 selectedSlot=1 name=PROG1 dirty=1 ready=0 zones=1
+[2026-10-08T20:18:11.622+04:00] RX HOME X=0/0
+[2026-10-08T20:18:11.622+04:00] RX TRAVEL Z=0/0
+[2026-10-08T20:18:11.625+04:00] RX validMask=0x0 tiltSpeed=35%
+[2026-10-08T20:18:11.631+04:00] RX Z1 en=1 valid=0x0 X=0/0 Z=0/0 dip=60 tiltDiffMm=30 wait=30 H%=55 V%=45
+[2026-10-08T20:18:11.633+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:18:11.647+04:00] RX @PROGRAM slot=1 selected=1 dirty=1 ready=0 zones=1 home1=0 home2=0 travel1=0 travel2=0 drip=45 tiltPct=35 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:18:11.652+04:00] RX @ZONE n=1 en=1 valid=0x0 x1=0 x2=0 z1=0 z2=0 dip=60 wait=30 tilt=30 hpct=55 vpct=45
+[2026-10-08T20:18:11.655+04:00] RX @WEB_ORDER values=1
+[2026-10-08T20:18:11.660+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:18:11.663+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:18:11.663+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:18:11.669+04:00] RX loadedSlot=1 selectedSlot=1 name=PROG1 dirty=1 ready=1 zones=2
+[2026-10-08T20:18:11.671+04:00] RX HOME X=1000/1000
+[2026-10-08T20:18:11.671+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:18:11.674+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:18:11.682+04:00] RX Z1 en=1 valid=0x3 X=1000/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:11.688+04:00] RX Z2 en=1 valid=0x3 X=1050/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:11.690+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:18:11.704+04:00] RX @PROGRAM slot=1 selected=1 dirty=1 ready=1 zones=2 home1=1000 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:18:11.712+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1000 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:11.720+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1050 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:11.723+04:00] RX @WEB_ACK id=1046 ok=1
+[2026-10-08T20:18:11.723+04:00] TX web program 9 name d0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0afd0af41 @1047
+[2026-10-08T20:18:11.750+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:11.750+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:11.755+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:11.761+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:11.766+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.772+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.780+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.786+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.786+04:00] TX web ping 9
+[2026-10-08T20:18:11.796+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=496 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.807+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=507 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.818+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=517 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.829+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=529 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.831+04:00] RX @WEB_ACK id=1047 ok=1
+[2026-10-08T20:18:11.831+04:00] TX web info @1048
+[2026-10-08T20:18:11.860+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=1 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:11.863+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:11.868+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:11.874+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:11.879+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.885+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.893+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.898+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:11.909+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=72 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.920+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=83 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.931+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=94 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.942+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=105 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:11.950+04:00] RX @WEB_SLOT slot=1 nameHex=D0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AFD0AF41
+[2026-10-08T20:18:11.953+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:18:11.955+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:18:11.958+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:18:11.958+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:18:11.964+04:00] RX loadedSlot=1 selectedSlot=1 name=PROG1 dirty=1 ready=1 zones=2
+[2026-10-08T20:18:11.966+04:00] RX HOME X=1000/1000
+[2026-10-08T20:18:11.966+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:18:11.969+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:18:11.977+04:00] RX Z1 en=1 valid=0x3 X=1000/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:11.983+04:00] RX Z2 en=1 valid=0x3 X=1050/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:11.985+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:18:11.999+04:00] RX @PROGRAM slot=1 selected=1 dirty=1 ready=1 zones=2 home1=1000 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:18:12.007+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1000 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:12.007+04:00] TX web ping 9
+[2026-10-08T20:18:12.015+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1050 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:12.018+04:00] RX @WEB_ORDER values=1,2
+[2026-10-08T20:18:12.023+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:18:12.024+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:18:12.025+04:00] RX @WEB_ACK id=1048 ok=1
+[2026-10-08T20:18:12.026+04:00] TX web program 9 name d0a3d187d0b5d0b1d0bdd0b0d18f2031 @1049
+[2026-10-08T20:18:12.036+04:00] RX @WEB_ACK id=1049 ok=1
+[2026-10-08T20:18:12.036+04:00] TX web program 9 save @1050
+[2026-10-08T20:18:12.228+04:00] TX web ping 9
+[2026-10-08T20:18:12.478+04:00] TX web ping 9
+[2026-10-08T20:18:12.729+04:00] TX web ping 9
+[2026-10-08T20:18:12.810+04:00] RX Program saved slot=1
+[2026-10-08T20:18:12.998+04:00] TX web ping 9
+[2026-10-08T20:18:13.171+04:00] RX @WEB_ACK id=1050 ok=1
+[2026-10-08T20:18:13.171+04:00] TX web stop @1051
+[2026-10-08T20:18:13.198+04:00] RX @WEB_STATE session=9 armed=1 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:13.201+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:13.206+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:13.211+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:13.217+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.222+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.222+04:00] TX web ping 9
+[2026-10-08T20:18:13.228+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.233+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.247+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=1209 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.257+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=1220 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.268+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=1231 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.279+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=1243 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.282+04:00] RX @WEB_ACK id=1051 ok=1
+[2026-10-08T20:18:13.309+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:13.309+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:13.315+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:13.320+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:13.326+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.331+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.339+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.344+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.355+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=68 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.366+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=80 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.377+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=91 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.388+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=101 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.450+04:00] TX web ping 9
+[2026-10-08T20:18:13.698+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:13.698+04:00] TX web ping 9
+[2026-10-08T20:18:13.701+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:13.706+04:00] RX @WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:13.712+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:13.717+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.723+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.731+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.736+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.747+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.758+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.769+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.779+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.903+04:00] TX web info @1052
+[2026-10-08T20:18:13.933+04:00] RX @WEB_STATE session=9 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=4 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+[2026-10-08T20:18:13.933+04:00] TX web ping 9
+[2026-10-08T20:18:13.936+04:00] RX @WEB_TIME elapsed=0 timed=4
+[2026-10-08T20:18:13.941+04:00] RX @WEB_MEMORY free=669 minimum=573 tx1=0 spi=0
+[2026-10-08T20:18:13.946+04:00] RX @WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+[2026-10-08T20:18:13.952+04:00] RX @HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.957+04:00] RX @HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.965+04:00] RX @HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.971+04:00] RX @HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+[2026-10-08T20:18:13.982+04:00] RX @WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=196 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:13.993+04:00] RX @WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=207 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:14.004+04:00] RX @WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=218 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:14.014+04:00] RX @WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=229 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+[2026-10-08T20:18:14.020+04:00] RX @WEB_SLOT slot=1 nameHex=D0A3D187D0B5D0B1D0BDD0B0D18F2031
+[2026-10-08T20:18:14.023+04:00] RX @WEB_SLOT slot=2 nameHex=
+[2026-10-08T20:18:14.023+04:00] RX @WEB_SLOT slot=3 nameHex=
+[2026-10-08T20:18:14.025+04:00] RX @WEB_SLOT slot=4 nameHex=
+[2026-10-08T20:18:14.028+04:00] RX --- PROGRAM V6 ---
+[2026-10-08T20:18:14.033+04:00] RX loadedSlot=1 selectedSlot=1 name=PROG1 dirty=0 ready=1 zones=2
+[2026-10-08T20:18:14.036+04:00] RX HOME X=1000/1000
+[2026-10-08T20:18:14.036+04:00] RX TRAVEL Z=1000/1000
+[2026-10-08T20:18:14.039+04:00] RX validMask=0x3 tiltSpeed=10%
+[2026-10-08T20:18:14.047+04:00] RX Z1 en=1 valid=0x3 X=1000/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:14.053+04:00] RX Z2 en=1 valid=0x3 X=1050/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+[2026-10-08T20:18:14.055+04:00] RX dry=0 time=1800 staging=1
+[2026-10-08T20:18:14.069+04:00] RX @PROGRAM slot=1 selected=1 dirty=0 ready=1 zones=2 home1=1000 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+[2026-10-08T20:18:14.077+04:00] RX @ZONE n=1 en=1 valid=0x3 x1=1000 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:14.083+04:00] RX @ZONE n=2 en=1 valid=0x3 x1=1050 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+[2026-10-08T20:18:14.085+04:00] RX @WEB_ORDER values=1,2
+[2026-10-08T20:18:14.091+04:00] RX @WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+[2026-10-08T20:18:14.095+04:00] RX @WEB_PROGRAM_END
+[2026-10-08T20:18:14.095+04:00] RX @WEB_ACK id=1052 ok=1
+[2026-10-08T20:18:14.095+04:00] TX web stop

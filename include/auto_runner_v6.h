@@ -65,7 +65,7 @@ public:
   bool startHome(const AutoProgramV6& program, const AutoSensorsV6& sensors,
                  bool simulation, uint32_t nowMs);
   void stop(const __FlashStringHelper* reason);
-  void pause();
+  void pause(uint32_t nowMs = millis());
   void resume(uint32_t nowMs);
   void operatorNext();
 
@@ -88,6 +88,8 @@ public:
   uint16_t currentStep() const;
   uint16_t totalSteps() const;
   const __FlashStringHelper* phaseName() const;
+  void externalSimulation(bool enabled) { _externalSimulation = enabled; }
+  int16_t simulationTarget(uint8_t i) const { return i < 4 ? _simTargets[i] : 0; }
 
   // Bench simulation coordinates for diagnostics/DWIN. Valid only when simulation()==true.
   int32_t simPosition(SensorIndex idx) const { return idx < SENSOR_COUNT ? _simPos[idx] : 0; }
@@ -122,6 +124,9 @@ private:
   bool _running = false;
   bool _paused = false;
   bool _simulation = false;
+  bool _externalSimulation = false;
+  int16_t _simTargets[4] = {};
+  uint32_t _lastServiceMs = 0;
   bool _waitOperator = false;
   bool _operatorNext = false;
   bool _dryAlarm = false;

@@ -1,0 +1,1 @@
+PASS: actual AutoRunner two-zone cycle, dwell/tilt/HOME, drying/operator steps, pause/resume, E-STOP, invalid program; zero physical calls; EEPROM save/load

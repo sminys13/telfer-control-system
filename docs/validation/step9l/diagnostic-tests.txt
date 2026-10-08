@@ -1,0 +1,4 @@
+PASS: FC03 validation, CRC/address/function/timeout, exact exception; all physical writes blocked
+PASS: 372 reads across all four drives; unsupported register remains unknown; cancel; no writes; dry-run cannot pass
+PASS: FC03/FC04 counts 1..8; 224 truncated frames rejected without modifying values; retries=255 terminates after 256 attempts
+PASS: FWD decreases => coordinate plus is REV; both directions required; stale/noise/cross-axis/no-RUN/invalid rejected

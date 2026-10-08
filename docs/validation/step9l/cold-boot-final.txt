@@ -1,0 +1,203 @@
+========== V6 SYSTEM STEP9I HE200 SERVICE COCKPIT START ==========
+FW: v6-system-step9l-web-control
+SafetyV6: mode=BENCH estop=ACTIVE limits=0x0
+Settings: invalid/missing EEPROM record, defaults in RAM
+HE200 commissioning profile enforced in RAM: 9600 8-N-1, addresses 1/2/3/4
+EEPROM is not modified automatically
+SAFETY E-STOP monitoring ENABLED
+SAFETY LIMIT monitoring ENABLED
+@GATE name=ALL result=RESET
+HE200 ServiceV6: runtime commissioning gates initialized
+Program loaded slot=1 name=PROG1
+SIM: virtual 5Hz sensors active; SC16IS752/SEN0366 not initialized
+Commands: 0x0001 MANUAL, 0x0002 AUTO START, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION
+Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL
+Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR
+Laser profile: SEN0366-compatible continuous 5Hz / 1mm / 10m
+Step9L web control: boots DISARMED; measured directions required; program starts by operator button
+@SERVICE_INFO fw=v6-system-step9l-web-control build=SIM audit=1 diagnosticLock=1 native=1 auto=0 dwinMotion=0 desktopSim=1 physicalTx=0 waveshare=1
+Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists
+Manual jog legacy: 0x0101..0x010C, 0x010F JOG STOP
+Manual hold-to-run: VP 0x1110 bit0..11, DGUS Bit Button/Inching; release=STOP
+AUTO: 0x0300 PAUSE, 0x0301 RESUME, 0x0302 OPERATOR NEXT, 0x0303 SIM TOGGLE
+Program: 0x0314..0x0317 SELECT SLOT, 0x0310 LOAD SELECTED, 0x0311 SAVE LOADED, 0x0312 DEFAULTS, 0x0318/19 PREV/NEXT, 0x031A TOGGLE, 0x0320..0x032B capture/accept
+VFD layer: DRY-RUN; MAX485 disabled, exact RTU frames available for manual tests
+RS485 transceiver direction: AUTO/Waveshare (Mega pin 6 unused)
+Physical AUTO/HOME interlock: BLOCKED
+VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST
+USB console:
+Step9I service cockpit commands:
+service info
+service preflight | service gate status | service gate reset | service stop  (all 4 drives)
+he200 audit all | he200 audit cancel (FC03 only, all four drives)
+he200 probe h1/h2/v1/v2/all (BLOCKED in diagnostic release)
+service pulse h1/h2/v1/v2/h/z pos/neg [pct 5..20] [ms 500..3000]
+service confirm h1/h2/v1/v2 pos/neg
+assist x/z pos/neg [basePct] | assist stop  (active pair) | assist clear
+help | clear | diag | estop on/off | limits on/off | save
+log quiet | log normal | log verbose
+test h1/h2/v1/v2/all | he200 comm | report
+laser profile [all/x/z]   (field profile: continuous 5Hz, 1mm, 10m)
+laser status | laser reset | laser reinit
+guard status | guard reset | guard on/off
+guard motion x/z on/off   (SHADOW stop evaluation only)
+laser config all/x/z/x1/x2/z1/z2 5/10/20   (experimental)
+laser continuous all/x/z/x1/x2/z1/z2 5/10/20 1/01   (experimental)
+laser alternate start 1/2/5/10 1/01 | laser alternate stop
+laser single x1/x2   (manual request while in single mode)
+sim on | sim off | sim demo | auto | home | stop | pause | resume | next
+prog show | prog slot 1..4 | prog load | prog save | prog defaults
+set home X1 X2 | set travel Z1 Z2
+set zone N x X1 X2 | set zone N z Z1 Z2
+set dry x X1 X2 | set dry z Z1 Z2
+zone N on/off | zone N dip S | wait S | tilt MM | speed H V
+tilt speed P   (legacy global tilt speed, 1..100%)
+cap home | cap travel | cap zone N x/z | cap dry x/z
+--- PROGRAM V6 ---
+loadedSlot=1 selectedSlot=1 name=PROG1 dirty=0 ready=1 zones=2
+HOME X=1000/1000
+TRAVEL Z=1000/1000
+validMask=0x3 tiltSpeed=10%
+Z1 en=1 valid=0x3 X=1000/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+Z2 en=1 valid=0x3 X=1050/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+dry=0 time=1800 staging=1
+@PROGRAM slot=1 selected=1 dirty=0 ready=1 zones=2 home1=1000 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+@ZONE n=1 en=1 valid=0x3 x1=1000 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+@ZONE n=2 en=1 valid=0x3 x1=1050 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+SENSOR GUARD thresholds warning/stop/fault=450/650/5000ms recoveryFrames=5 SHADOW ONLY; no motor command
+@SENSOR_GUARD name=X1 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+@SENSOR_GUARD name=X2 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+@SENSOR_GUARD name=Z1 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+@SENSOR_GUARD name=Z2 state=NO_DATA enabled=1 motion=0 shadowStop=0 age=NA recovery=0 frames=0 dtAvg=0 dtMin=0 dtMax=0 bin250=0 bin400=0 bin600=0 bin800=0 bin1200=0 bin1500=0 binOver1500=0 warnGaps=0 stopGaps=0 faultGaps=0 maxGap=0 maxGapFrom=0 maxGapTo=0 blindRefMm=0 jumpDiag=0 maxJump=0 maxSpeed=0
+@AXIS_GUARD axis=X state=NO_DATA motion=0 shadowStop=0
+@AXIS_GUARD axis=Z state=NO_DATA motion=0 shadowStop=0
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=1035 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=501 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=512 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=524 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=535 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+Safety inputs: BENCH active-low E-stop=ACTIVE limits=0x0
+Manual jog watchdog from EEPROM: ON 2500ms
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=976 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=68 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=79 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=89 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=101 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=976 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=165 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=176 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=187 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=197 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=976 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=259 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=271 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@SERVICE_INFO fw=v6-system-step9l-web-control build=SIM audit=1 diagnosticLock=1 native=1 auto=0 dwinMotion=0 desktopSim=1 physicalTx=0 waveshare=1
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=669 minimum=577 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=250 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=261 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=273 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=284 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_SLOT slot=1 nameHex=D0A3D187D0B5D0B1D0BDD0B0D18F2031
+@WEB_SLOT slot=2 nameHex=
+@WEB_SLOT slot=3 nameHex=
+@WEB_SLOT slot=4 nameHex=
+--- PROGRAM V6 ---
+loadedSlot=1 selectedSlot=1 name=PROG1 dirty=0 ready=1 zones=2
+HOME X=1000/1000
+TRAVEL Z=1000/1000
+validMask=0x3 tiltSpeed=10%
+Z1 en=1 valid=0x3 X=1000/1000 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+Z2 en=1 valid=0x3 X=1050/1050 Z=970/970 dip=1 tiltDiffMm=0 wait=0 H%=10 V%=10
+dry=0 time=1800 staging=1
+@PROGRAM slot=1 selected=1 dirty=0 ready=1 zones=2 home1=1000 home2=1000 travel1=1000 travel2=1000 drip=1 tiltPct=10 lowSide=0 dry=0 dryTime=1800 staging=1
+@ZONE n=1 en=1 valid=0x3 x1=1000 x2=1000 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+@ZONE n=2 en=1 valid=0x3 x1=1050 x2=1050 z1=970 z2=970 dip=1 wait=0 tilt=0 hpct=10 vpct=10
+@WEB_ORDER values=1,2
+@WEB_DRY enabled=0 seconds=1800 staging=1 x1=0 x2=0 z1=0 z2=0
+@WEB_PROGRAM_END
+@WEB_ACK id=0 ok=1
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=91 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=102 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=114 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=125 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=192 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=203 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=214 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=226 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=263 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=273 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=284 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=295 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_STATE session=11 armed=0 cal=15 busBusy=0 jog=0 pulse=0 mode=0 estop=0 limits=0 limitsEnabled=0 desktopSim=1 physicalTx=0 issue=0 slot=1 programDirty=0 settingsDirty=0 editing=0 externalSafetyRequired=0 running=0 paused=0 waitOperator=0 dryAlarm=0 sim=1 phase=IDLE zone=1 step=0 steps=3 wait=65535 error=0 ready=1
+@WEB_TIME elapsed=0 timed=4
+@WEB_MEMORY free=1127 minimum=573 tx1=0 spi=0
+@WEB_SIM rate=1 startup=0 sensorLost=0 offline=0 fault=0 stuck=0
+@HE200 name=H1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=H2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V1 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@HE200 name=V2 online=1 run001=0 set001=0 fault=0 outV=0 source=MODEL
+@WEB_AXIS i=0 mm=1000 raw=1000 valid=1 hwOk=1 age=260 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=1 mm=1000 raw=1000 valid=1 hwOk=1 age=272 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=2 mm=1000 raw=1000 valid=1 hwOk=1 age=282 fwdSign=1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0
+@WEB_AXIS i=3 mm=1000 raw=1000 valid=1 hwOk=1 age=293 fwdSign=-1 max=40 manual=10 slow=10 band=100 tolerance=8 invert=0 offset=0

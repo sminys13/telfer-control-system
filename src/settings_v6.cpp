@@ -1,11 +1,13 @@
 #include "settings_v6.h"
+#include "config_v6_bringup.h"
 #include <EEPROM.h>
 #include <string.h>
 #include <stddef.h>
 
 static constexpr uint32_t SETTINGS_MAGIC = 0x54464C36UL; // 'TFL6'
 static constexpr uint16_t SETTINGS_VERSION = 2;
-static constexpr int EEPROM_ADDR_SETTINGS = 0;
+static constexpr int EEPROM_ADDR_SETTINGS = DESKTOP_SIMULATION_ENABLED ? 1920 : 0;
+static_assert(1920 + sizeof(SettingsV6) < 2100, "simulation settings must fit before slot metadata");
 
 // Exact layout used by system-step6 and earlier sensor-core builds.
 struct SettingsV6LegacyV1 {

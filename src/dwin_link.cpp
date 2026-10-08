@@ -1,13 +1,16 @@
 #include "dwin_link.h"
+#include "config_v6_bringup.h"
 
 DwinLink::DwinLink(HardwareSerial& serial)
   : _serial(serial) {}
 
 void DwinLink::begin(uint32_t baud) {
+  if(DESKTOP_SIMULATION_ENABLED)return;
   _serial.begin(baud);
 }
 
 void DwinLink::writeU16(uint16_t vp, uint16_t value) {
+  if(DESKTOP_SIMULATION_ENABLED)return;
   uint8_t frame[8];
   frame[0] = 0x5A;
   frame[1] = 0xA5;
@@ -29,6 +32,7 @@ void DwinLink::clearCommand(uint16_t cmdVp) {
 }
 
 bool DwinLink::readFrame(uint8_t* payload, uint8_t& lenOut) {
+  if(DESKTOP_SIMULATION_ENABLED)return false;
   static uint8_t state = 0;
   static uint8_t len = 0;
   static uint8_t pos = 0;
