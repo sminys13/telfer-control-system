@@ -1,0 +1,62 @@
+V6 STEP9I VALIDATION REPORT
+===========================
+Date: 2026-09-08
+Target: Arduino Mega 2560 + SEN0366-compatible sensors + HE200 + isolated Waveshare TTL/RS485
+
+VALIDATED LOCALLY
+-----------------
+1. Browser Service Cockpit JavaScript:
+   node --check tools/telfer_service_console/app.js -> PASS
+
+2. Browser DOM cross-check:
+   all document.getElementById/$() references used by app.js exist in index.html -> PASS
+
+3. SEN0366 parser/protocol host tests:
+   scripts/test_fast_laser_host.sh -> PASS
+   tools/protocol_checks/verify_laser_protocol.py -> PASS
+   Verified shutdown, laser-on, 10 m, 1 mm, 0.1 mm, 5/10/20 Hz,
+   continuous/single commands and ACK checksums.
+
+4. Sensor supervisor host tests:
+   scripts/test_sensor_guard_host.sh -> PASS
+
+5. Strict C++ syntax compile with Arduino/SPI/EEPROM host stubs:
+   g++ -std=c++11 -Wall -Wextra -Werror -fsyntax-only
+   Active files checked: 16
+   Profiles:
+     BENCH                        -> PASS
+     HE200 WAVESHARE READ-ONLY   -> PASS
+     HE200 FIELD SERVICE         -> PASS
+
+6. Step9I service safety structure inspected:
+   - physical AUTO/HOME remains compile-time BLOCKED in FIELD SERVICE;
+   - DWIN motion commands are disabled in FIELD SERVICE;
+   - HE200 free/coast stop 0x2000=0005 is not exposed/whitelisted;
+   - normal service stop uses HE200 0x2000=0006 deceleration stop;
+   - protocol proof writes at most 5% setpoint while drive is stopped;
+   - pulse tests are capped at 20%, browser default 10%, 1200 ms;
+   - sensor-assist slows both drives of the selected pair together;
+   - assist HOLD/FAULT stop is masked to selected H or Z pair;
+   - global Service Cockpit STOP still stops all four drives;
+   - hardware safety input remains a mandatory preflight gate.
+
+7. UI simplification inspected:
+   Active browser tabs only:
+     Commissioning / Sensors / Program / Log
+   Removed from normal UI:
+     10/20 Hz experiments, 0.1 mm, alternating single-shot, physical AUTO/HOME.
+   A GO/NO-GO decision banner shows the next allowed stage.
+
+NOT VALIDATED IN THIS CONTAINER
+-------------------------------
+The actual AVR/PlatformIO toolchain is not available in the execution container.
+Therefore the final real firmware build is MANDATORY on the user's Windows PC:
+
+  BUILD_STEP9I.bat
+
+Required result before any FIELD SERVICE upload:
+
+  ALL STEP9I BUILDS: SUCCESS
+
+Then upload only with the provided scripts. FIELD SERVICE can physically move machinery.
+Use only with verified NC E-STOP/safety chain and a clear work area.

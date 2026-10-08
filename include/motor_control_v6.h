@@ -63,6 +63,15 @@ public:
   void manualStop(const __FlashStringHelper* reason);
   void testVfdConnection(uint8_t driveIndex);
 
+  // Browser service-cockpit interface. Physical writes are available only in
+  // the dedicated HE200 FIELD SERVICE build; AUTO/HOME remains compile-time blocked.
+  bool requestServiceTargets(int16_t h1RightPct, int16_t h2RightPct,
+                             int16_t v1UpPct, int16_t v2UpPct);
+  void serviceDecelStop(const __FlashStringHelper* reason);
+  void serviceDecelStopMask(uint8_t driveMask, const __FlashStringHelper* reason);
+  bool probeHe200Protocol(uint8_t driveIndex, uint16_t probePct001, He200ProtocolSnapshotV6& outAfter);
+  const DriveTelemetry& vfdTelemetry(uint8_t driveIndex) const { return _vfd.telemetry(driveIndex); }
+
   bool isMotionActive() const { return _motionActive; }
   uint32_t lastManualCmdMs() const { return _lastManualCmdMs; }
   uint16_t manualJogTimeoutMs() const { return _manualJogTimeoutMs; }

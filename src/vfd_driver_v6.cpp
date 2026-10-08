@@ -14,7 +14,8 @@ void VfdDriverV6::begin(const SettingsV6& settings) {
                  _comm.retries,
                  VFD_RS485_ENABLED,
                  VFD_DRY_RUN || !VFD_RS485_ENABLED,
-                 VFD_MODBUS_TRACE);
+                 VFD_MODBUS_TRACE,
+                 RS485_AUTO_DIRECTION);
 #else
   #error "V6 VFD layer requires Mega Serial1"
 #endif
@@ -26,15 +27,18 @@ void VfdDriverV6::begin(const SettingsV6& settings) {
                 : VFD_STATUS_READY;
 
   Serial.println(F("VfdDriverV6: existing Modbus/Drives layer connected"));
+  Serial.print(F("VfdDriverV6: RS485 direction="));
+  Serial.println(RS485_AUTO_DIRECTION ? F("AUTO (isolated Waveshare, pin 6 unused)")
+                                       : F("MANUAL DE/RE (MAX485 pin 6)"));
   if (!VFD_RS485_ENABLED) {
     Serial.println(F("VfdDriverV6: physical MAX485 disabled; exact NE200 frames will be printed"));
   } else if (!VFD_WRITE_COMMANDS_ENABLED) {
     if (HE200_COMMISSIONING)
-      Serial.println(F("VfdDriverV6: HE200 physical MAX485 READ-ONLY; monitoring reads only, ALL writes blocked"));
+      Serial.println(F("VfdDriverV6: HE200 physical RS485 READ-ONLY; monitoring reads only, ALL writes blocked"));
     else
       Serial.println(F("VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked"));
   } else {
-    Serial.println(F("VfdDriverV6: physical MAX485 enabled with WRITE commands"));
+    Serial.println(HE200_FIELD_SERVICE ? F("VfdDriverV6: HE200 FIELD SERVICE writes enabled via isolated Waveshare; AUTO/HOME remain blocked") : F("VfdDriverV6: physical RS485 WRITE commands enabled"));
   }
   printConfiguration();
 }
@@ -50,7 +54,8 @@ void VfdDriverV6::applySettings(const SettingsV6& settings) {
                         _comm.retries,
                         VFD_RS485_ENABLED,
                         VFD_DRY_RUN || !VFD_RS485_ENABLED,
-                        VFD_MODBUS_TRACE);
+                        VFD_MODBUS_TRACE,
+                        RS485_AUTO_DIRECTION);
     _drives.applySettings(settings);
   }
 
@@ -228,15 +233,44 @@ void VfdDriverV6::stopAll(const __FlashStringHelper* reason) {
   }
   _status = VFD_STATUS_STOPPED;
 
-  Serial.print(F("NE200 STOP ALL queued"));
+  Serial.print(HE200_NATIVE_PROTOCOL ? F("HE200 DECEL STOP ALL queued") : F("NE200 STOP ALL queued"));
   if (reason) {
     Serial.print(F(" reason="));
     Serial.print(reason);
   }
   if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED)
-    Serial.println(F("; each drive gets STOP then zero setpoint"));
+    Serial.println(HE200_NATIVE_PROTOCOL ? F("; each drive gets 0x2000=0006 deceleration stop") : F("; each drive gets STOP then zero setpoint"));
   else
     Serial.println(F("; READ-ONLY build, no STOP/SETPOINT frame transmitted"));
+}
+
+void VfdDriverV6::stopMask(uint8_t driveMask, const __FlashStringHelper* reason) {
+  const uint8_t validMask = (uint8_t)((1u << DRIVE_COUNT_V6) - 1u);
+  driveMask &= validMask;
+  if (!driveMask) return;
+
+  for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
+    if (!(driveMask & (uint8_t)(1u << i))) continue;
+    _lastAutoLogical[i] = 0;
+    if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED)
+      _drives.stop((DriveId)i);
+  }
+
+  if (driveMask == validMask) _autoTargetKnown = false;
+  _status = (driveMask == validMask) ? VFD_STATUS_STOPPED : VFD_STATUS_READY;
+
+  Serial.print(HE200_NATIVE_PROTOCOL ? F("HE200 DECEL STOP MASK queued mask=0x")
+                                      : F("NE200 STOP MASK queued mask=0x"));
+  Serial.print(driveMask, HEX);
+  if (reason) {
+    Serial.print(F(" reason="));
+    Serial.print(reason);
+  }
+  if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED)
+    Serial.println(HE200_NATIVE_PROTOCOL ? F("; selected drives get 0x2000=0006")
+                                         : F("; selected drives get STOP"));
+  else
+    Serial.println(F("; READ-ONLY build, no frame transmitted"));
 }
 
 void VfdDriverV6::block(const __FlashStringHelper* reason) {
@@ -271,4 +305,164 @@ void VfdDriverV6::testConnection(uint8_t driveIndex) {
                      ? F(" FC03 0x7000..0x7007 + 0x702D + 0x703B..0x703D")
                      : F(" legacy map"));
   _drives.requestSafeStatusRead((DriveId)driveIndex);
+}
+
+
+const DriveTelemetry& VfdDriverV6::telemetry(uint8_t driveIndex) const {
+  static DriveTelemetry empty{};
+  if (driveIndex >= DRIVE_COUNT_V6) return empty;
+  return _drives.telemetry((DriveId)driveIndex);
+}
+
+bool VfdDriverV6::readHe200ProtocolSnapshot(uint8_t driveIndex, He200ProtocolSnapshotV6& out) {
+  if (driveIndex >= DRIVE_COUNT_V6 || !_begun || !HE200_NATIVE_PROTOCOL || !VFD_RS485_ENABLED) {
+    Serial.println(F("HE200 protocol snapshot rejected: build/drive not eligible"));
+    return false;
+  }
+  if (_drives.hasPendingWork()) {
+    Serial.println(F("HE200 protocol snapshot BUSY: wait for scheduler"));
+    return false;
+  }
+
+  const uint8_t addr = address(driveIndex);
+  uint16_t v = 0;
+  uint16_t state[3] = {0,0,0};
+  ModbusResult r;
+
+  r = _modbus.readHoldingRegisters(addr, HE200_REG_COMM_SETPOINT, 1, &v);
+  if (!r.ok) return false;
+  out.commSetpoint001Pct = v;
+
+  r = _modbus.readHoldingRegisters(addr, HE200_REG_STATUS_WORD, 1, &v);
+  if (!r.ok) return false;
+  out.status3000 = v;
+
+  r = _modbus.readHoldingRegisters(addr, HE200_REG_COMM_VALUE, 1, &v);
+  if (!r.ok) return false;
+  out.commValue701C = v;
+
+  r = _modbus.readHoldingRegisters(addr, HE200_REG_CUR_SET_FREQ, 3, state);
+  if (!r.ok) return false;
+  out.setPct703B = state[0];
+  out.runPct703C = (int16_t)state[1];
+  out.runState703D = state[2];
+
+  r = _modbus.readHoldingRegisters(addr, HE200_REG_RUNNING_FREQ, 1, &v);
+  if (!r.ok) return false;
+  out.runningFreq001Hz = v;
+
+  r = _modbus.readHoldingRegisters(addr, HE200_REG_FAULT_INFO, 1, &v);
+  if (!r.ok) return false;
+  out.fault702D = v;
+
+  Serial.print(F("@HE200_PROTOCOL drive=")); Serial.print(Drives::driveName((DriveId)driveIndex));
+  Serial.print(F(" addr=")); Serial.print(addr);
+  Serial.print(F(" set1000=")); Serial.print(out.commSetpoint001Pct);
+  Serial.print(F(" status3000=")); Serial.print(out.status3000);
+  Serial.print(F(" comm701C=")); Serial.print(out.commValue701C);
+  Serial.print(F(" set703B=")); Serial.print(out.setPct703B);
+  Serial.print(F(" run703C=")); Serial.print(out.runPct703C);
+  Serial.print(F(" state703D=")); Serial.print(out.runState703D);
+  Serial.print(F(" runHz001=")); Serial.print(out.runningFreq001Hz);
+  Serial.print(F(" fault702D=")); Serial.println(out.fault702D);
+  return true;
+}
+
+bool VfdDriverV6::writeHe200CommSetpoint(uint8_t driveIndex, uint16_t pct001) {
+  if (driveIndex >= DRIVE_COUNT_V6 || !_begun || !HE200_NATIVE_PROTOCOL ||
+      !VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED || !HE200_FIELD_SERVICE) {
+    Serial.println(F("HE200 WRITE BLOCKED: field service build required"));
+    return false;
+  }
+  if (pct001 > HE200_SETPOINT_MAX) pct001 = HE200_SETPOINT_MAX;
+  if (_drives.hasPendingWork()) {
+    Serial.println(F("HE200 WRITE BUSY: scheduler has pending work"));
+    return false;
+  }
+  const ModbusResult r = _modbus.writeSingleRegister(address(driveIndex), HE200_REG_COMM_SETPOINT, pct001);
+  Serial.print(F("@HE200_WRITE drive=")); Serial.print(Drives::driveName((DriveId)driveIndex));
+  Serial.print(F(" reg=0x1000 value=")); Serial.print(pct001);
+  Serial.print(F(" ok=")); Serial.println(r.ok ? 1 : 0);
+  return r.ok;
+}
+
+bool VfdDriverV6::writeHe200Control(uint8_t driveIndex, uint16_t command) {
+  if (driveIndex >= DRIVE_COUNT_V6 || !_begun || !HE200_NATIVE_PROTOCOL ||
+      !VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED || !HE200_FIELD_SERVICE) {
+    Serial.println(F("HE200 CONTROL BLOCKED: field service build required"));
+    return false;
+  }
+  // Service layer deliberately exposes only the verified command subset.
+  if (command != HE200_CMD_FORWARD && command != HE200_CMD_REVERSE &&
+      command != HE200_CMD_DECEL_STOP && command != HE200_CMD_RESET_FAULT) {
+    Serial.println(F("HE200 CONTROL rejected: command not whitelisted"));
+    return false;
+  }
+  if (_drives.hasPendingWork()) {
+    Serial.println(F("HE200 CONTROL BUSY: scheduler has pending work"));
+    return false;
+  }
+  const ModbusResult r = _modbus.writeSingleRegister(address(driveIndex), HE200_REG_CONTROL_WORD, command);
+  Serial.print(F("@HE200_WRITE drive=")); Serial.print(Drives::driveName((DriveId)driveIndex));
+  Serial.print(F(" reg=0x2000 value=")); Serial.print(command);
+  Serial.print(F(" ok=")); Serial.println(r.ok ? 1 : 0);
+  return r.ok;
+}
+
+bool VfdDriverV6::probeHe200Protocol(uint8_t driveIndex, uint16_t probePct001,
+                                     He200ProtocolSnapshotV6& outAfter) {
+  if (!HE200_FIELD_SERVICE || !VFD_WRITE_COMMANDS_ENABLED) {
+    Serial.println(F("@GATE name=PROTOCOL result=FAIL reason=FIELD_SERVICE_BUILD_REQUIRED"));
+    return false;
+  }
+  He200ProtocolSnapshotV6 before{};
+  if (!readHe200ProtocolSnapshot(driveIndex, before)) {
+    Serial.println(F("@GATE name=PROTOCOL result=FAIL reason=READ_BEFORE"));
+    return false;
+  }
+  // Never probe a running/faulted drive. 0x703D=0 is the observed STOP state.
+  if (before.runningFreq001Hz > 20 || before.runState703D != 0 || before.fault702D != 0) {
+    Serial.print(F("@GATE name=PROTOCOL drive=")); Serial.print(Drives::driveName((DriveId)driveIndex));
+    Serial.println(F(" result=FAIL reason=DRIVE_NOT_STOPPED_OR_FAULT"));
+    return false;
+  }
+  if (probePct001 > 1000) probePct001 = 1000; // max 10% during protocol proof
+  if (probePct001 == 0) probePct001 = 500;    // default 5%
+
+  if (!writeHe200CommSetpoint(driveIndex, probePct001)) {
+    Serial.println(F("@GATE name=PROTOCOL result=FAIL reason=WRITE_1000"));
+    return false;
+  }
+
+  uint16_t comm = 0;
+  ModbusResult r = _modbus.readHoldingRegisters(address(driveIndex), HE200_REG_COMM_VALUE, 1, &comm);
+  if (!r.ok || comm != probePct001) {
+    (void)writeHe200CommSetpoint(driveIndex, before.commSetpoint001Pct);
+    Serial.print(F("@GATE name=PROTOCOL drive=")); Serial.print(Drives::driveName((DriveId)driveIndex));
+    Serial.print(F(" result=FAIL reason=VERIFY_701C expected=")); Serial.print(probePct001);
+    Serial.print(F(" got=")); Serial.println(comm);
+    return false;
+  }
+
+  // A deceleration-stop command on an already stopped drive is the safest
+  // possible proof of the 0x2000 command register.
+  if (!writeHe200Control(driveIndex, HE200_CMD_DECEL_STOP)) {
+    (void)writeHe200CommSetpoint(driveIndex, before.commSetpoint001Pct);
+    Serial.println(F("@GATE name=PROTOCOL result=FAIL reason=WRITE_2000"));
+    return false;
+  }
+  (void)writeHe200CommSetpoint(driveIndex, before.commSetpoint001Pct);
+
+  delay(30);
+  if (!readHe200ProtocolSnapshot(driveIndex, outAfter)) {
+    Serial.println(F("@GATE name=PROTOCOL result=FAIL reason=READ_AFTER"));
+    return false;
+  }
+  const bool stopped = outAfter.runningFreq001Hz <= 20 && outAfter.runState703D == 0;
+  Serial.print(F("@GATE name=PROTOCOL drive=")); Serial.print(Drives::driveName((DriveId)driveIndex));
+  Serial.print(F(" result=")); Serial.print(stopped ? F("PASS") : F("FAIL"));
+  Serial.print(F(" probe=")); Serial.print(probePct001);
+  Serial.print(F(" comm701C=")); Serial.print(comm);
+  Serial.print(F(" state703D=")); Serial.println(outAfter.runState703D);
+  return stopped;
 }

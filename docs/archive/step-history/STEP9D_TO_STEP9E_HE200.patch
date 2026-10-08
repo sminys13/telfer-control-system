@@ -1,0 +1,588 @@
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9E_HE200_RU.md /mnt/data/telfer-control-system-v6-system-step9e-he200/README_V6_SYSTEM_STEP9E_HE200_RU.md
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9E_HE200_RU.md	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/README_V6_SYSTEM_STEP9E_HE200_RU.md	2026-08-11 11:21:26.632344543 +0000
+@@ -0,0 +1,85 @@
++# V6 Step9E — HE200: безопасная проверка RS485 (READ-ONLY)
++
++Эта версия сделана специально перед первым подключением реальных HE200.
++
++## Почему отдельный Step9E
++
++В старой версии проекта драйвер назывался NE200 и использовал старую карту записей 0x0001/0x0002.
++В присланном руководстве HE200 эта карта записи RUN/STOP не подтверждена. Поэтому Step9E **никогда не пишет регистры HE200**: физический MAX485 включён, но разрешены только FC03-чтения мониторинга, прямо приведённые в HE200 User Manual.
++
++Используются адреса:
++- 0x7000 — текущая частота, 0.01 Hz
++- 0x7001 — заданная частота, 0.01 Hz
++- 0x7002 — напряжение DC-шины, 0.1 V
++- 0x7003 — выходное напряжение, 1 V
++- 0x7004 — выходной ток, 0.01 A при Pd.06=0
++- 0x7007 — состояние цифровых входов X1..X4 (полезно для проверки физических кнопок)
++- 0x702D — информация об ошибке
++- 0x703B/0x703C/0x703D — текущая заданная/рабочая частота (%) и состояние привода
++
++## Сборка
++
++Для проверки четырёх лазеров без реального RS485 можно продолжать использовать:
++`mega_v6_sensor_core_fast`
++
++Для реального HE200 по MAX485 использовать **только**:
++`mega_v6_he200_readonly`
++
++В этой сборке любые команды движения/STOP по RS485 заблокированы на уровне прошивки.
++
++## MAX485 ↔ Arduino Mega
++
++- Mega TX1 pin 18 -> MAX485 DI
++- Mega RX1 pin 19 <- MAX485 RO
++- Mega pin 6 -> объединённые DE и /RE
++- GND общий
++- MAX485 A/B -> HE200 A+/A-
++
++## Быстрый тест связи
++
++После загрузки `mega_v6_he200_readonly` в терминале:
++
++```text
++he200 comm
++test h1
++test h2
++test v1
++test v2
++```
++
++`he200 comm` меняет параметры только в RAM на 9600 8-N-1, адреса 1/2/3/4. Ничего в EEPROM автоматически не сохраняется.
++
++Нормальный ответ выглядит как `HE200 READ OK ...`. Если один ПЧ на столе, задайте ему адрес 1 и проверяйте `test h1`.
++
++## Предварительные параметры самого HE200
++
++Для общей сети четырёх ПЧ задайте каждому уникальный Pd.02: 1, 2, 3, 4.
++На всех одинаково:
++- Pd.00 = 5 -> 9600 bit/s
++- Pd.01 = 3 -> 8-N-1
++- Pd.03 = 2 ms можно оставить по умолчанию
++- Pd.04 = 0.0 на первом тесте (контроль таймаута отключён)
++- Pd.05 = 01 (стандартный Modbus)
++- Pd.06 = 0, если хотим ток 0.01 A/единицу
++
++## Физические кнопки и RS485
++
++HE200 позволяет выбрать источник команды P0.02: 0 панель, 1 клеммы, 2 связь.
++Для первичного теста физических кнопок используйте клеммный режим P0.02=1. Пример:
++- P4.00 (X1) = 1 Forward RUN
++- P4.01 (X2) = 2 Reverse RUN
++- P4.11 = 0 (two-line mode 1)
++
++Если нужен именно удерживаемый JOG, в руководстве есть функции X-входов 4 Forward JOG и 5 Reverse JOG; частота JOG задаётся P8.00.
++
++В списке функций входов есть 20/37 `command source switchover`, то есть аппаратное переключение источника команда/связь предусмотрено. Но в присланной краткой инструкции нет однозначной таблицы логики состояния этих входов. Поэтому не используйте это как аварийную защиту и сначала проверяйте переключение без нагрузки.
++
++Для будущего сетевого управления источник команды должен быть P0.02=2; источник частоты по связи — P0.03=9. Точный регистр записи RUN/STOP для HE200 мы сначала подтвердим и только после этого выпустим FIELD MANUAL прошивку.
++
++## Двигатель
++
++До движения заполните по шильдику двигателя P1.00..P1.05 (тип, мощность, напряжение, ток, частота, обороты). Не копируйте моторные числа от другого тельфера. Разгон/торможение P0.17/P0.18 на первом тесте оставьте существующими безопасными значениями.
++
++## 4 лазера
++
++Подключить X1/X2/Z1/Z2, затем перезагрузка или команда DWIN `0x0045 SENSOR REINIT`. В терминале должны быть четыре `fast init: OK` и четыре живых измерения.
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/STEP9D_TO_STEP9E_HE200.patch /mnt/data/telfer-control-system-v6-system-step9e-he200/STEP9D_TO_STEP9E_HE200.patch
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/STEP9D_TO_STEP9E_HE200.patch	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/STEP9D_TO_STEP9E_HE200.patch	2026-08-11 11:21:59.516244997 +0000
+@@ -0,0 +1,89 @@
++diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9E_HE200_RU.md /mnt/data/telfer-control-system-v6-system-step9e-he200/README_V6_SYSTEM_STEP9E_HE200_RU.md
++--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9E_HE200_RU.md	1970-01-01 00:00:00.000000000 +0000
+++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/README_V6_SYSTEM_STEP9E_HE200_RU.md	2026-08-11 11:21:26.632344543 +0000
++@@ -0,0 +1,85 @@
+++# V6 Step9E — HE200: безопасная проверка RS485 (READ-ONLY)
+++
+++Эта версия сделана специально перед первым подключением реальных HE200.
+++
+++## Почему отдельный Step9E
+++
+++В старой версии проекта драйвер назывался NE200 и использовал старую карту записей 0x0001/0x0002.
+++В присланном руководстве HE200 эта карта записи RUN/STOP не подтверждена. Поэтому Step9E **никогда не пишет регистры HE200**: физический MAX485 включён, но разрешены только FC03-чтения мониторинга, прямо приведённые в HE200 User Manual.
+++
+++Используются адреса:
+++- 0x7000 — текущая частота, 0.01 Hz
+++- 0x7001 — заданная частота, 0.01 Hz
+++- 0x7002 — напряжение DC-шины, 0.1 V
+++- 0x7003 — выходное напряжение, 1 V
+++- 0x7004 — выходной ток, 0.01 A при Pd.06=0
+++- 0x7007 — состояние цифровых входов X1..X4 (полезно для проверки физических кнопок)
+++- 0x702D — информация об ошибке
+++- 0x703B/0x703C/0x703D — текущая заданная/рабочая частота (%) и состояние привода
+++
+++## Сборка
+++
+++Для проверки четырёх лазеров без реального RS485 можно продолжать использовать:
+++`mega_v6_sensor_core_fast`
+++
+++Для реального HE200 по MAX485 использовать **только**:
+++`mega_v6_he200_readonly`
+++
+++В этой сборке любые команды движения/STOP по RS485 заблокированы на уровне прошивки.
+++
+++## MAX485 ↔ Arduino Mega
+++
+++- Mega TX1 pin 18 -> MAX485 DI
+++- Mega RX1 pin 19 <- MAX485 RO
+++- Mega pin 6 -> объединённые DE и /RE
+++- GND общий
+++- MAX485 A/B -> HE200 A+/A-
+++
+++## Быстрый тест связи
+++
+++После загрузки `mega_v6_he200_readonly` в терминале:
+++
+++```text
+++he200 comm
+++test h1
+++test h2
+++test v1
+++test v2
+++```
+++
+++`he200 comm` меняет параметры только в RAM на 9600 8-N-1, адреса 1/2/3/4. Ничего в EEPROM автоматически не сохраняется.
+++
+++Нормальный ответ выглядит как `HE200 READ OK ...`. Если один ПЧ на столе, задайте ему адрес 1 и проверяйте `test h1`.
+++
+++## Предварительные параметры самого HE200
+++
+++Для общей сети четырёх ПЧ задайте каждому уникальный Pd.02: 1, 2, 3, 4.
+++На всех одинаково:
+++- Pd.00 = 5 -> 9600 bit/s
+++- Pd.01 = 3 -> 8-N-1
+++- Pd.03 = 2 ms можно оставить по умолчанию
+++- Pd.04 = 0.0 на первом тесте (контроль таймаута отключён)
+++- Pd.05 = 01 (стандартный Modbus)
+++- Pd.06 = 0, если хотим ток 0.01 A/единицу
+++
+++## Физические кнопки и RS485
+++
+++HE200 позволяет выбрать источник команды P0.02: 0 панель, 1 клеммы, 2 связь.
+++Для первичного теста физических кнопок используйте клеммный режим P0.02=1. Пример:
+++- P4.00 (X1) = 1 Forward RUN
+++- P4.01 (X2) = 2 Reverse RUN
+++- P4.11 = 0 (two-line mode 1)
+++
+++Если нужен именно удерживаемый JOG, в руководстве есть функции X-входов 4 Forward JOG и 5 Reverse JOG; частота JOG задаётся P8.00.
+++
+++В списке функций входов есть 20/37 `command source switchover`, то есть аппаратное переключение источника команда/связь предусмотрено. Но в присланной краткой инструкции нет однозначной таблицы логики состояния этих входов. Поэтому не используйте это как аварийную защиту и сначала проверяйте переключение без нагрузки.
+++
+++Для будущего сетевого управления источник команды должен быть P0.02=2; источник частоты по связи — P0.03=9. Точный регистр записи RUN/STOP для HE200 мы сначала подтвердим и только после этого выпустим FIELD MANUAL прошивку.
+++
+++## Двигатель
+++
+++До движения заполните по шильдику двигателя P1.00..P1.05 (тип, мощность, напряжение, ток, частота, обороты). Не копируйте моторные числа от другого тельфера. Разгон/торможение P0.17/P0.18 на первом тесте оставьте существующими безопасными значениями.
+++
+++## 4 лазера
+++
+++Подключить X1/X2/Z1/Z2, затем перезагрузка или команда DWIN `0x0045 SENSOR REINIT`. В терминале должны быть четыре `fast init: OK` и четыре живых измерения.
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/include/config_v6_bringup.h /mnt/data/telfer-control-system-v6-system-step9e-he200/include/config_v6_bringup.h
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/include/config_v6_bringup.h	2026-08-11 03:51:17.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/include/config_v6_bringup.h	2026-08-11 11:21:59.514744627 +0000
+@@ -3,7 +3,7 @@
+ #include <Arduino.h>
+ #include <stdint.h>
+ 
+-#define FW_VERSION_V6_BRINGUP "v6-system-step9d-hmi-commissioning"
++#define FW_VERSION_V6_BRINGUP "v6-system-step9e-he200-readonly"
+ 
+ // =====================================================
+ // Debug / UART
+@@ -428,12 +428,16 @@
+ #ifndef V6_AUTO_PHYSICAL_ENABLED
+   #define V6_AUTO_PHYSICAL_ENABLED 0
+ #endif
++#ifndef V6_HE200_COMMISSIONING
++  #define V6_HE200_COMMISSIONING 0
++#endif
+ static constexpr bool VFD_RS485_ENABLED = (V6_VFD_RS485_ENABLED != 0);
+ static constexpr bool VFD_DRY_RUN       = (V6_VFD_DRY_RUN != 0);
+ static constexpr bool VFD_WRITE_COMMANDS_ENABLED = (V6_VFD_WRITE_COMMANDS_ENABLED != 0);
+ // Separate commissioning interlock: physical manual movement can be enabled
+ // without allowing HOME/AUTO. Only the explicit FIELD AUTO build sets this to 1.
+ static constexpr bool AUTO_PHYSICAL_ENABLED = (V6_AUTO_PHYSICAL_ENABLED != 0);
++static constexpr bool HE200_COMMISSIONING = (V6_HE200_COMMISSIONING != 0);
+ static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // MAX485 DE+/RE, RO=RX1/19, DI=TX1/18
+ // Baud/parity/stop bits/timeouts are now read from SettingsV6 and EEPROM.
+ 
+@@ -451,14 +455,31 @@
+               "Physical VFD writes require SAFETY_BENCH_MODE=false and verified NC safety wiring");
+ static_assert(!AUTO_PHYSICAL_ENABLED || (VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED && !SAFETY_BENCH_MODE),
+               "Physical AUTO/HOME requires RS485 writes, FIELD safety logic and explicit AUTO enable");
++static_assert(!HE200_COMMISSIONING || !VFD_WRITE_COMMANDS_ENABLED,
++              "HE200 commissioning profile is READ-ONLY until the HE200 RUN/STOP write map is verified");
+ 
+-// NE200 network-control map already recorded in the project/manual notes.
++// LEGACY NE200/300 write map retained only for dry-run history.
++// DO NOT use these writes with HE200 until its command/write table is verified.
+ // Control register: 0x0001; network setpoint: 0x0002.
+ static constexpr uint16_t NE200_REG_COMMAND  = 0x0001;
+ static constexpr uint16_t NE200_REG_SETPOINT = 0x0002;
+ static constexpr uint16_t NE200_REG_STATUS   = 0x0020; // safe read test
+ static constexpr uint16_t NE200_REG_FAULT    = 0x0021; // read together with status
+ 
++
++// HE200 monitoring addresses from the supplied HE200 User Manual, p.47-48.
++// These are used by the Step9E physical RS485 READ-ONLY commissioning build.
++static constexpr uint16_t HE200_REG_RUNNING_FREQ   = 0x7000; // 0.01 Hz
++static constexpr uint16_t HE200_REG_SET_FREQ       = 0x7001; // 0.01 Hz
++static constexpr uint16_t HE200_REG_BUS_VOLT       = 0x7002; // 0.1 V
++static constexpr uint16_t HE200_REG_OUTPUT_VOLT    = 0x7003; // 1 V
++static constexpr uint16_t HE200_REG_OUTPUT_CURRENT = 0x7004; // 0.01 A when Pd.06=0
++static constexpr uint16_t HE200_REG_DIGITAL_INPUT  = 0x7007; // X input state
++static constexpr uint16_t HE200_REG_FAULT_INFO     = 0x702D;
++static constexpr uint16_t HE200_REG_CUR_SET_FREQ   = 0x703B; // 0.01 %
++static constexpr uint16_t HE200_REG_CUR_RUN_FREQ   = 0x703C; // 0.01 %
++static constexpr uint16_t HE200_REG_RUN_STATE      = 0x703D;
++
+ static constexpr uint16_t NE200_CMD_FORWARD    = 0x0001;
+ static constexpr uint16_t NE200_CMD_REVERSE    = 0x0002;
+ static constexpr uint16_t NE200_CMD_STOP       = 0x0003;
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/include/motors.h /mnt/data/telfer-control-system-v6-system-step9e-he200/include/motors.h
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/include/motors.h	2026-08-01 14:12:18.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/include/motors.h	2026-08-11 11:21:26.632016967 +0000
+@@ -26,8 +26,17 @@
+ };
+ 
+ struct DriveTelemetry {
+-  uint16_t statusWord = 0;
++  // HE200 read-only monitoring snapshot (Step9E).
++  uint16_t runningFreq001Hz = 0;
++  uint16_t setFreq001Hz = 0;
++  uint16_t busVoltage01V = 0;
++  uint16_t outputVoltageV = 0;
++  uint16_t outputCurrent001A = 0;
++  uint16_t digitalInputState = 0;
+   uint16_t faultCode = 0;
++  uint16_t currentSetFreq001Pct = 0;
++  uint16_t currentRunFreq001Pct = 0;
++  uint16_t statusWord = 0; // HE200 running state (0x703D)
+   bool connected = false;
+   uint8_t lastErr = MODBUS_ERROR_NONE;
+   uint32_t lastOkMs = 0;
+@@ -63,7 +72,9 @@
+     WRITE_STOP_COMMAND,
+     WRITE_ZERO_SETPOINT,
+     WRITE_RESET_FAULT,
+-    READ_SAFE_STATUS
++    READ_SAFE_STATUS,
++    READ_HE200_FAULT,
++    READ_HE200_STATE
+   };
+ 
+   struct DriveState {
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/platformio.ini /mnt/data/telfer-control-system-v6-system-step9e-he200/platformio.ini
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/platformio.ini	2026-08-10 18:25:07.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/platformio.ini	2026-08-11 11:18:12.102791870 +0000
+@@ -90,7 +90,7 @@
+ ; Physical RS485 commissioning mode: Serial1/MAX485 is enabled, but every
+ ; register write/motion command is blocked in VfdDriverV6. Only 0x0204..0x0208
+ ; safe status READ tests are intended in this environment.
+-[env:mega_v6_ne200_readonly]
++[env:mega_v6_he200_readonly]
+ platform = atmelavr
+ board = megaatmega2560
+ framework = arduino
+@@ -102,6 +102,7 @@
+   -DV6_VFD_RS485_ENABLED=1
+   -DV6_VFD_DRY_RUN=0
+   -DV6_VFD_WRITE_COMMANDS_ENABLED=0
++  -DV6_HE200_COMMISSIONING=1
+ 
+ build_src_filter =
+   -<*>
+@@ -121,73 +122,8 @@
+   +<auto_runner_v6.cpp>
+ 
+ 
+-; ------------------------------------------------------------
+-; FIELD COMMISSIONING STAGE 2: physical writes are enabled, but
+-; HOME/AUTO remain compile-time blocked. Verify NC E-stop chain,
+-; horizontal limits, drive directions and manual motion here first.
+-[env:mega_v6_ne200_field_manual]
+-platform = atmelavr
+-board = megaatmega2560
+-framework = arduino
+-monitor_speed = 115200
+-upload_port = COM6
+-upload_speed = 115200
+-
+-build_flags =
+-  -DV6_SAFETY_BENCH_MODE=0
+-  -DV6_VFD_RS485_ENABLED=1
+-  -DV6_VFD_DRY_RUN=0
+-  -DV6_VFD_WRITE_COMMANDS_ENABLED=1
+-  -DV6_AUTO_PHYSICAL_ENABLED=0
+-
+-build_src_filter =
+-  -<*>
+-  +<main_v6_fast.cpp>
+-  +<dwin_link.cpp>
+-  +<fast_laser_sensor.cpp>
+-  +<sc16is752.cpp>
+-  +<settings_v6.cpp>
+-  +<system_state.cpp>
+-  +<motor_control_v6.cpp>
+-  +<vfd_driver_v6.cpp>
+-  +<modbus.cpp>
+-  +<motors.cpp>
+-  +<utils.cpp>
+-  +<safety_v6.cpp>
+-  +<program_v6.cpp>
+-  +<auto_runner_v6.cpp>
+ 
+-; FIELD COMMISSIONING STAGE 3: explicit physical AUTO/HOME enable.
+-; Use only after READ-ONLY communication and FIELD MANUAL directions
+-; have been verified on the real machine.
+-[env:mega_v6_ne200_field_auto]
+-platform = atmelavr
+-board = megaatmega2560
+-framework = arduino
+-monitor_speed = 115200
+-upload_port = COM6
+-upload_speed = 115200
+-
+-build_flags =
+-  -DV6_SAFETY_BENCH_MODE=0
+-  -DV6_VFD_RS485_ENABLED=1
+-  -DV6_VFD_DRY_RUN=0
+-  -DV6_VFD_WRITE_COMMANDS_ENABLED=1
+-  -DV6_AUTO_PHYSICAL_ENABLED=1
+-
+-build_src_filter =
+-  -<*>
+-  +<main_v6_fast.cpp>
+-  +<dwin_link.cpp>
+-  +<fast_laser_sensor.cpp>
+-  +<sc16is752.cpp>
+-  +<settings_v6.cpp>
+-  +<system_state.cpp>
+-  +<motor_control_v6.cpp>
+-  +<vfd_driver_v6.cpp>
+-  +<modbus.cpp>
+-  +<motors.cpp>
+-  +<utils.cpp>
+-  +<safety_v6.cpp>
+-  +<program_v6.cpp>
+-  +<auto_runner_v6.cpp>
++; Step9E intentionally omits the old NE200 FIELD WRITE environments.
++; The supplied HE200 manual confirms monitoring addresses but the exact
++; HE200 RUN/STOP write register map is not yet verified. Physical writes
++; will be added in a later HE200-specific commissioning step only.
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/src/main_v6_fast.cpp /mnt/data/telfer-control-system-v6-system-step9e-he200/src/main_v6_fast.cpp
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/src/main_v6_fast.cpp	2026-08-11 03:53:46.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/src/main_v6_fast.cpp	2026-08-11 11:18:12.102690669 +0000
+@@ -1554,7 +1554,7 @@
+   Serial.println(F("USB console:"));
+   Serial.println(F("  help | clear | diag | estop on/off | limits on/off | save"));
+   Serial.println(F("  log quiet | log normal | log verbose"));
+-  Serial.println(F("  test h1/h2/v1/v2/all"));
++  Serial.println(F("  test h1/h2/v1/v2/all | he200 comm"));
+   Serial.println(F("  sim on | sim off | sim demo | auto | home | stop | pause | resume | next"));
+   Serial.println(F("  prog show | prog slot 1..4 | prog load | prog save | prog defaults"));
+   Serial.println(F("  set home X1 X2 | set travel Z1 Z2"));
+@@ -1661,6 +1661,28 @@
+     else if (!strcmp(line, "estop off")) setBenchSafetyFromConsole(true, false);
+     else if (!strcmp(line, "limits on")) setBenchSafetyFromConsole(false, true);
+     else if (!strcmp(line, "limits off")) setBenchSafetyFromConsole(false, false);
++    else if (!strcmp(line, "he200 comm")) {
++      if (!HE200_COMMISSIONING) {
++        Serial.println(F("he200 comm is intended for the HE200 commissioning build"));
++      } else {
++        g_settings.vfd.baudCode = VFD_BAUD_9600;
++        g_settings.vfd.parity = VFD_PARITY_NONE;
++        g_settings.vfd.stopBits = 1;
++        g_settings.vfd.retries = 1;
++        g_settings.vfd.responseTimeoutMs = 250;
++        g_settings.vfd.interRequestMs = 20;
++        g_settings.vfd.address[DRIVE_H1] = 1;
++        g_settings.vfd.address[DRIVE_H2] = 2;
++        g_settings.vfd.address[DRIVE_V1] = 3;
++        g_settings.vfd.address[DRIVE_V2] = 4;
++        g_editSettings = g_settings;
++        g_motor.applySettings(g_settings);
++        g_settingsDirty = true;
++        writeSettingsToDwin(g_settings);
++        Serial.println(F("HE200 COMM applied in RAM: 9600 8-N-1, addr H1/H2/V1/V2=1/2/3/4, timeout=250ms"));
++        Serial.println(F("Not saved to EEPROM; use DWIN/console SAVE only after communication is verified"));
++      }
++    }
+     else if (!strcmp(line, "test h1")) handleCommand(CMD_VFD_TEST_H1);
+     else if (!strcmp(line, "test h2")) handleCommand(CMD_VFD_TEST_H2);
+     else if (!strcmp(line, "test v1")) handleCommand(CMD_VFD_TEST_V1);
+@@ -1796,7 +1818,7 @@
+   Serial.begin(DBG_BAUD);
+   delay(300);
+   Serial.println();
+-  Serial.println(F("========== V6 SYSTEM STEP9D HMI COMMISSIONING START =========="));
++  Serial.println(F("========== V6 SYSTEM STEP9E HE200 READ-ONLY COMMISSIONING START =========="));
+   Serial.print(F("FW: ")); Serial.println(F(FW_VERSION_V6_BRINGUP));
+ 
+   g_dwin.begin(DWIN_BAUD);
+@@ -1855,7 +1877,9 @@
+   if (!VFD_RS485_ENABLED)
+     Serial.println(F("VFD layer: DRY-RUN; MAX485 disabled, exact RTU frames available for manual tests"));
+   else if (!VFD_WRITE_COMMANDS_ENABLED)
+-    Serial.println(F("VFD layer: PHYSICAL RS485 READ-ONLY; all writes/motion blocked"));
++    Serial.println(HE200_COMMISSIONING
++                       ? F("VFD layer: HE200 PHYSICAL RS485 READ-ONLY; monitoring only; ALL writes/motion blocked")
++                       : F("VFD layer: PHYSICAL RS485 READ-ONLY; all writes/motion blocked"));
+   else if (!AUTO_PHYSICAL_ENABLED)
+     Serial.println(F("VFD layer: FIELD MANUAL WRITE; physical AUTO/HOME compile-time BLOCKED"));
+   else
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/src/motors.cpp /mnt/data/telfer-control-system-v6-system-step9e-he200/src/motors.cpp
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/src/motors.cpp	2026-08-01 14:19:44.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/src/motors.cpp	2026-08-11 11:21:26.632095744 +0000
+@@ -1,6 +1,6 @@
+ /**
+  * @file motors.cpp
+- * @brief Four-drive NE200 scheduler adapted from the existing project layer.
++ * @brief Four-drive scheduler. Step9E adds HE200 read-only commissioning.
+  */
+ #include "motors.h"
+ #include "utils.h"
+@@ -212,7 +212,7 @@
+ 
+   tel.lastErr = r.error;
+   if (st.failStreak < 255) ++st.failStreak;
+-  Serial.print(F("NE200 transaction failed drive="));
++  Serial.print(F("VFD transaction failed drive="));
+   Serial.print(driveName(driveFromIndex(i)));
+   Serial.print(F(" error="));
+   Serial.println(r.error);
+@@ -301,12 +301,42 @@
+       return finishTransaction(i, r, TxPhase::IDLE);
+ 
+     case TxPhase::READ_SAFE_STATUS: {
++      if (HE200_COMMISSIONING) {
++        uint16_t values[8] = {0, 0, 0, 0, 0, 0, 0, 0};
++        Serial.print(F("HE200 "));
++        Serial.print(driveName(driveFromIndex(i)));
++        Serial.print(F(" addr="));
++        Serial.print(map.addr);
++        Serial.println(F(" READ 0x7000..0x7007 (freq/set/busV/outV/outI/DI)"));
++        r = _mb->readHoldingRegisters(map.addr, HE200_REG_RUNNING_FREQ, 8, values);
++        if (r.ok) {
++          DriveTelemetry& tel = _tel[i];
++          tel.runningFreq001Hz = values[0];
++          tel.setFreq001Hz = values[1];
++          tel.busVoltage01V = values[2];
++          tel.outputVoltageV = values[3];
++          tel.outputCurrent001A = values[4];
++          tel.digitalInputState = values[7];
++          tel.connected = true;
++          tel.lastErr = MODBUS_ERROR_NONE;
++          tel.lastOkMs = nowMs;
++          Serial.print(F("HE200 READ OK run="));
++          Serial.print(values[0] / 100); Serial.print('.');
++          if ((values[0] % 100) < 10) Serial.print('0'); Serial.print(values[0] % 100);
++          Serial.print(F("Hz set="));
++          Serial.print(values[1] / 100); Serial.print('.');
++          if ((values[1] % 100) < 10) Serial.print('0'); Serial.print(values[1] % 100);
++          Serial.print(F("Hz bus="));
++          Serial.print(values[2] / 10); Serial.print('.'); Serial.print(values[2] % 10);
++          Serial.print(F("V outV=")); Serial.print(values[3]);
++          Serial.print(F("V outIraw=")); Serial.print(values[4]);
++          Serial.print(F(" DI=0x")); Serial.println(values[7], HEX);
++        }
++        return finishTransaction(i, r, TxPhase::READ_HE200_FAULT);
++      }
++
++      // Legacy dry-run/read test retained for old NE200 builds only.
+       uint16_t values[2] = {0, 0};
+-      Serial.print(F("NE200 "));
+-      Serial.print(driveName(driveFromIndex(i)));
+-      Serial.print(F(" addr="));
+-      Serial.print(map.addr);
+-      Serial.println(F(" SAFE READ status/fault regs 0x0020..0x0021"));
+       r = _mb->readHoldingRegisters(map.addr, NE200_REG_STATUS, 2, values);
+       st.statusReadRequested = false;
+       if (r.ok) {
+@@ -315,12 +345,39 @@
+         _tel[i].connected = true;
+         _tel[i].lastErr = MODBUS_ERROR_NONE;
+         _tel[i].lastOkMs = nowMs;
+-        Serial.print(F("NE200 READ OK status=0x"));
+-        Serial.print(values[0], HEX);
+-        Serial.print(F(" fault=0x"));
+-        Serial.println(values[1], HEX);
+-      } else if (r.simulated) {
+-        Serial.println(F("NE200 READ dry-run: frame built; no response expected"));
++      }
++      return finishTransaction(i, r, TxPhase::IDLE);
++    }
++
++    case TxPhase::READ_HE200_FAULT: {
++      uint16_t value = 0;
++      r = _mb->readHoldingRegisters(map.addr, HE200_REG_FAULT_INFO, 1, &value);
++      if (r.ok) {
++        _tel[i].faultCode = value;
++        _tel[i].connected = true;
++        _tel[i].lastErr = MODBUS_ERROR_NONE;
++        _tel[i].lastOkMs = nowMs;
++        Serial.print(F("HE200 fault info 0x702D=0x"));
++        Serial.println(value, HEX);
++      }
++      return finishTransaction(i, r, TxPhase::READ_HE200_STATE);
++    }
++
++    case TxPhase::READ_HE200_STATE: {
++      uint16_t values[3] = {0, 0, 0};
++      r = _mb->readHoldingRegisters(map.addr, HE200_REG_CUR_SET_FREQ, 3, values);
++      st.statusReadRequested = false;
++      if (r.ok) {
++        DriveTelemetry& tel = _tel[i];
++        tel.currentSetFreq001Pct = values[0];
++        tel.currentRunFreq001Pct = values[1];
++        tel.statusWord = values[2];
++        tel.connected = true;
++        tel.lastErr = MODBUS_ERROR_NONE;
++        tel.lastOkMs = nowMs;
++        Serial.print(F("HE200 state 0x703B/3C/3D="));
++        Serial.print(values[0]); Serial.print('/');
++        Serial.print(values[1]); Serial.print(F("/0x")); Serial.println(values[2], HEX);
+       }
+       return finishTransaction(i, r, TxPhase::IDLE);
+     }
+diff -ruN /tmp/step9d_zip/telfer-control-system-v6-system-step9d/src/vfd_driver_v6.cpp /mnt/data/telfer-control-system-v6-system-step9e-he200/src/vfd_driver_v6.cpp
+--- /tmp/step9d_zip/telfer-control-system-v6-system-step9d/src/vfd_driver_v6.cpp	2026-08-10 18:16:29.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9e-he200/src/vfd_driver_v6.cpp	2026-08-11 11:21:26.632234830 +0000
+@@ -29,7 +29,10 @@
+   if (!VFD_RS485_ENABLED) {
+     Serial.println(F("VfdDriverV6: physical MAX485 disabled; exact NE200 frames will be printed"));
+   } else if (!VFD_WRITE_COMMANDS_ENABLED) {
+-    Serial.println(F("VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked"));
++    if (HE200_COMMISSIONING)
++      Serial.println(F("VfdDriverV6: HE200 physical MAX485 READ-ONLY; monitoring reads only, ALL writes blocked"));
++    else
++      Serial.println(F("VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked"));
+   } else {
+     Serial.println(F("VfdDriverV6: physical MAX485 enabled with WRITE commands"));
+   }
+@@ -253,15 +256,19 @@
+                 : VFD_STATUS_READY;
+ 
+   if (driveIndex >= DRIVE_COUNT_V6) {
+-    Serial.println(F("NE200 SAFE TEST ALL queued: FC03 read 0x0020..0x0021"));
++    Serial.println(HE200_COMMISSIONING
++                       ? F("HE200 READ-ONLY TEST ALL queued: FC03 monitoring 0x7000/0x702D/0x703B")
++                       : F("LEGACY SAFE TEST ALL queued"));
+     _drives.requestSafeStatusReadAll();
+     return;
+   }
+ 
+-  Serial.print(F("NE200 SAFE TEST queued drive="));
++  Serial.print(HE200_COMMISSIONING ? F("HE200 READ-ONLY TEST queued drive=") : F("LEGACY SAFE TEST queued drive="));
+   Serial.print(Drives::driveName((DriveId)driveIndex));
+   Serial.print(F(" addr="));
+   Serial.print(address(driveIndex));
+-  Serial.println(F(" FC03 read 0x0020..0x0021"));
++  Serial.println(HE200_COMMISSIONING
++                     ? F(" FC03 0x7000..0x7007 + 0x702D + 0x703B..0x703D")
++                     : F(" legacy map"));
+   _drives.requestSafeStatusRead((DriveId)driveIndex);
+ }

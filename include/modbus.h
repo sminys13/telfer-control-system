@@ -41,7 +41,8 @@ public:
              uint8_t retries,
              bool transportEnabled,
              bool dryRun,
-             bool traceFrames);
+             bool traceFrames,
+             bool autoDirection = false);
 
   void reconfigure(uint32_t baud,
                    uint16_t timeoutMs,
@@ -49,7 +50,8 @@ public:
                    uint8_t retries,
                    bool transportEnabled,
                    bool dryRun,
-                   bool traceFrames);
+                   bool traceFrames,
+                   bool autoDirection = false);
 
   ModbusResult writeSingleRegister(uint8_t addr, uint16_t reg, uint16_t value);
   ModbusResult readHoldingRegisters(uint8_t addr, uint16_t reg, uint16_t count, uint16_t* outValues);
@@ -80,6 +82,7 @@ private:
   bool _dryRun;
   bool _traceFrames;
   bool _serialStarted;
+  bool _autoDirection;
 
   void txEnable(bool on);
   void clearRx();

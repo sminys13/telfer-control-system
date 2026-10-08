@@ -16,7 +16,8 @@ ModbusMasterRTU::ModbusMasterRTU()
   _transportEnabled(false),
   _dryRun(true),
   _traceFrames(true),
-  _serialStarted(false) {}
+  _serialStarted(false),
+  _autoDirection(false) {}
 
 uint16_t ModbusMasterRTU::defaultInterFrameUs(uint32_t baud) {
   if (baud == 0) return 4000;
@@ -35,13 +36,17 @@ void ModbusMasterRTU::begin(HardwareSerial& serial,
                             uint8_t retries,
                             bool transportEnabled,
                             bool dryRun,
-                            bool traceFrames) {
+                            bool traceFrames,
+                            bool autoDirection) {
   _ser = &serial;
   _de = deRePin;
-  pinMode(_de, OUTPUT);
-  txEnable(false);
+  _autoDirection = autoDirection;
+  if (!_autoDirection) {
+    pinMode(_de, OUTPUT);
+    txEnable(false);
+  }
   reconfigure(baud, timeoutMs, serialConfig, retries,
-              transportEnabled, dryRun, traceFrames);
+              transportEnabled, dryRun, traceFrames, autoDirection);
 }
 
 void ModbusMasterRTU::reconfigure(uint32_t baud,
@@ -50,7 +55,8 @@ void ModbusMasterRTU::reconfigure(uint32_t baud,
                                   uint8_t retries,
                                   bool transportEnabled,
                                   bool dryRun,
-                                  bool traceFrames) {
+                                  bool traceFrames,
+                                  bool autoDirection) {
   _baud = baud;
   _timeoutMs = timeoutMs;
   _serialConfig = serialConfig;
@@ -58,6 +64,7 @@ void ModbusMasterRTU::reconfigure(uint32_t baud,
   _transportEnabled = transportEnabled;
   _dryRun = dryRun;
   _traceFrames = traceFrames;
+  _autoDirection = autoDirection;
   _ifDelayUs = defaultInterFrameUs(baud);
   startOrStopSerial();
 }
@@ -85,6 +92,7 @@ uint16_t ModbusMasterRTU::crc16(const uint8_t* data, size_t len) const {
 }
 
 void ModbusMasterRTU::txEnable(bool on) {
+  if (_autoDirection) return;
   digitalWrite(_de, on ? HIGH : LOW);
 }
 

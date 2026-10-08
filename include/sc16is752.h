@@ -22,6 +22,7 @@ public:
 
   bool txReady(Channel ch);
   uint8_t rxCount(Channel ch);
+  uint8_t readLineStatus(Channel ch);
   void flushRx(Channel ch);
 
   void writeByte(Channel ch, uint8_t value);

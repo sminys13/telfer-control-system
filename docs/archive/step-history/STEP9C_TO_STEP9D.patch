@@ -1,0 +1,1193 @@
+diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README.md /mnt/data/telfer-control-system-v6-system-step9d/README.md
+--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README.md	2026-08-10 18:58:47.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9d/README.md	2026-08-11 03:53:24.271385306 +0000
+@@ -1,3 +1,11 @@
++# АКТУАЛЬНО: V6 SYSTEM STEP9D
++
++Русская инструкция по текущей сенсорной версии: **README_V6_SYSTEM_STEP9D_RU.md**.
++
++Step9D добавляет безопасный ручной hold-to-run, раздельный выбор/загрузку программ, защищённое подтверждение координат, наклон как |Z1-Z2| в мм и карту RS485/DWIN.
++
++---
++
+ # Telfer Control System (Arduino Mega 2560)
+ 
+ Этот проект — компактная «основа» управления двумя тельферами (2×горизонталь, 2×вертикаль) с автоматическим циклом «зоны → погружение → зоны…», ручным режимом, хранением программ в EEPROM и UI на графическом LCD.
+diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README_V6_SYSTEM_STEP9D_RU.md /mnt/data/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9D_RU.md
+--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README_V6_SYSTEM_STEP9D_RU.md	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9D_RU.md	2026-08-11 03:53:23.851581172 +0000
+@@ -0,0 +1,297 @@
++# V6 SYSTEM STEP9D — HMI, безопасный редактор и подготовка RS485
++
++Версия прошивки: `v6-system-step9d-hmi-commissioning`
++
++Эта версия продолжает проверенную Step9C и предназначена для окончательной привязки DWIN перед полевым пуском.
++
++## Что изменено относительно Step9C
++
++1. Выбор программы 1..4 теперь **не загружает** её автоматически.
++   - `0x0314..0x0317` — только выбрать карточку/слот.
++   - `0x0310` — загрузить выбранный слот.
++   - `0x0311` — сохранить именно загруженный слот.
++   - если выбранный и загруженный слоты различаются, SAVE отклоняется: сначала нажмите `Загрузить`.
++
++2. Ручной ввод координат стал безопаснее.
++   - изменение X1 или X2 снимает признак валидности пары X;
++   - изменение Z1 или Z2 снимает признак валидности пары Z;
++   - кнопка `Принять` подтверждает пару только если после загрузки/смены зоны оператор реально ввёл **оба** значения пары;
++   - просто нажать `Принять` на нулевых полях больше нельзя.
++
++3. Наклон теперь трактуется именно как **разница координат Z1 и Z2 в миллиметрах**.
++   - VP остаётся `0x1310`;
++   - значение N означает требуемый перепад `|Z1-Z2| = N мм`;
++   - поле на экране лучше подписать `Перепад Z1-Z2, мм` или `Наклон слива, мм`.
++
++4. Добавлен режим `hold-to-run` для ручных стрелок.
++   - новый VP `0x1110`;
++   - стрелки рекомендуется сделать в DGUS как **Bit Button**, режим **Inching**;
++   - нажатие = бит 1 = движение;
++   - отпускание = бит 0 = немедленный ручной STOP;
++   - старые команды `0x0101..0x010C` и `0x010F` сохранены.
++
++5. RS485/VFD редактор из предыдущих шагов сохранён и готов к привязке числовых полей DWIN.
++
++---
++
++# 1. Как сделать числовой ввод в DGUS
++
++Для каждого редактируемого поля нужны два объекта на одном месте:
++
++- **Data Variable** (или ваш существующий объект отображения значения) — показывает текущее значение VP;
++- **Touch Variable -> Variable Data Input** — прозрачная/невидимая область поверх числа, по нажатию открывает цифровую клавиатуру и записывает результат в тот же VP.
++
++Для Step9D используйте:
++
++- `V_Type = 0x00` — 2-byte integer / unsigned integer;
++- `N_Dot = 0` — без десятичной части;
++- число целых разрядов (`N_Int`) выбирайте по диапазону поля;
++- по возможности включите ограничение Min/Max.
++
++Все редактируемые поля Step9D сейчас целочисленные.
++
++## Минимальный тест ввода
++
++Для проверки удобнее всего первым сделать поле `Выдержка в ванне`:
++
++- VP: `0x130E`
++- диапазон: `0..36000`
++- десятичных знаков: `0`
++
++Нажмите поле, введите, например, `15`, нажмите OK. В терминале после успешной автоотправки DWIN значение попадёт в редактор программы.
++
++---
++
++# 2. Ручное управление: нажал — едем, отпустил — стоп
++
++Рекомендуемая Step9D настройка каждой стрелки:
++
++- Touch Control: **Bit Button**
++- VP: `0x1110`
++- Adjustment mode: **Inching** (`press=1`, `release=0`)
++- у каждой стрелки свой `Bit position`.
++
++| Бит VP 0x1110 | Действие |
++|---:|---|
++| 0 | H1 вперёд / X1 + |
++| 1 | H1 назад / X1 - |
++| 2 | H2 вперёд / X2 + |
++| 3 | H2 назад / X2 - |
++| 4 | H1+H2 вперёд |
++| 5 | H1+H2 назад |
++| 6 | V1 вверх / Z1 + |
++| 7 | V1 вниз / Z1 - |
++| 8 | V2 вверх / Z2 + |
++| 9 | V2 вниз / Z2 - |
++| 10 | V1+V2 вверх |
++| 11 | V1+V2 вниз |
++
++При отпускании любой стрелки VP возвращается к 0, а прошивка выполняет ручной STOP. Сторожевой таймер остаётся вторым уровнем защиты.
++
++Если пока не хотите переделывать кнопки, старые Return Key Code продолжают работать:
++
++- `0x0101..0x010C` — движения;
++- `0x010F` — ручной JOG STOP.
++
++---
++
++# 3. Нижнее меню и HOME
++
++Не путать навигацию и команды механизма.
++
++| Экранная кнопка | Настройка |
++|---|---|
++| Главная | только Page Switch, команды Arduino нет |
++| Ручной | Page Switch + `VP 0x1100 = 0x0001` |
++| Авто в нижнем меню | только Page Switch |
++| Программы | только Page Switch |
++| Калибровка | Page Switch + `0x0006` |
++| Настройки | Page Switch + `0x0005` |
++| СТОП | `0x0004` |
++| Домой / HOME | `0x0003` — это движение механизма, не переход на Главную |
++
++На странице AUTO:
++
++- Старт `0x0002`
++- Пауза `0x0300`
++- Продолжить `0x0301`
++- Следующий/подтвердить `0x0302`
++- Симуляция `0x0303`
++
++---
++
++# 4. Программы
++
++## Карточки программ
++
++Все пишут в `VP 0x1100`:
++
++- Программа 1: `0x0314`
++- Программа 2: `0x0315`
++- Программа 3: `0x0316`
++- Программа 4: `0x0317`
++
++В Step9D это только **выбор** карточки. После выбора нажмите:
++
++- `Загрузить` = `0x0310`
++
++Только после LOAD программа становится активной/редактируемой.
++
++- `Сохранить` = `0x0311`
++- `По умолчанию` = `0x0312`
++- зона назад = `0x0318`
++- зона вперёд = `0x0319`
++- зона ВКЛ/ВЫКЛ = `0x031A`
++
++`Редактор 1` и `Редактор 2` — только Page Switch, контроллерной команды для перехода не требуется.
++
++---
++
++# 5. Редактор 1 — координаты
++
++## Числовые VP
++
++| Поле | VP | Тип / рекомендуемый диапазон |
++|---|---:|---|
++| Текущая зона | `0x1300` | 1..10 |
++| Количество зон | `0x1302` | 1..10 |
++| Зона ВКЛ/ВЫКЛ | `0x1304` | 0/1 |
++| X1 зоны | `0x1306` | мм, 0..65535 |
++| X2 зоны | `0x1308` | мм, 0..65535 |
++| Z1 зоны | `0x130A` | мм, 0..65535 |
++| Z2 зоны | `0x130C` | мм, 0..65535 |
++| HOME X1 | `0x1320` | мм |
++| HOME X2 | `0x1322` | мм |
++| TRAVEL Z1 | `0x1324` | мм |
++| TRAVEL Z2 | `0x1326` | мм |
++
++## Кнопки координат
++
++- снять HOME X1/X2 с датчиков: `0x0320`
++- снять TRAVEL Z1/Z2: `0x0321`
++- снять X1/X2 текущей зоны: `0x0322`
++- снять Z1/Z2 текущей зоны: `0x0323`
++- снять Dry X1/X2: `0x0324`
++- снять Dry Z1/Z2: `0x0325`
++
++Ручное подтверждение числового ввода:
++
++- принять X1/X2 зоны: `0x0326`
++- принять Z1/Z2 зоны: `0x0327`
++- принять HOME X1/X2: `0x0328`
++- принять TRAVEL Z1/Z2: `0x0329`
++- принять Dry X1/X2: `0x032A`
++- принять Dry Z1/Z2: `0x032B`
++
++**Step9D требует фактический ввод обоих чисел пары перед `Принять`.**
++
++---
++
++# 6. Редактор 2 — параметры процесса
++
++| Поле | VP | Диапазон |
++|---|---:|---|
++| Выдержка в ванне, с | `0x130E` | 0..36000 |
++| Перепад Z1-Z2 при наклоне, мм | `0x1310` | 0..5000 |
++| Выдержка после наклона, с | `0x1312` | 0..36000 |
++| Скорость H, % | `0x1314` | 1..100 |
++| Скорость V, % | `0x1316` | 1..100 |
++| Время стекания, с | `0x1328` | 0..65535 |
++| Сторона наклона | `0x132A` | 0=V1, 1=V2 |
++| Скорость наклона, % | `0x1346` | 1..100 |
++| Сушка ВКЛ/ВЫКЛ | `0x1330` | 0/1 |
++| Время сушки, с | `0x1332` | секунды |
++| Staging зона | `0x1334` | 1..N |
++| Dry X1 | `0x1336` | мм |
++| Dry X2 | `0x1338` | мм |
++| Dry Z1 | `0x133A` | мм |
++| Dry Z2 | `0x133C` | мм |
++
++Для поля наклона на картинке заменить градусы на **мм**.
++
++---
++
++# 7. RS485 / частотники
++
++Команды сервисного экрана (`VP 0x1100`):
++
++- применить в RAM: `0x0200`
++- применить и сохранить EEPROM: `0x0201`
++- загрузить EEPROM: `0x0202`
++- безопасные значения по умолчанию: `0x0203`
++- тест H1: `0x0204`
++- тест H2: `0x0205`
++- тест V1: `0x0206`
++- тест V2: `0x0207`
++- тест всех: `0x0208`
++
++Числовые VP:
++
++| Параметр | VP | Значение |
++|---|---:|---|
++| Baud code | `0x1200` | 0=4800, 1=9600, 2=19200, 3=38400, 4=57600, 5=115200 |
++| Чётность | `0x1202` | 0=None, 1=Even, 2=Odd |
++| Stop bits | `0x1204` | 1 или 2 |
++| Timeout ответа, мс | `0x1206` | по умолчанию 150 |
++| Повторы | `0x1208` | 0..5 |
++| Интервал запросов, мс | `0x120A` | по умолчанию 10 |
++| Online poll, мс | `0x120C` | период опроса online |
++| Offline poll, мс | `0x120E` | период повторной проверки offline |
++| Адрес H1 | `0x1210` | Modbus ID |
++| Адрес H2 | `0x1212` | Modbus ID |
++| Адрес V1 | `0x1214` | Modbus ID |
++| Адрес V2 | `0x1216` | Modbus ID |
++| Инверсия направлений | `0x1218` | битовая маска H1/H2/V1/V2 |
++| JOG watchdog, мс | `0x1220` | по умолчанию 2500 |
++| E-STOP monitor | `0x1222` | 0/1, отключение только BENCH |
++| LIMIT monitor | `0x1224` | 0/1 |
++
++Профили приводов:
++
++- H1 base `0x1230`
++- H2 base `0x1240`
++- V1 base `0x1250`
++- V2 base `0x1260`
++
++Смещения от base:
++
++- `+0x00` ручная скорость, %
++- `+0x02` максимальная скорость, %
++- `+0x04` медленная скорость, %
++- `+0x06` расстояние начала замедления, мм
++- `+0x08` допуск остановки, мм
++
++Для первой полевой проверки лучше оставить текущие `9600 / Even / 1 stop bit`, адреса `1/2/3/4`, затем проверить каждый ПЧ в READ-ONLY среде.
++
++---
++
++# 8. Сервис
++
++- очистить статус: `0x0044`
++- реинициализация лазеров: `0x0045`
++- диагностический снимок: `0x0046`
++- снять защёлку E-STOP: `0x0047`
++- BENCH toggle E-STOP monitor: `0x0048`
++- toggle LIMIT monitor: `0x0049`
++
++---
++
++# 9. Рекомендуемая последовательность проверки Step9D
++
++На столе использовать среду:
++
++`mega_v6_sensor_core_fast`
++
++1. Проверить загрузку Step9D.
++2. Проверить выбор программы: P2 -> должно быть `selected=2`, но loaded остаётся прежним.
++3. Нажать LOAD -> P2 становится loaded.
++4. В Редакторе 2 настроить Variable Data Input на `0x130E`, ввести `15`.
++5. Проверить защиту пары: нажать `Принять X` без ввода X1 и X2 -> должно быть `rejected: enter BOTH values first`.
++6. Настроить одну стрелку H1 как Bit Button/Inching VP `0x1110`, bit0. При удержании должен появиться H1_FWD, при отпускании — `DWIN jog release` и STOP.
++7. После успешной проверки перенести остальные 11 стрелок на биты 1..11.
++
++Полевой порядок остаётся:
++
++1. `mega_v6_ne200_readonly` — только связь с реальными ПЧ.
++2. `mega_v6_ne200_field_manual` — реальные ручные движения, AUTO/HOME запрещены.
++3. Только после проверки направлений, торможения, датчиков и безопасности — `mega_v6_ne200_field_auto`.
+diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/STEP9C_TO_STEP9D.patch /mnt/data/telfer-control-system-v6-system-step9d/STEP9C_TO_STEP9D.patch
+--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/STEP9C_TO_STEP9D.patch	1970-01-01 00:00:00.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9d/STEP9C_TO_STEP9D.patch	2026-08-11 03:53:46.451565881 +0000
+@@ -0,0 +1,316 @@
++diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README.md /mnt/data/telfer-control-system-v6-system-step9d/README.md
++--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README.md	2026-08-10 18:58:47.000000000 +0000
+++++ /mnt/data/telfer-control-system-v6-system-step9d/README.md	2026-08-11 03:53:24.271385306 +0000
++@@ -1,3 +1,11 @@
+++# АКТУАЛЬНО: V6 SYSTEM STEP9D
+++
+++Русская инструкция по текущей сенсорной версии: **README_V6_SYSTEM_STEP9D_RU.md**.
+++
+++Step9D добавляет безопасный ручной hold-to-run, раздельный выбор/загрузку программ, защищённое подтверждение координат, наклон как |Z1-Z2| в мм и карту RS485/DWIN.
+++
+++---
+++
++ # Telfer Control System (Arduino Mega 2560)
++ 
++ Этот проект — компактная «основа» управления двумя тельферами (2×горизонталь, 2×вертикаль) с автоматическим циклом «зоны → погружение → зоны…», ручным режимом, хранением программ в EEPROM и UI на графическом LCD.
++diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README_V6_SYSTEM_STEP9D_RU.md /mnt/data/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9D_RU.md
++--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/README_V6_SYSTEM_STEP9D_RU.md	1970-01-01 00:00:00.000000000 +0000
+++++ /mnt/data/telfer-control-system-v6-system-step9d/README_V6_SYSTEM_STEP9D_RU.md	2026-08-11 03:53:23.851581172 +0000
++@@ -0,0 +1,297 @@
+++# V6 SYSTEM STEP9D — HMI, безопасный редактор и подготовка RS485
+++
+++Версия прошивки: `v6-system-step9d-hmi-commissioning`
+++
+++Эта версия продолжает проверенную Step9C и предназначена для окончательной привязки DWIN перед полевым пуском.
+++
+++## Что изменено относительно Step9C
+++
+++1. Выбор программы 1..4 теперь **не загружает** её автоматически.
+++   - `0x0314..0x0317` — только выбрать карточку/слот.
+++   - `0x0310` — загрузить выбранный слот.
+++   - `0x0311` — сохранить именно загруженный слот.
+++   - если выбранный и загруженный слоты различаются, SAVE отклоняется: сначала нажмите `Загрузить`.
+++
+++2. Ручной ввод координат стал безопаснее.
+++   - изменение X1 или X2 снимает признак валидности пары X;
+++   - изменение Z1 или Z2 снимает признак валидности пары Z;
+++   - кнопка `Принять` подтверждает пару только если после загрузки/смены зоны оператор реально ввёл **оба** значения пары;
+++   - просто нажать `Принять` на нулевых полях больше нельзя.
+++
+++3. Наклон теперь трактуется именно как **разница координат Z1 и Z2 в миллиметрах**.
+++   - VP остаётся `0x1310`;
+++   - значение N означает требуемый перепад `|Z1-Z2| = N мм`;
+++   - поле на экране лучше подписать `Перепад Z1-Z2, мм` или `Наклон слива, мм`.
+++
+++4. Добавлен режим `hold-to-run` для ручных стрелок.
+++   - новый VP `0x1110`;
+++   - стрелки рекомендуется сделать в DGUS как **Bit Button**, режим **Inching**;
+++   - нажатие = бит 1 = движение;
+++   - отпускание = бит 0 = немедленный ручной STOP;
+++   - старые команды `0x0101..0x010C` и `0x010F` сохранены.
+++
+++5. RS485/VFD редактор из предыдущих шагов сохранён и готов к привязке числовых полей DWIN.
+++
+++---
+++
+++# 1. Как сделать числовой ввод в DGUS
+++
+++Для каждого редактируемого поля нужны два объекта на одном месте:
+++
+++- **Data Variable** (или ваш существующий объект отображения значения) — показывает текущее значение VP;
+++- **Touch Variable -> Variable Data Input** — прозрачная/невидимая область поверх числа, по нажатию открывает цифровую клавиатуру и записывает результат в тот же VP.
+++
+++Для Step9D используйте:
+++
+++- `V_Type = 0x00` — 2-byte integer / unsigned integer;
+++- `N_Dot = 0` — без десятичной части;
+++- число целых разрядов (`N_Int`) выбирайте по диапазону поля;
+++- по возможности включите ограничение Min/Max.
+++
+++Все редактируемые поля Step9D сейчас целочисленные.
+++
+++## Минимальный тест ввода
+++
+++Для проверки удобнее всего первым сделать поле `Выдержка в ванне`:
+++
+++- VP: `0x130E`
+++- диапазон: `0..36000`
+++- десятичных знаков: `0`
+++
+++Нажмите поле, введите, например, `15`, нажмите OK. В терминале после успешной автоотправки DWIN значение попадёт в редактор программы.
+++
+++---
+++
+++# 2. Ручное управление: нажал — едем, отпустил — стоп
+++
+++Рекомендуемая Step9D настройка каждой стрелки:
+++
+++- Touch Control: **Bit Button**
+++- VP: `0x1110`
+++- Adjustment mode: **Inching** (`press=1`, `release=0`)
+++- у каждой стрелки свой `Bit position`.
+++
+++| Бит VP 0x1110 | Действие |
+++|---:|---|
+++| 0 | H1 вперёд / X1 + |
+++| 1 | H1 назад / X1 - |
+++| 2 | H2 вперёд / X2 + |
+++| 3 | H2 назад / X2 - |
+++| 4 | H1+H2 вперёд |
+++| 5 | H1+H2 назад |
+++| 6 | V1 вверх / Z1 + |
+++| 7 | V1 вниз / Z1 - |
+++| 8 | V2 вверх / Z2 + |
+++| 9 | V2 вниз / Z2 - |
+++| 10 | V1+V2 вверх |
+++| 11 | V1+V2 вниз |
+++
+++При отпускании любой стрелки VP возвращается к 0, а прошивка выполняет ручной STOP. Сторожевой таймер остаётся вторым уровнем защиты.
+++
+++Если пока не хотите переделывать кнопки, старые Return Key Code продолжают работать:
+++
+++- `0x0101..0x010C` — движения;
+++- `0x010F` — ручной JOG STOP.
+++
+++---
+++
+++# 3. Нижнее меню и HOME
+++
+++Не путать навигацию и команды механизма.
+++
+++| Экранная кнопка | Настройка |
+++|---|---|
+++| Главная | только Page Switch, команды Arduino нет |
+++| Ручной | Page Switch + `VP 0x1100 = 0x0001` |
+++| Авто в нижнем меню | только Page Switch |
+++| Программы | только Page Switch |
+++| Калибровка | Page Switch + `0x0006` |
+++| Настройки | Page Switch + `0x0005` |
+++| СТОП | `0x0004` |
+++| Домой / HOME | `0x0003` — это движение механизма, не переход на Главную |
+++
+++На странице AUTO:
+++
+++- Старт `0x0002`
+++- Пауза `0x0300`
+++- Продолжить `0x0301`
+++- Следующий/подтвердить `0x0302`
+++- Симуляция `0x0303`
+++
+++---
+++
+++# 4. Программы
+++
+++## Карточки программ
+++
+++Все пишут в `VP 0x1100`:
+++
+++- Программа 1: `0x0314`
+++- Программа 2: `0x0315`
+++- Программа 3: `0x0316`
+++- Программа 4: `0x0317`
+++
+++В Step9D это только **выбор** карточки. После выбора нажмите:
+++
+++- `Загрузить` = `0x0310`
+++
+++Только после LOAD программа становится активной/редактируемой.
+++
+++- `Сохранить` = `0x0311`
+++- `По умолчанию` = `0x0312`
+++- зона назад = `0x0318`
+++- зона вперёд = `0x0319`
+++- зона ВКЛ/ВЫКЛ = `0x031A`
+++
+++`Редактор 1` и `Редактор 2` — только Page Switch, контроллерной команды для перехода не требуется.
+++
+++---
+++
+++# 5. Редактор 1 — координаты
+++
+++## Числовые VP
+++
+++| Поле | VP | Тип / рекомендуемый диапазон |
+++|---|---:|---|
+++| Текущая зона | `0x1300` | 1..10 |
+++| Количество зон | `0x1302` | 1..10 |
+++| Зона ВКЛ/ВЫКЛ | `0x1304` | 0/1 |
+++| X1 зоны | `0x1306` | мм, 0..65535 |
+++| X2 зоны | `0x1308` | мм, 0..65535 |
+++| Z1 зоны | `0x130A` | мм, 0..65535 |
+++| Z2 зоны | `0x130C` | мм, 0..65535 |
+++| HOME X1 | `0x1320` | мм |
+++| HOME X2 | `0x1322` | мм |
+++| TRAVEL Z1 | `0x1324` | мм |
+++| TRAVEL Z2 | `0x1326` | мм |
+++
+++## Кнопки координат
+++
+++- снять HOME X1/X2 с датчиков: `0x0320`
+++- снять TRAVEL Z1/Z2: `0x0321`
+++- снять X1/X2 текущей зоны: `0x0322`
+++- снять Z1/Z2 текущей зоны: `0x0323`
+++- снять Dry X1/X2: `0x0324`
+++- снять Dry Z1/Z2: `0x0325`
+++
+++Ручное подтверждение числового ввода:
+++
+++- принять X1/X2 зоны: `0x0326`
+++- принять Z1/Z2 зоны: `0x0327`
+++- принять HOME X1/X2: `0x0328`
+++- принять TRAVEL Z1/Z2: `0x0329`
+++- принять Dry X1/X2: `0x032A`
+++- принять Dry Z1/Z2: `0x032B`
+++
+++**Step9D требует фактический ввод обоих чисел пары перед `Принять`.**
+++
+++---
+++
+++# 6. Редактор 2 — параметры процесса
+++
+++| Поле | VP | Диапазон |
+++|---|---:|---|
+++| Выдержка в ванне, с | `0x130E` | 0..36000 |
+++| Перепад Z1-Z2 при наклоне, мм | `0x1310` | 0..5000 |
+++| Выдержка после наклона, с | `0x1312` | 0..36000 |
+++| Скорость H, % | `0x1314` | 1..100 |
+++| Скорость V, % | `0x1316` | 1..100 |
+++| Время стекания, с | `0x1328` | 0..65535 |
+++| Сторона наклона | `0x132A` | 0=V1, 1=V2 |
+++| Скорость наклона, % | `0x1346` | 1..100 |
+++| Сушка ВКЛ/ВЫКЛ | `0x1330` | 0/1 |
+++| Время сушки, с | `0x1332` | секунды |
+++| Staging зона | `0x1334` | 1..N |
+++| Dry X1 | `0x1336` | мм |
+++| Dry X2 | `0x1338` | мм |
+++| Dry Z1 | `0x133A` | мм |
+++| Dry Z2 | `0x133C` | мм |
+++
+++Для поля наклона на картинке заменить градусы на **мм**.
+++
+++---
+++
+++# 7. RS485 / частотники
+++
+++Команды сервисного экрана (`VP 0x1100`):
+++
+++- применить в RAM: `0x0200`
+++- применить и сохранить EEPROM: `0x0201`
+++- загрузить EEPROM: `0x0202`
+++- безопасные значения по умолчанию: `0x0203`
+++- тест H1: `0x0204`
+++- тест H2: `0x0205`
+++- тест V1: `0x0206`
+++- тест V2: `0x0207`
+++- тест всех: `0x0208`
+++
+++Числовые VP:
+++
+++| Параметр | VP | Значение |
+++|---|---:|---|
+++| Baud code | `0x1200` | 0=4800, 1=9600, 2=19200, 3=38400, 4=57600, 5=115200 |
+++| Чётность | `0x1202` | 0=None, 1=Even, 2=Odd |
+++| Stop bits | `0x1204` | 1 или 2 |
+++| Timeout ответа, мс | `0x1206` | по умолчанию 150 |
+++| Повторы | `0x1208` | 0..5 |
+++| Интервал запросов, мс | `0x120A` | по умолчанию 10 |
+++| Online poll, мс | `0x120C` | период опроса online |
+++| Offline poll, мс | `0x120E` | период повторной проверки offline |
+++| Адрес H1 | `0x1210` | Modbus ID |
+++| Адрес H2 | `0x1212` | Modbus ID |
+++| Адрес V1 | `0x1214` | Modbus ID |
+++| Адрес V2 | `0x1216` | Modbus ID |
+++| Инверсия направлений | `0x1218` | битовая маска H1/H2/V1/V2 |
+++| JOG watchdog, мс | `0x1220` | по умолчанию 2500 |
+++| E-STOP monitor | `0x1222` | 0/1, отключение только BENCH |
+++| LIMIT monitor | `0x1224` | 0/1 |
+++
+++Профили приводов:
+++
+++- H1 base `0x1230`
+++- H2 base `0x1240`
+++- V1 base `0x1250`
+++- V2 base `0x1260`
+++
+++Смещения от base:
+++
+++- `+0x00` ручная скорость, %
+++- `+0x02` максимальная скорость, %
+++- `+0x04` медленная скорость, %
+++- `+0x06` расстояние начала замедления, мм
+++- `+0x08` допуск остановки, мм
+++
+++Для первой полевой проверки лучше оставить текущие `9600 / Even / 1 stop bit`, адреса `1/2/3/4`, затем проверить каждый ПЧ в READ-ONLY среде.
+++
+++---
+++
+++# 8. Сервис
+++
+++- очистить статус: `0x0044`
+++- реинициализация лазеров: `0x0045`
+++- диагностический снимок: `0x0046`
+++- снять защёлку E-STOP: `0x0047`
+++- BENCH toggle E-STOP monitor: `0x0048`
+++- toggle LIMIT monitor: `0x0049`
+++
+++---
+++
+++# 9. Рекомендуемая последовательность проверки Step9D
+++
+++На столе использовать среду:
+++
+++`mega_v6_sensor_core_fast`
+++
+++1. Проверить загрузку Step9D.
+++2. Проверить выбор программы: P2 -> должно быть `selected=2`, но loaded остаётся прежним.
+++3. Нажать LOAD -> P2 становится loaded.
+++4. В Редакторе 2 настроить Variable Data Input на `0x130E`, ввести `15`.
+++5. Проверить защиту пары: нажать `Принять X` без ввода X1 и X2 -> должно быть `rejected: enter BOTH values first`.
+++6. Настроить одну стрелку H1 как Bit Button/Inching VP `0x1110`, bit0. При удержании должен появиться H1_FWD, при отпускании — `DWIN jog release` и STOP.
+++7. После успешной проверки перенести остальные 11 стрелок на биты 1..11.
+++
+++Полевой порядок остаётся:
+++
+++1. `mega_v6_ne200_readonly` — только связь с реальными ПЧ.
+++2. `mega_v6_ne200_field_manual` — реальные ручные движения, AUTO/HOME запрещены.
+++3. Только после проверки направлений, торможения, датчиков и безопасности — `mega_v6_ne200_field_auto`.
+diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/include/config_v6_bringup.h /mnt/data/telfer-control-system-v6-system-step9d/include/config_v6_bringup.h
+--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/include/config_v6_bringup.h	2026-08-10 19:15:56.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9d/include/config_v6_bringup.h	2026-08-11 03:51:17.385760290 +0000
+@@ -3,7 +3,7 @@
+ #include <Arduino.h>
+ #include <stdint.h>
+ 
+-#define FW_VERSION_V6_BRINGUP "v6-system-step9c-dwin-program-editor"
++#define FW_VERSION_V6_BRINGUP "v6-system-step9d-hmi-commissioning"
+ 
+ // =====================================================
+ // Debug / UART
+@@ -183,15 +183,22 @@
+ static constexpr uint16_t VP_PROG_ZONE_VALID_MASK= 0x1342;
+ static constexpr uint16_t VP_PROG_DIRTY          = 0x1344;
+ static constexpr uint16_t VP_PROG_TILT_PCT        = 0x1346; // legacy global v_tilt_speed_pct
+-// Step9C editor/navigation status.
++// Step9D editor/navigation status.
+ static constexpr uint16_t VP_PROG_SLOT_SELECTED    = 0x1348; // 1..4
+-static constexpr uint16_t VP_PROG_UI_STATE         = 0x134A; // 0=idle,1=loaded,2=saved,3=dirty,4=error
++static constexpr uint16_t VP_PROG_UI_STATE         = 0x134A; // 0=idle,1=loaded,2=saved,3=dirty,4=error,5=slot selected
+ static constexpr uint16_t VP_PROG_EDIT_LOCKED      = 0x134C; // AUTO/HOME running
+ 
+ // Команды от кнопок DWIN.
+ // Все кнопки должны писать сюда.
+ static constexpr uint16_t VP_CMD   = 0x1100;
+ 
++// Step9D: hold-to-run manual control. Configure every manual arrow in DGUS as
++// Touch Variable -> Bit Button, all buttons use this same VP and unique bit.
++// Adj_Mode=0x03 (Inching): press writes bit=1, release writes bit=0.
++// This gives a deterministic STOP on finger release without relying on the watchdog.
++static constexpr uint16_t VP_JOG_HOLD_BITS = 0x1110;
++static constexpr uint16_t JOG_HOLD_VALID_MASK = 0x0FFF; // bits 0..11
++
+ // =====================================================
+ // DWIN SETTINGS VP MAP (Step7A)
+ // 0x1200..0x127F — редактируемые настройки.
+diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/include/program_v6.h /mnt/data/telfer-control-system-v6-system-step9d/include/program_v6.h
+--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/include/program_v6.h	2026-08-10 18:29:37.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9d/include/program_v6.h	2026-08-11 03:51:17.385893187 +0000
+@@ -25,7 +25,7 @@
+   int32_t xMm[2];                 // X1/X2 target, mm
+   int32_t zMm[2];                 // Z1/Z2 target, mm; logical UP increases coordinate
+   uint16_t dipTimeS;              // immersion dwell
+-  uint16_t tiltStepMm;            // first-side tilt offset
++  uint16_t tiltStepMm;            // requested Z1/Z2 differential during drain tilt, mm (|Z1-Z2|)
+   uint16_t stepWaitS;             // wait after tilt
+   uint8_t movePercent;            // horizontal cap
+   uint8_t verticalPercent;        // vertical cap
+diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/src/auto_runner_v6.cpp /mnt/data/telfer-control-system-v6-system-step9d/src/auto_runner_v6.cpp
+--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/src/auto_runner_v6.cpp	2026-08-10 19:07:10.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9d/src/auto_runner_v6.cpp	2026-08-11 03:51:17.386695108 +0000
+@@ -470,9 +470,12 @@
+       if (moveHorizontal(nowMs, sensors, z.xMm[0], z.xMm[1], z.movePercent, limitMask)) {
+         stopMotion();
+         _baseZ[0] = z.zMm[0]; _baseZ[1] = z.zMm[1];
+-        const SensorIndex lowIdx = low == 0 ? SENSOR_Z1 : SENSOR_Z2;
+-        const int32_t curLow = pos(sensors, lowIdx);
+-        int32_t intermediate = curLow - (int32_t)z.tiltStepMm; // logical down = decreasing Z
++        const SensorIndex highIdx = high == 0 ? SENSOR_Z1 : SENSOR_Z2;
++        const int32_t highPos = pos(sensors, highIdx);
++        // Step9D semantics: tiltStepMm is the requested DIFFERENCE |Z1-Z2|,
++        // not "move one side by N mm". The low side moves down until its
++        // coordinate is N mm below the opposite side, limited by final bath Z.
++        int32_t intermediate = highPos - (int32_t)z.tiltStepMm;
+         if (intermediate < _baseZ[low]) intermediate = _baseZ[low];
+         _lowTiltTarget = intermediate;
+         setPhase(Phase::LOWER_TILT, nowMs);
+@@ -500,8 +503,10 @@
+     case Phase::WAIT_DIP:
+       stopMotion();
+       if ((uint32_t)(nowMs - _phaseStartMs) >= (uint32_t)z.dipTimeS * 1000UL) {
+-        const SensorIndex highIdx = high == 0 ? SENSOR_Z1 : SENSOR_Z2;
+-        int32_t intermediate = pos(sensors, highIdx) + (int32_t)z.tiltStepMm;
++        const SensorIndex lowIdx = low == 0 ? SENSOR_Z1 : SENSOR_Z2;
++        // Drain tilt uses the same direct Z1/Z2 differential: raise the high side
++        // until it is N mm above the low side, limited by transport height.
++        int32_t intermediate = pos(sensors, lowIdx) + (int32_t)z.tiltStepMm;
+         if (intermediate > _program->travelZ[high]) intermediate = _program->travelZ[high];
+         _highLiftTarget = intermediate;
+         setPhase(Phase::RAISE_TILT_HIGH, nowMs);
+diff -ruN /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/src/main_v6_fast.cpp /mnt/data/telfer-control-system-v6-system-step9d/src/main_v6_fast.cpp
+--- /mnt/data/step9c_work/telfer-control-system-v6-system-step9c/src/main_v6_fast.cpp	2026-08-10 19:16:41.000000000 +0000
++++ /mnt/data/telfer-control-system-v6-system-step9d/src/main_v6_fast.cpp	2026-08-11 03:53:46.310708848 +0000
+@@ -36,12 +36,38 @@
+ static ProgramStorageV6 g_programStorage;
+ static AutoProgramV6 g_program;
+ static AutoRunnerV6 g_auto;
+-static uint8_t g_programSlot = 0;
++static uint8_t g_programSlot = 0;          // currently loaded/active program slot
++static uint8_t g_programSelectedSlot = 0;  // card selected in DWIN program list; LOAD makes it active
+ static uint8_t g_programSelectedZone = 0;
++
++// Manual numeric coordinate confirmation tracker. A pair is accepted only after
++// BOTH fields of that pair were actually entered since load/capture/zone change.
++static uint16_t g_programCoordEditMask = 0;
++enum ProgramCoordEditBitsV6 : uint16_t {
++  PROG_EDIT_ZONE_X1   = 1u << 0,
++  PROG_EDIT_ZONE_X2   = 1u << 1,
++  PROG_EDIT_ZONE_Z1   = 1u << 2,
++  PROG_EDIT_ZONE_Z2   = 1u << 3,
++  PROG_EDIT_HOME_X1   = 1u << 4,
++  PROG_EDIT_HOME_X2   = 1u << 5,
++  PROG_EDIT_TRAVEL_Z1 = 1u << 6,
++  PROG_EDIT_TRAVEL_Z2 = 1u << 7,
++  PROG_EDIT_DRY_X1    = 1u << 8,
++  PROG_EDIT_DRY_X2    = 1u << 9,
++  PROG_EDIT_DRY_Z1    = 1u << 10,
++  PROG_EDIT_DRY_Z2    = 1u << 11
++};
++
++static constexpr uint16_t PROG_EDIT_ZONE_X_PAIR   = PROG_EDIT_ZONE_X1 | PROG_EDIT_ZONE_X2;
++static constexpr uint16_t PROG_EDIT_ZONE_Z_PAIR   = PROG_EDIT_ZONE_Z1 | PROG_EDIT_ZONE_Z2;
++static constexpr uint16_t PROG_EDIT_HOME_X_PAIR   = PROG_EDIT_HOME_X1 | PROG_EDIT_HOME_X2;
++static constexpr uint16_t PROG_EDIT_TRAVEL_Z_PAIR = PROG_EDIT_TRAVEL_Z1 | PROG_EDIT_TRAVEL_Z2;
++static constexpr uint16_t PROG_EDIT_DRY_X_PAIR    = PROG_EDIT_DRY_X1 | PROG_EDIT_DRY_X2;
++static constexpr uint16_t PROG_EDIT_DRY_Z_PAIR    = PROG_EDIT_DRY_Z1 | PROG_EDIT_DRY_Z2;
+ static bool g_programDirty = false;
+ static bool g_programIsDemo = false;
+ static bool g_autoSimulation = false;
+-static uint16_t g_programUiState = 0; // 0 idle,1 loaded,2 saved,3 dirty,4 error
++static uint16_t g_programUiState = 0; // 0 idle,1 loaded,2 saved,3 dirty,4 error,5 slot selected
+ 
+ // USB periodic diagnostics. Event/fault messages are always printed.
+ // NORMAL is intentionally quieter than Step9A so console commands stay readable.
+@@ -208,6 +234,7 @@
+   g_dwin.writeU16(VP_Z2, 0);
+   writeMotorStateToDwin();
+   writePersistentHeaderToDwin();
++  g_dwin.writeU16(VP_JOG_HOLD_BITS, 0);
+   g_dwin.clearCommand(VP_CMD);
+ }
+ 
+@@ -332,7 +359,7 @@
+   g_dwin.writeU16(VP_PROG_VALID_MASK, g_program.validMask);
+   g_dwin.writeU16(VP_PROG_ZONE_VALID_MASK, z.validMask);
+   g_dwin.writeU16(VP_PROG_DIRTY, g_programDirty ? 1 : 0);
+-  g_dwin.writeU16(VP_PROG_SLOT_SELECTED, (uint16_t)(g_programSlot + 1));
++  g_dwin.writeU16(VP_PROG_SLOT_SELECTED, (uint16_t)(g_programSelectedSlot + 1));
+   g_dwin.writeU16(VP_PROG_UI_STATE, g_programUiState);
+   g_dwin.writeU16(VP_PROG_EDIT_LOCKED, g_auto.running() ? 1 : 0);
+   writePersistentHeaderToDwin();
+@@ -346,8 +373,19 @@
+   writeProgramToDwin();
+ }
+ 
++bool programSelectedSlotIsLoaded()
++{
++  return g_programSelectedSlot == g_programSlot;
++}
++
+ bool updateProgramFromVp(uint16_t vp, uint16_t value)
+ {
++  if (vp >= VP_PROG_ZONE_SELECTED && vp <= VP_PROG_TILT_PCT && !programSelectedSlotIsLoaded()) {
++    g_programUiState = 4;
++    Serial.println(F("Program edit rejected: selected slot is not loaded; press LOAD first"));
++    writeProgramToDwin();
++    return true;
++  }
+   if (g_auto.running()) {
+     if (vp >= VP_PROG_ZONE_SELECTED && vp <= VP_PROG_TILT_PCT) {
+       Serial.println(F("Program edit ignored while AUTO/HOME is running"));
+@@ -360,6 +398,7 @@
+   if (vp == VP_PROG_ZONE_SELECTED) {
+     if (value < 1 || value > AUTO_MAX_ZONES_V6) return true;
+     g_programSelectedZone = (uint8_t)(value - 1);
++    g_programCoordEditMask &= (uint16_t)~(PROG_EDIT_ZONE_X_PAIR | PROG_EDIT_ZONE_Z_PAIR);
+     if (g_programSelectedZone >= g_program.zoneCount) {
+       g_program.zoneCount = (uint8_t)(g_programSelectedZone + 1);
+       for (uint8_t i = 0; i < g_program.zoneCount; ++i) g_program.order[i] = i;
+@@ -375,23 +414,24 @@
+       if (value >= 1 && value <= AUTO_MAX_ZONES_V6) {
+         g_program.zoneCount = (uint8_t)value;
+         if (g_programSelectedZone >= g_program.zoneCount) g_programSelectedZone = (uint8_t)(g_program.zoneCount - 1);
++        g_programCoordEditMask &= (uint16_t)~(PROG_EDIT_ZONE_X_PAIR | PROG_EDIT_ZONE_Z_PAIR);
+         for (uint8_t i = 0; i < g_program.zoneCount; ++i) g_program.order[i] = i;
+       } else return true;
+       break;
+     case VP_PROG_ZONE_ENABLED: z.enabled = value ? 1 : 0; break;
+-    case VP_PROG_ZONE_X1: z.xMm[0] = value; break;
+-    case VP_PROG_ZONE_X2: z.xMm[1] = value; break;
+-    case VP_PROG_ZONE_Z1: z.zMm[0] = value; break;
+-    case VP_PROG_ZONE_Z2: z.zMm[1] = value; break;
++    case VP_PROG_ZONE_X1: z.xMm[0] = value; z.validMask &= (uint8_t)~AUTO_ZONE_VALID_X; g_programCoordEditMask |= PROG_EDIT_ZONE_X1; break;
++    case VP_PROG_ZONE_X2: z.xMm[1] = value; z.validMask &= (uint8_t)~AUTO_ZONE_VALID_X; g_programCoordEditMask |= PROG_EDIT_ZONE_X2; break;
++    case VP_PROG_ZONE_Z1: z.zMm[0] = value; z.validMask &= (uint8_t)~AUTO_ZONE_VALID_Z; g_programCoordEditMask |= PROG_EDIT_ZONE_Z1; break;
++    case VP_PROG_ZONE_Z2: z.zMm[1] = value; z.validMask &= (uint8_t)~AUTO_ZONE_VALID_Z; g_programCoordEditMask |= PROG_EDIT_ZONE_Z2; break;
+     case VP_PROG_ZONE_DIP_S: z.dipTimeS = value; break;
+     case VP_PROG_ZONE_TILT_MM: z.tiltStepMm = value; break;
+     case VP_PROG_ZONE_WAIT_S: z.stepWaitS = value; break;
+     case VP_PROG_ZONE_H_PCT: if (value < 1 || value > 100) return true; z.movePercent = (uint8_t)value; break;
+     case VP_PROG_ZONE_V_PCT: if (value < 1 || value > 100) return true; z.verticalPercent = (uint8_t)value; break;
+-    case VP_PROG_HOME_X1: g_program.homeX[0] = value; break;
+-    case VP_PROG_HOME_X2: g_program.homeX[1] = value; break;
+-    case VP_PROG_TRAVEL_Z1: g_program.travelZ[0] = value; break;
+-    case VP_PROG_TRAVEL_Z2: g_program.travelZ[1] = value; break;
++    case VP_PROG_HOME_X1: g_program.homeX[0] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_HOME_X; g_programCoordEditMask |= PROG_EDIT_HOME_X1; break;
++    case VP_PROG_HOME_X2: g_program.homeX[1] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_HOME_X; g_programCoordEditMask |= PROG_EDIT_HOME_X2; break;
++    case VP_PROG_TRAVEL_Z1: g_program.travelZ[0] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_TRAVEL_Z; g_programCoordEditMask |= PROG_EDIT_TRAVEL_Z1; break;
++    case VP_PROG_TRAVEL_Z2: g_program.travelZ[1] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_TRAVEL_Z; g_programCoordEditMask |= PROG_EDIT_TRAVEL_Z2; break;
+     case VP_PROG_DRIP_S: g_program.dripWaitS = value; break;
+     case VP_PROG_LOW_SIDE: if (value > 1) return true; g_program.lowSide = (uint8_t)value; break;
+     case VP_PROG_TILT_PCT: if (value < 1 || value > 100) return true; g_program.tiltPercent = (uint8_t)value; break;
+@@ -401,10 +441,10 @@
+       if (value < 1 || value > g_program.zoneCount) return true;
+       g_program.stagingZone = (uint8_t)(value - 1);
+       break;
+-    case VP_PROG_DRY_X1: g_program.dryX[0] = value; break;
+-    case VP_PROG_DRY_X2: g_program.dryX[1] = value; break;
+-    case VP_PROG_DRY_Z1: g_program.dryZ[0] = value; break;
+-    case VP_PROG_DRY_Z2: g_program.dryZ[1] = value; break;
++    case VP_PROG_DRY_X1: g_program.dryX[0] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_DRY_X; g_program.dryValid = 0; g_programCoordEditMask |= PROG_EDIT_DRY_X1; break;
++    case VP_PROG_DRY_X2: g_program.dryX[1] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_DRY_X; g_program.dryValid = 0; g_programCoordEditMask |= PROG_EDIT_DRY_X2; break;
++    case VP_PROG_DRY_Z1: g_program.dryZ[0] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_DRY_Z; g_program.dryValid = 0; g_programCoordEditMask |= PROG_EDIT_DRY_Z1; break;
++    case VP_PROG_DRY_Z2: g_program.dryZ[1] = value; g_program.validMask &= (uint8_t)~AUTO_PROGRAM_VALID_DRY_Z; g_program.dryValid = 0; g_programCoordEditMask |= PROG_EDIT_DRY_Z2; break;
+     default: return false;
+   }
+   if ((g_program.validMask & (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) ==
+@@ -773,6 +813,8 @@
+   if (!g_programStorage.load(slot, loaded)) {
+     g_programStorage.defaults(g_program, slot);
+     g_programSlot = slot;
++    g_programSelectedSlot = slot;
++    g_programCoordEditMask = 0;
+     g_programStorage.saveActiveSlot(slot);
+     g_programDirty = true;
+     g_programIsDemo = false;
+@@ -786,6 +828,8 @@
+   }
+   g_program = loaded;
+   g_programSlot = slot;
++  g_programSelectedSlot = slot;
++  g_programCoordEditMask = 0;
+   g_programStorage.saveActiveSlot(slot);
+   g_programDirty = false;
+   g_programIsDemo = false;
+@@ -813,6 +857,16 @@
+     writeProgramToDwin();
+     return false;
+   }
++  if (g_programSelectedSlot != g_programSlot) {
++    g_programUiState = 4;
++    Serial.print(F("Program SAVE rejected: selected slot "));
++    Serial.print(g_programSelectedSlot + 1);
++    Serial.print(F(" differs from loaded slot "));
++    Serial.print(g_programSlot + 1);
++    Serial.println(F("; press LOAD first"));
++    writeProgramToDwin();
++    return false;
++  }
+   if (!g_programStorage.save(g_programSlot, g_program)) {
+     g_programUiState = 4;
+     Serial.println(F("Program SAVE failed validation/EEPROM bounds"));
+@@ -837,6 +891,14 @@
+ 
+ bool captureProgramCoordinates(uint16_t cmd)
+ {
++  if (!programSelectedSlotIsLoaded()) {
++    if (cmd >= CMD_PROGRAM_CAPTURE_HOME && cmd <= CMD_PROGRAM_CAPTURE_DRY_Z) {
++      g_programUiState = 4;
++      Serial.println(F("Program capture rejected: selected slot is not loaded; press LOAD first"));
++      writeProgramToDwin();
++      return true;
++    }
++  }
+   if (g_auto.running()) {
+     Serial.println(F("Program capture rejected while AUTO/HOME is running"));
+     return true;
+@@ -848,6 +910,7 @@
+       g_program.homeX[0] = g_sensor[SENSOR_X1].valueMm;
+       g_program.homeX[1] = g_sensor[SENSOR_X2].valueMm;
+       g_program.validMask |= AUTO_PROGRAM_VALID_HOME_X;
++      g_programCoordEditMask &= (uint16_t)~PROG_EDIT_HOME_X_PAIR;
+       Serial.println(F("CAP HOME X1/X2 OK"));
+       break;
+     case CMD_PROGRAM_CAPTURE_TRAVEL:
+@@ -855,6 +918,7 @@
+       g_program.travelZ[0] = g_sensor[SENSOR_Z1].valueMm;
+       g_program.travelZ[1] = g_sensor[SENSOR_Z2].valueMm;
+       g_program.validMask |= AUTO_PROGRAM_VALID_TRAVEL_Z;
++      g_programCoordEditMask &= (uint16_t)~PROG_EDIT_TRAVEL_Z_PAIR;
+       Serial.println(F("CAP TRAVEL Z1/Z2 OK"));
+       break;
+     case CMD_PROGRAM_CAPTURE_ZONE_X:
+@@ -862,6 +926,7 @@
+       z.xMm[0] = g_sensor[SENSOR_X1].valueMm;
+       z.xMm[1] = g_sensor[SENSOR_X2].valueMm;
+       z.validMask |= AUTO_ZONE_VALID_X;
++      g_programCoordEditMask &= (uint16_t)~PROG_EDIT_ZONE_X_PAIR;
+       z.enabled = 1;
+       Serial.println(F("CAP ZONE X1/X2 OK"));
+       break;
+@@ -870,6 +935,7 @@
+       z.zMm[0] = g_sensor[SENSOR_Z1].valueMm;
+       z.zMm[1] = g_sensor[SENSOR_Z2].valueMm;
+       z.validMask |= AUTO_ZONE_VALID_Z;
++      g_programCoordEditMask &= (uint16_t)~PROG_EDIT_ZONE_Z_PAIR;
+       z.enabled = 1;
+       Serial.println(F("CAP ZONE Z1/Z2 OK"));
+       break;
+@@ -878,6 +944,7 @@
+       g_program.dryX[0] = g_sensor[SENSOR_X1].valueMm;
+       g_program.dryX[1] = g_sensor[SENSOR_X2].valueMm;
+       g_program.validMask |= AUTO_PROGRAM_VALID_DRY_X;
++      g_programCoordEditMask &= (uint16_t)~PROG_EDIT_DRY_X_PAIR;
+       Serial.println(F("CAP DRY X1/X2 OK"));
+       break;
+     case CMD_PROGRAM_CAPTURE_DRY_Z:
+@@ -885,6 +952,7 @@
+       g_program.dryZ[0] = g_sensor[SENSOR_Z1].valueMm;
+       g_program.dryZ[1] = g_sensor[SENSOR_Z2].valueMm;
+       g_program.validMask |= AUTO_PROGRAM_VALID_DRY_Z;
++      g_programCoordEditMask &= (uint16_t)~PROG_EDIT_DRY_Z_PAIR;
+       Serial.println(F("CAP DRY Z1/Z2 OK"));
+       break;
+     default: return false;
+@@ -897,8 +965,34 @@
+ 
+ bool acceptProgramCoordinates(uint16_t cmd)
+ {
++  if (!programSelectedSlotIsLoaded()) {
++    if (cmd >= CMD_PROGRAM_ACCEPT_ZONE_X && cmd <= CMD_PROGRAM_ACCEPT_DRY_Z) {
++      g_programUiState = 4;
++      Serial.println(F("Program accept rejected: selected slot is not loaded; press LOAD first"));
++      writeProgramToDwin();
++      return true;
++    }
++  }
+   if (g_auto.running()) return true;
+   AutoZoneV6 &z = g_program.zones[g_programSelectedZone];
++  uint16_t required = 0;
++  switch (cmd) {
++    case CMD_PROGRAM_ACCEPT_ZONE_X: required = PROG_EDIT_ZONE_X_PAIR; break;
++    case CMD_PROGRAM_ACCEPT_ZONE_Z: required = PROG_EDIT_ZONE_Z_PAIR; break;
++    case CMD_PROGRAM_ACCEPT_HOME: required = PROG_EDIT_HOME_X_PAIR; break;
++    case CMD_PROGRAM_ACCEPT_TRAVEL: required = PROG_EDIT_TRAVEL_Z_PAIR; break;
++    case CMD_PROGRAM_ACCEPT_DRY_X: required = PROG_EDIT_DRY_X_PAIR; break;
++    case CMD_PROGRAM_ACCEPT_DRY_Z: required = PROG_EDIT_DRY_Z_PAIR; break;
++    default: return false;
++  }
++
++  if ((g_programCoordEditMask & required) != required) {
++    g_programUiState = 4;
++    Serial.println(F("Program numeric pair rejected: enter BOTH values first"));
++    writeProgramToDwin();
++    return true;
++  }
++
+   switch (cmd) {
+     case CMD_PROGRAM_ACCEPT_ZONE_X: z.validMask |= AUTO_ZONE_VALID_X; z.enabled = 1; break;
+     case CMD_PROGRAM_ACCEPT_ZONE_Z: z.validMask |= AUTO_ZONE_VALID_Z; z.enabled = 1; break;
+@@ -908,6 +1002,7 @@
+     case CMD_PROGRAM_ACCEPT_DRY_Z: g_program.validMask |= AUTO_PROGRAM_VALID_DRY_Z; break;
+     default: return false;
+   }
++  g_programCoordEditMask &= (uint16_t)~required;
+   g_program.dryValid = ((g_program.validMask & (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) ==
+                        (AUTO_PROGRAM_VALID_DRY_X | AUTO_PROGRAM_VALID_DRY_Z)) ? 1 : 0;
+   markProgramDirty();
+@@ -918,7 +1013,8 @@
+ void printProgramSummary()
+ {
+   Serial.println(F("--- PROGRAM V6 ---"));
+-  Serial.print(F("slot=")); Serial.print(g_programSlot + 1);
++  Serial.print(F("loadedSlot=")); Serial.print(g_programSlot + 1);
++  Serial.print(F(" selectedSlot=")); Serial.print(g_programSelectedSlot + 1);
+   Serial.print(F(" name=")); Serial.print(g_program.name);
+   Serial.print(F(" dirty=")); Serial.print(g_programDirty ? 1 : 0);
+   Serial.print(F(" ready=")); Serial.print(g_programStorage.readyForAuto(g_program) ? 1 : 0);
+@@ -937,7 +1033,7 @@
+     Serial.print(F(" X=")); Serial.print(z.xMm[0]); Serial.print('/'); Serial.print(z.xMm[1]);
+     Serial.print(F(" Z=")); Serial.print(z.zMm[0]); Serial.print('/'); Serial.print(z.zMm[1]);
+     Serial.print(F(" dip=")); Serial.print(z.dipTimeS);
+-    Serial.print(F(" tilt=")); Serial.print(z.tiltStepMm);
++    Serial.print(F(" tiltDiffMm=")); Serial.print(z.tiltStepMm);
+     Serial.print(F(" wait=")); Serial.print(z.stepWaitS);
+     Serial.print(F(" H%=")); Serial.print(z.movePercent);
+     Serial.print(F(" V%=")); Serial.println(z.verticalPercent);
+@@ -965,6 +1061,9 @@
+   // STOP has priority and always goes through MotorControlV6::stopAll().
+   g_systemMode = mode;
+   g_motor.onModeChanged(g_systemMode);
++  // Clear the screen-side hold state whenever mode changes. If a page switch
++  // occurs while a finger is down, the existing watchdog remains a second safety net.
++  g_dwin.writeU16(VP_JOG_HOLD_BITS, 0);
+ 
+   writeModeToDwin();
+   writeMotorStateToDwin();
+@@ -1072,6 +1171,41 @@
+   return isManualCmd;
+ }
+ 
++bool handleJogHoldBits(uint16_t value)
++{
++  value &= JOG_HOLD_VALID_MASK;
++  if (value == 0) {
++    if (g_systemMode == SystemModeV6::MANUAL || g_motor.isMotionActive()) {
++      g_motor.manualStop(F("DWIN jog release"));
++      writeMotorStateToDwin();
++    }
++    return true;
++  }
++
++  // Exactly one hold bit is allowed. Multi-touch/multiple active bits is stopped
++  // deliberately instead of inventing a combined direction.
++  if ((value & (uint16_t)(value - 1u)) != 0) {
++    Serial.print(F("DWIN jog hold rejected multi-bit=0x"));
++    Serial.println(value, HEX);
++    g_motor.manualStop(F("DWIN jog multi-touch"));
++    writeMotorStateToDwin();
++    return true;
++  }
++
++  uint8_t bit = 0;
++  while (((uint16_t)1u << bit) != value && bit < 12) ++bit;
++  static const uint16_t HOLD_TO_CMD[12] = {
++    CMD_JOG_H1_FWD, CMD_JOG_H1_BWD,
++    CMD_JOG_H2_FWD, CMD_JOG_H2_BWD,
++    CMD_JOG_H_BOTH_FWD, CMD_JOG_H_BOTH_BWD,
++    CMD_JOG_V1_UP, CMD_JOG_V1_DOWN,
++    CMD_JOG_V2_UP, CMD_JOG_V2_DOWN,
++    CMD_JOG_V_BOTH_UP, CMD_JOG_V_BOTH_DOWN
++  };
++  if (bit >= 12) return true;
++  return handleManualJogCommand(HOLD_TO_CMD[bit]);
++}
++
+ void handleCommand(uint16_t cmd)
+ {
+   if (cmd == CMD_NONE)
+@@ -1237,7 +1371,7 @@
+     break;
+ 
+   case CMD_PROGRAM_LOAD:
+-    if (!g_auto.running()) (void)loadProgramSlotV6(g_programSlot);
++    if (!g_auto.running()) (void)loadProgramSlotV6(g_programSelectedSlot);
+     break;
+ 
+   case CMD_PROGRAM_SAVE:
+@@ -1246,11 +1380,18 @@
+ 
+   case CMD_PROGRAM_DEFAULTS:
+     if (!g_auto.running()) {
++      if (g_programSelectedSlot != g_programSlot) {
++        g_programUiState = 4;
++        Serial.println(F("Program DEFAULTS rejected: press LOAD for selected slot first"));
++        writeProgramToDwin();
++        break;
++      }
+       g_programStorage.defaults(g_program, g_programSlot);
+       g_programDirty = true;
+       g_programIsDemo = false;
+       g_programUiState = 3;
+       g_programSelectedZone = 0;
++      g_programCoordEditMask = 0;
+       Serial.println(F("Program safe defaults loaded in RAM; calibration required"));
+       writeProgramToDwin();
+     }
+@@ -1262,33 +1403,53 @@
+   case CMD_PROGRAM_SLOT_4:
+     if (g_auto.running()) {
+       g_programUiState = 4;
+-      Serial.println(F("Program slot change rejected while AUTO/HOME is running"));
++      Serial.println(F("Program slot selection rejected while AUTO/HOME is running"));
+       writeProgramToDwin();
+     } else {
+-      const uint8_t slot = (uint8_t)(cmd - CMD_PROGRAM_SLOT_1);
+-      (void)loadProgramSlotV6(slot);
++      g_programSelectedSlot = (uint8_t)(cmd - CMD_PROGRAM_SLOT_1);
++      g_programUiState = 5;
++      Serial.print(F("Program slot selected="));
++      Serial.print(g_programSelectedSlot + 1);
++      Serial.print(F("; loaded slot remains="));
++      Serial.print(g_programSlot + 1);
++      Serial.println(F(". Press LOAD to open selected slot."));
++      writeProgramToDwin();
+     }
+     break;
+ 
+   case CMD_PROGRAM_ZONE_PREV:
+-    if (!g_auto.running()) {
++    if (!programSelectedSlotIsLoaded()) {
++      g_programUiState = 4;
++      Serial.println(F("Zone navigation rejected: press LOAD for selected slot first"));
++      writeProgramToDwin();
++    } else if (!g_auto.running()) {
+       if (g_programSelectedZone == 0)
+         g_programSelectedZone = (uint8_t)(g_program.zoneCount - 1);
+       else
+         --g_programSelectedZone;
++      g_programCoordEditMask &= (uint16_t)~(PROG_EDIT_ZONE_X_PAIR | PROG_EDIT_ZONE_Z_PAIR);
+       writeProgramToDwin();
+     }
+     break;
+ 
+   case CMD_PROGRAM_ZONE_NEXT:
+-    if (!g_auto.running()) {
++    if (!programSelectedSlotIsLoaded()) {
++      g_programUiState = 4;
++      Serial.println(F("Zone navigation rejected: press LOAD for selected slot first"));
++      writeProgramToDwin();
++    } else if (!g_auto.running()) {
+       g_programSelectedZone = (uint8_t)((g_programSelectedZone + 1) % g_program.zoneCount);
++      g_programCoordEditMask &= (uint16_t)~(PROG_EDIT_ZONE_X_PAIR | PROG_EDIT_ZONE_Z_PAIR);
+       writeProgramToDwin();
+     }
+     break;
+ 
+   case CMD_PROGRAM_ZONE_TOGGLE:
+-    if (!g_auto.running()) {
++    if (!programSelectedSlotIsLoaded()) {
++      g_programUiState = 4;
++      Serial.println(F("Zone toggle rejected: press LOAD for selected slot first"));
++      writeProgramToDwin();
++    } else if (!g_auto.running()) {
+       AutoZoneV6 &z = g_program.zones[g_programSelectedZone];
+       z.enabled = z.enabled ? 0 : 1;
+       markProgramDirty();
+@@ -1635,7 +1796,7 @@
+   Serial.begin(DBG_BAUD);
+   delay(300);
+   Serial.println();
+-  Serial.println(F("========== V6 SYSTEM STEP9C DWIN PROGRAM EDITOR START =========="));
++  Serial.println(F("========== V6 SYSTEM STEP9D HMI COMMISSIONING START =========="));
+   Serial.print(F("FW: ")); Serial.println(F(FW_VERSION_V6_BRINGUP));
+ 
+   g_dwin.begin(DWIN_BAUD);
+@@ -1667,6 +1828,7 @@
+   // Programs live in a separate EEPROM area. Invalid/empty memory is never
+   // auto-filled with runnable coordinates: safe uncalibrated defaults stay in RAM.
+   g_programSlot = g_programStorage.loadActiveSlot();
++  g_programSelectedSlot = g_programSlot;
+   (void)loadProgramSlotV6(g_programSlot);
+ 
+   if (g_safety.estopActive() || g_safety.estopLatched())
+@@ -1685,9 +1847,10 @@
+   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
+   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
+   Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
+-  Serial.println(F("Manual jog: 0x0101..0x010C, 0x010F JOG STOP"));
++  Serial.println(F("Manual jog legacy: 0x0101..0x010C, 0x010F JOG STOP"));
++  Serial.println(F("Manual hold-to-run: VP 0x1110 bit0..11, DGUS Bit Button/Inching; release=STOP"));
+   Serial.println(F("AUTO: 0x0300 PAUSE, 0x0301 RESUME, 0x0302 OPERATOR NEXT, 0x0303 SIM TOGGLE"));
+-  Serial.println(F("Program: 0x0310 LOAD, 0x0311 SAVE, 0x0312 DEFAULTS, 0x0314..0x0317 SLOT1..4, 0x0318/19 PREV/NEXT, 0x031A TOGGLE, 0x0320..0x032B capture/accept"));
++  Serial.println(F("Program: 0x0314..0x0317 SELECT SLOT, 0x0310 LOAD SELECTED, 0x0311 SAVE LOADED, 0x0312 DEFAULTS, 0x0318/19 PREV/NEXT, 0x031A TOGGLE, 0x0320..0x032B capture/accept"));
+ 
+   if (!VFD_RS485_ENABLED)
+     Serial.println(F("VFD layer: DRY-RUN; MAX485 disabled, exact RTU frames available for manual tests"));
+@@ -1794,6 +1957,8 @@
+     ++dwinFrames;
+     if (rxVp == VP_CMD)
+       handleCommand(rxValue);
++    else if (rxVp == VP_JOG_HOLD_BITS)
++      (void)handleJogHoldBits(rxValue);
+     else if (!updatePendingSettingsFromVp(rxVp, rxValue) && !updateProgramFromVp(rxVp, rxValue))
+     {
+       Serial.print(F("DWIN write ignored VP=0x"));

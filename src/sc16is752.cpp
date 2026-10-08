@@ -56,6 +56,10 @@ uint8_t Sc16Is752::rxCount(Channel ch) {
   return readReg(ch, sc16reg::RXLVL);
 }
 
+uint8_t Sc16Is752::readLineStatus(Channel ch) {
+  return readReg(ch, sc16reg::LSR);
+}
+
 void Sc16Is752::flushRx(Channel ch) {
   while (rxCount(ch) > 0) {
     (void)readReg(ch, sc16reg::RHR_THR);

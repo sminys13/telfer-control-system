@@ -5,6 +5,8 @@
 #include "config_v6_bringup.h"
 #include "sc16is752.h"
 #include "fast_laser_sensor.h"
+#include "sensor_guard_v6.h"
+#include "he200_service_v6.h"
 #include "dwin_link.h"
 #include "settings_v6.h"
 #include "system_state.h"
@@ -36,6 +38,7 @@ static SafetyV6 g_safety;
 static ProgramStorageV6 g_programStorage;
 static AutoProgramV6 g_program;
 static AutoRunnerV6 g_auto;
+static He200ServiceV6 g_he200Service;
 static uint8_t g_programSlot = 0;          // currently loaded/active program slot
 static uint8_t g_programSelectedSlot = 0;  // card selected in DWIN program list; LOAD makes it active
 static uint8_t g_programSelectedZone = 0;
@@ -74,10 +77,33 @@ static uint16_t g_programUiState = 0; // 0 idle,1 loaded,2 saved,3 dirty,4 error
 static bool g_consolePeriodicEnabled = true;
 static uint16_t g_consolePrintIntervalMs = 2000;
 
+// Step9G/9H diagnostic acquisition mode. Continuous mode remains the production
+// baseline; alternating single-shot is a controlled experiment for X1/X2.
+enum class LaserServiceModeV6 : uint8_t {
+  Continuous = 0,
+  AlternatingX = 1
+};
+
+struct LaserAlternatingXStateV6 {
+  LaserServiceModeV6 mode = LaserServiceModeV6::Continuous;
+  bool preparing = false;
+  uint8_t targetHzPerSensor = 5;
+  uint8_t resolutionCode = (uint8_t)FastLaserResolution::Mm1;
+  uint8_t nextSensor = SENSOR_X1;
+  int8_t activeSensor = -1;
+  uint32_t lastRequestMs = 0;
+  uint32_t nextRequestMs = 0;
+  uint16_t requestSpacingMs = 100;
+};
+
+static LaserAlternatingXStateV6 g_laserAlternatingX;
+
 static bool g_settingsFault = false;
 static bool g_settingsDirty = false;
 static uint16_t g_settingsUiState = SETTINGS_UI_IDLE;
 static uint16_t g_settingsUiError = SETTINGS_VALID;
+
+void handleCommand(uint16_t cmd);
 
 // High-level system mode. Real motor/VFD commands are connected later through MotorControlV6.
 static SystemModeV6 g_systemMode = SystemModeV6::SERVICE;
@@ -102,6 +128,11 @@ static SensorRuntimeFast g_sensor[SENSOR_COUNT] = {
     {&g_laserZ2, "Z2", SENSOR_Z2, VP_Z2, false, false, 0, 0, 0},
 };
 
+static SensorGuardV6 g_sensorGuard[SENSOR_COUNT];
+static bool g_sensorGuardEnabled = true;
+static bool g_guardMotionX = false;
+static bool g_guardMotionZ = false;
+
 uint16_t displayValue(int32_t v)
 {
   if (v < 0)
@@ -115,6 +146,164 @@ void printBool(const __FlashStringHelper *label, bool value)
 {
   Serial.print(label);
   Serial.println(value ? F("OK") : F("FAIL"));
+}
+
+SensorGuardConfigV6 sensorGuardConfigV6()
+{
+  SensorGuardConfigV6 cfg;
+  cfg.warningAgeMs = SENSOR_GUARD_WARNING_MS;
+  cfg.shadowStopAgeMs = SENSOR_GUARD_SHADOW_STOP_MS;
+  cfg.faultAgeMs = SENSOR_GUARD_FAULT_MS;
+  cfg.nominalPeriodMs = 1000U / FAST_LASER_DEFAULT_FREQ_HZ;
+  cfg.diagnosticMaxVelocityMmS = SENSOR_GUARD_REFERENCE_VELOCITY_MM_S;
+  cfg.diagnosticJumpMarginMm = SENSOR_GUARD_JUMP_MARGIN_MM;
+  cfg.recoveryFrames = SENSOR_GUARD_RECOVERY_FRAMES;
+  return cfg;
+}
+
+void configureSensorGuards(uint32_t now, bool resetStatistics)
+{
+  const SensorGuardConfigV6 cfg = sensorGuardConfigV6();
+  for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
+  {
+    g_sensorGuard[i].configure(cfg);
+    if (resetStatistics) g_sensorGuard[i].reset(now);
+    g_sensorGuard[i].setEnabled(g_sensorGuardEnabled && g_settings.sensor[i].enabled, now);
+    const bool motion = (i == SENSOR_X1 || i == SENSOR_X2) ? g_guardMotionX : g_guardMotionZ;
+    (void)g_sensorGuard[i].setMotionMarked(motion, now);
+  }
+}
+
+uint8_t sensorGuardStateRank(SensorGuardStateV6 state)
+{
+  switch (state)
+  {
+    case SensorGuardStateV6::Fault: return 6;
+    case SensorGuardStateV6::NoData: return 5;
+    case SensorGuardStateV6::Lost: return 4;
+    case SensorGuardStateV6::Recovering: return 3;
+    case SensorGuardStateV6::Warning: return 2;
+    case SensorGuardStateV6::Healthy: return 1;
+    default: return 0;
+  }
+}
+
+void printSensorGuardEvent(uint8_t index, const SensorGuardEventV6 &event,
+                           uint32_t now)
+{
+  if (index >= SENSOR_COUNT) return;
+  if (event.stateChanged)
+  {
+    Serial.print(F("@SENSOR_EVENT name=")); Serial.print(g_sensor[index].label);
+    Serial.print(F(" type=STATE from=")); Serial.print(SensorGuardV6::stateName(event.previousState));
+    Serial.print(F(" to=")); Serial.print(SensorGuardV6::stateName(event.currentState));
+    Serial.print(F(" age="));
+    const uint32_t age = g_sensorGuard[index].ageMs(now);
+    if (age == UINT32_MAX) Serial.print(F("NA")); else Serial.print(age);
+    Serial.print(F(" motion=")); Serial.print(g_sensorGuard[index].motionMarked() ? 1 : 0);
+    Serial.print(F(" shadowStop=")); Serial.println(g_sensorGuard[index].shadowStopActive() ? 1 : 0);
+  }
+  if (event.gapClosed && event.gapMs > SENSOR_GUARD_WARNING_MS)
+  {
+    Serial.print(F("@SENSOR_EVENT name=")); Serial.print(g_sensor[index].label);
+    Serial.print(F(" type=GAP_CLOSE gapMs=")); Serial.print(event.gapMs);
+    Serial.print(F(" fromMm=")); Serial.print(event.gapStartMm);
+    Serial.print(F(" toMm=")); Serial.print(event.gapEndMm);
+    Serial.print(F(" blindRefMm="));
+    Serial.println((uint32_t)(((uint32_t)event.gapMs * SENSOR_GUARD_REFERENCE_VELOCITY_MM_S + 999UL) / 1000UL));
+  }
+  if (event.shadowStopChanged)
+  {
+    Serial.print(F("@SENSOR_EVENT name=")); Serial.print(g_sensor[index].label);
+    Serial.print(F(" type=SHADOW_STOP active=")); Serial.print(event.shadowStopActive ? 1 : 0);
+    Serial.print(F(" state=")); Serial.print(SensorGuardV6::stateName(g_sensorGuard[index].state()));
+    Serial.print(F(" NOTE="));
+    Serial.println(event.shadowStopActive ? F("WOULD_STOP; Step9H does not command motors") : F("CLEARED_AFTER_RECOVERY_OR_MOTION_END"));
+  }
+}
+
+void printSensorGuardStatusLine(uint8_t index)
+{
+  if (index >= SENSOR_COUNT) return;
+  const uint32_t now = millis();
+  const SensorGuardV6 &guard = g_sensorGuard[index];
+  const SensorGuardStatsV6 &st = guard.stats();
+  Serial.print(F("@SENSOR_GUARD name=")); Serial.print(g_sensor[index].label);
+  Serial.print(F(" state=")); Serial.print(SensorGuardV6::stateName(guard.state()));
+  Serial.print(F(" enabled=")); Serial.print(guard.enabled() ? 1 : 0);
+  Serial.print(F(" motion=")); Serial.print(guard.motionMarked() ? 1 : 0);
+  Serial.print(F(" shadowStop=")); Serial.print(guard.shadowStopActive() ? 1 : 0);
+  Serial.print(F(" age="));
+  const uint32_t age = guard.ageMs(now);
+  if (age == UINT32_MAX) Serial.print(F("NA")); else Serial.print(age);
+  Serial.print(F(" recovery=")); Serial.print(guard.recoveryStreak());
+  Serial.print(F(" frames=")); Serial.print(st.acceptedFrames);
+  Serial.print(F(" dtAvg=")); Serial.print(guard.averageIntervalMs());
+  Serial.print(F(" dtMin=")); Serial.print(st.minIntervalMs);
+  Serial.print(F(" dtMax=")); Serial.print(st.maxIntervalMs);
+  Serial.print(F(" bin250=")); Serial.print(st.intervalBins[0]);
+  Serial.print(F(" bin400=")); Serial.print(st.intervalBins[1]);
+  Serial.print(F(" bin600=")); Serial.print(st.intervalBins[2]);
+  Serial.print(F(" bin800=")); Serial.print(st.intervalBins[3]);
+  Serial.print(F(" bin1200=")); Serial.print(st.intervalBins[4]);
+  Serial.print(F(" bin1500=")); Serial.print(st.intervalBins[5]);
+  Serial.print(F(" binOver1500=")); Serial.print(st.intervalBins[6]);
+  Serial.print(F(" warnGaps=")); Serial.print(st.warningGapCount);
+  Serial.print(F(" stopGaps=")); Serial.print(st.shadowStopGapCount);
+  Serial.print(F(" faultGaps=")); Serial.print(st.faultGapCount);
+  Serial.print(F(" maxGap=")); Serial.print(st.maxGapMs);
+  Serial.print(F(" maxGapFrom=")); Serial.print(st.maxGapStartMm);
+  Serial.print(F(" maxGapTo=")); Serial.print(st.maxGapEndMm);
+  Serial.print(F(" blindRefMm=")); Serial.print(guard.estimatedBlindTravelMm());
+  Serial.print(F(" jumpDiag=")); Serial.print(st.suspiciousJumpCount);
+  Serial.print(F(" maxJump=")); Serial.print(st.largestJumpMm);
+  Serial.print(F(" maxSpeed=")); Serial.println(st.maxObservedSpeedMmS);
+}
+
+void printAxisGuardStatus(const char *axis, uint8_t first, uint8_t second)
+{
+  SensorGuardStateV6 state = g_sensorGuard[first].state();
+  if (sensorGuardStateRank(g_sensorGuard[second].state()) > sensorGuardStateRank(state))
+    state = g_sensorGuard[second].state();
+  const bool motion = g_sensorGuard[first].motionMarked() || g_sensorGuard[second].motionMarked();
+  const bool stop = g_sensorGuard[first].shadowStopActive() || g_sensorGuard[second].shadowStopActive();
+  Serial.print(F("@AXIS_GUARD axis=")); Serial.print(axis);
+  Serial.print(F(" state=")); Serial.print(SensorGuardV6::stateName(state));
+  Serial.print(F(" motion=")); Serial.print(motion ? 1 : 0);
+  Serial.print(F(" shadowStop=")); Serial.println(stop ? 1 : 0);
+}
+
+void printAllSensorGuardStatus()
+{
+  Serial.print(F("SENSOR GUARD thresholds warning/stop/fault="));
+  Serial.print(SENSOR_GUARD_WARNING_MS); Serial.print('/');
+  Serial.print(SENSOR_GUARD_SHADOW_STOP_MS); Serial.print('/');
+  Serial.print(SENSOR_GUARD_FAULT_MS); Serial.print(F("ms recoveryFrames="));
+  Serial.print(SENSOR_GUARD_RECOVERY_FRAMES);
+  Serial.println(F(" SHADOW ONLY; no motor command"));
+  for (uint8_t i = 0; i < SENSOR_COUNT; ++i) printSensorGuardStatusLine(i);
+  printAxisGuardStatus("X", SENSOR_X1, SENSOR_X2);
+  printAxisGuardStatus("Z", SENSOR_Z1, SENSOR_Z2);
+}
+
+void resetAllSensorGuardDiagnostics()
+{
+  const uint32_t now = millis();
+  configureSensorGuards(now, true);
+  Serial.println(F("SENSOR GUARD DIAGNOSTICS RESET"));
+}
+
+void setSensorGuardMotion(bool xAxis, bool moving)
+{
+  const uint32_t now = millis();
+  if (xAxis) g_guardMotionX = moving; else g_guardMotionZ = moving;
+  const uint8_t first = xAxis ? SENSOR_X1 : SENSOR_Z1;
+  const uint8_t second = xAxis ? SENSOR_X2 : SENSOR_Z2;
+  printSensorGuardEvent(first, g_sensorGuard[first].setMotionMarked(moving, now), now);
+  printSensorGuardEvent(second, g_sensorGuard[second].setMotionMarked(moving, now), now);
+  Serial.print(F("SENSOR GUARD motion axis=")); Serial.print(xAxis ? F("X") : F("Z"));
+  Serial.print(F(" state=")); Serial.println(moving ? F("ON") : F("OFF"));
+  printAxisGuardStatus(xAxis ? "X" : "Z", first, second);
 }
 
 void writeModeToDwin()
@@ -157,6 +346,24 @@ void applySafetySettings(const SettingsV6 &cfg)
 {
   (void)g_safety.setEstopEnabled(safetyEstopRequestedEnabled(cfg));
   (void)g_safety.setLimitsEnabled(safetyLimitsRequestedEnabled(cfg));
+}
+
+// HE200 commissioning builds must always boot with the protocol confirmed on
+// the real drives: 9600 8-N-1, addresses 1..4.  This is applied only in RAM
+// and is deliberately not written to EEPROM automatically.  It prevents an
+// old NE200/8-E-1 record from causing confusing timeouts after every reset.
+void applyHe200CommissioningProfile(SettingsV6 &cfg)
+{
+  cfg.vfd.baudCode = VFD_BAUD_9600;
+  cfg.vfd.parity = VFD_PARITY_NONE;
+  cfg.vfd.stopBits = 1;
+  cfg.vfd.retries = 1;
+  cfg.vfd.responseTimeoutMs = 250;
+  cfg.vfd.interRequestMs = 20;
+  cfg.vfd.address[DRIVE_H1] = 1;
+  cfg.vfd.address[DRIVE_H2] = 2;
+  cfg.vfd.address[DRIVE_V1] = 3;
+  cfg.vfd.address[DRIVE_V2] = 4;
 }
 
 AutoSensorsV6 buildAutoSensors()
@@ -697,6 +904,7 @@ void writeAllValuesToDwin()
 void initSensorsFast()
 {
   Serial.println(F("=== SC16 SELF TEST FAST ==="));
+  configureSensorGuards(millis(), true);
 
   // Release both CS lines before any SPI transaction.
   pinMode(MEGA_SPI_SS_PIN, OUTPUT);
@@ -729,9 +937,156 @@ void initSensorsFast()
     if (!g_sensor[i].hwOk)
       continue;
     const uint16_t phase = (uint16_t)(i * FAST_SENSOR_PHASE_MS);
-    g_sensor[i].hw->begin(now, FAST_SENSOR_PERIOD_MS, phase);
+    g_sensor[i].hw->begin(now, FAST_SENSOR_PERIOD_MS, phase, FAST_LASER_DEFAULT_FREQ_HZ);
     Serial.print(g_sensor[i].label);
     Serial.println(F(" fast init: OK"));
+  }
+}
+
+bool laserServiceChangeAllowed()
+{
+  if (g_auto.running() || g_systemMode == SystemModeV6::AUTO ||
+      g_systemMode == SystemModeV6::HOME)
+  {
+    Serial.println(F("LASER mode change rejected while AUTO/HOME is active"));
+    return false;
+  }
+  return true;
+}
+
+bool startAlternatingX(uint8_t targetHzPerSensor,
+                       FastLaserResolution resolution)
+{
+  if (!laserServiceChangeAllowed()) return false;
+  if (targetHzPerSensor != 1 && targetHzPerSensor != 2 &&
+      targetHzPerSensor != 5 && targetHzPerSensor != 10)
+  {
+    Serial.println(F("LASER ALT rejected: rate must be 1, 2, 5 or 10 Hz per sensor"));
+    return false;
+  }
+  if (!g_sensor[SENSOR_X1].hwOk || !g_sensor[SENSOR_X2].hwOk)
+  {
+    Serial.println(F("LASER ALT rejected: X1 and X2 SC16 channels must be available"));
+    return false;
+  }
+
+  FastLaserSensor &x1Sensor = *g_sensor[SENSOR_X1].hw;
+  FastLaserSensor &x2Sensor = *g_sensor[SENSOR_X2].hw;
+  if (x1Sensor.configurationBusy() || x2Sensor.configurationBusy())
+  {
+    Serial.println(F("LASER ALT rejected: X1/X2 configuration busy"));
+    return false;
+  }
+
+  const uint32_t now = millis();
+  const bool x1 = x1Sensor.requestConfigure(
+      now, 5, resolution, FastLaserAcquisitionMode::SingleShot);
+  const bool x2 = x2Sensor.requestConfigure(
+      now, 5, resolution, FastLaserAcquisitionMode::SingleShot);
+  if (!x1 || !x2)
+  {
+    Serial.println(F("LASER ALT rejected: X1/X2 configuration busy"));
+    return false;
+  }
+
+  g_laserAlternatingX = LaserAlternatingXStateV6{};
+  g_laserAlternatingX.mode = LaserServiceModeV6::AlternatingX;
+  g_laserAlternatingX.preparing = true;
+  g_laserAlternatingX.targetHzPerSensor = targetHzPerSensor;
+  g_laserAlternatingX.resolutionCode = (uint8_t)resolution;
+  g_laserAlternatingX.nextSensor = SENSOR_X1;
+  g_laserAlternatingX.activeSensor = -1;
+  g_laserAlternatingX.requestSpacingMs =
+      (uint16_t)(1000U / ((uint16_t)targetHzPerSensor * 2U));
+  if (g_laserAlternatingX.requestSpacingMs < 20)
+    g_laserAlternatingX.requestSpacingMs = 20;
+  g_laserAlternatingX.nextRequestMs = now;
+
+  Serial.print(F("LASER ALT PREPARE X1/X2 target="));
+  Serial.print(targetHzPerSensor);
+  Serial.print(F("Hz/sensor resolution="));
+  Serial.print(resolution == FastLaserResolution::TenthMm ? F("0.1mm") : F("1mm"));
+  Serial.println(F(" response-driven sequence"));
+  return true;
+}
+
+bool stopAlternatingXAndRestore(uint8_t frequencyHz,
+                                FastLaserResolution resolution)
+{
+  if (!laserServiceChangeAllowed()) return false;
+  if (frequencyHz != 5 && frequencyHz != 10 && frequencyHz != 20)
+  {
+    Serial.println(F("LASER CONT rejected: frequency must be 5, 10 or 20 Hz"));
+    return false;
+  }
+
+  g_laserAlternatingX.mode = LaserServiceModeV6::Continuous;
+  g_laserAlternatingX.preparing = false;
+  g_laserAlternatingX.activeSensor = -1;
+
+  const uint32_t now = millis();
+  const bool x1 = g_sensor[SENSOR_X1].hwOk &&
+      g_sensor[SENSOR_X1].hw->requestConfigure(
+          now, frequencyHz, resolution, FastLaserAcquisitionMode::Continuous);
+  const bool x2 = g_sensor[SENSOR_X2].hwOk &&
+      g_sensor[SENSOR_X2].hw->requestConfigure(
+          now, frequencyHz, resolution, FastLaserAcquisitionMode::Continuous);
+
+  Serial.print(F("LASER CONT RESTORE X1/X2 freq="));
+  Serial.print(frequencyHz);
+  Serial.print(F(" resolution="));
+  Serial.print(resolution == FastLaserResolution::TenthMm ? F("0.1mm") : F("1mm"));
+  Serial.println((x1 && x2) ? F(" REQUESTED") : F(" PARTIAL/BUSY"));
+  return x1 && x2;
+}
+
+void serviceAlternatingX(uint32_t now)
+{
+  if (g_laserAlternatingX.mode != LaserServiceModeV6::AlternatingX) return;
+
+  FastLaserSensor &x1 = *g_sensor[SENSOR_X1].hw;
+  FastLaserSensor &x2 = *g_sensor[SENSOR_X2].hw;
+
+  if (g_laserAlternatingX.preparing)
+  {
+    if (x1.configurationBusy() || x2.configurationBusy()) return;
+    g_laserAlternatingX.preparing = false;
+    g_laserAlternatingX.activeSensor = -1;
+    g_laserAlternatingX.nextSensor = SENSOR_X1;
+    g_laserAlternatingX.nextRequestMs = now;
+    Serial.print(F("LASER ALT RUNNING X1/X2 target="));
+    Serial.print(g_laserAlternatingX.targetHzPerSensor);
+    Serial.print(F("Hz/sensor resolutionCode="));
+    Serial.println(g_laserAlternatingX.resolutionCode);
+  }
+
+  if (g_laserAlternatingX.activeSensor >= 0)
+  {
+    FastLaserSensor &active = *g_sensor[(uint8_t)g_laserAlternatingX.activeSensor].hw;
+    if (active.singleRequestPending()) return;
+
+    g_laserAlternatingX.nextSensor =
+        ((uint8_t)g_laserAlternatingX.activeSensor == SENSOR_X1)
+            ? SENSOR_X2 : SENSOR_X1;
+    g_laserAlternatingX.activeSensor = -1;
+
+    const uint32_t scheduled = g_laserAlternatingX.lastRequestMs +
+                               g_laserAlternatingX.requestSpacingMs;
+    g_laserAlternatingX.nextRequestMs =
+        ((int32_t)(now - scheduled) >= 0) ? now : scheduled;
+  }
+
+  if ((int32_t)(now - g_laserAlternatingX.nextRequestMs) < 0) return;
+
+  const uint8_t index = g_laserAlternatingX.nextSensor;
+  if (g_sensor[index].hw->requestSingleMeasurement(now))
+  {
+    g_laserAlternatingX.activeSensor = (int8_t)index;
+    g_laserAlternatingX.lastRequestMs = now;
+  }
+  else
+  {
+    g_laserAlternatingX.nextRequestMs = now + 20;
   }
 }
 
@@ -742,8 +1097,14 @@ void serviceSensorsFast()
   for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
   {
     SensorRuntimeFast &s = g_sensor[i];
+    SensorGuardEventV6 guardEvent;
+
     if (!s.hwOk)
+    {
+      guardEvent = g_sensorGuard[i].service(now);
+      printSensorGuardEvent(i, guardEvent, now);
       continue;
+    }
 
     s.hw->service(now);
 
@@ -753,13 +1114,186 @@ void serviceSensorsFast()
       s.valueMm = g_storage.applyCalibration(g_settings, s.idx, s.rawMm);
       s.valid = true;
       s.lastValidMs = s.hw->lastUpdateMs();
+      guardEvent = g_sensorGuard[i].observe(s.lastValidMs, s.valueMm);
+      printSensorGuardEvent(i, guardEvent, now);
       if (!(g_auto.running() && g_auto.simulation()))
         g_dwin.writeU16(s.vp, displayValue(s.valueMm));
     }
+    else
+    {
+      guardEvent = g_sensorGuard[i].service(now);
+      printSensorGuardEvent(i, guardEvent, now);
+    }
 
     // Do not clear s.valid on stale. It means "has last value" here.
-    // Fresh/stale/lost state is reported through VP_ERROR in updateErrorMask().
+    // Step9H reports freshness through both VP_ERROR and the shadow guard.
   }
+
+  serviceAlternatingX(now);
+}
+
+
+void printLaserStatusLine(uint8_t i)
+{
+  if (i >= SENSOR_COUNT) return;
+  const uint32_t now = millis();
+  const SensorRuntimeFast &s = g_sensor[i];
+  const FastLaserDiagnostics &d = s.hw->diagnostics();
+
+  Serial.print(F("@LASER name=")); Serial.print(s.label);
+  Serial.print(F(" hw=")); Serial.print(s.hwOk ? 1 : 0);
+  Serial.print(F(" valid=")); Serial.print(s.valid ? 1 : 0);
+  Serial.print(F(" mm=")); Serial.print(s.valueMm);
+  Serial.print(F(" age="));
+  if (s.lastValidMs) Serial.print(now - s.lastValidMs); else Serial.print(F("NA"));
+  Serial.print(F(" byteAge="));
+  if (d.lastByteMs) Serial.print(now - d.lastByteMs); else Serial.print(F("NA"));
+  Serial.print(F(" freq=")); Serial.print(d.configuredFrequencyHz);
+  Serial.print(F(" res=")); Serial.print(d.configuredResolutionCode);
+  Serial.print(F(" mode=")); Serial.print(d.acquisitionMode == (uint8_t)FastLaserAcquisitionMode::SingleShot ? F("single") : F("cont"));
+  Serial.print(F(" cfg=")); Serial.print(d.configuring ? 1 : 0);
+  Serial.print(F(" ack=0x")); Serial.print(d.ackMask, HEX);
+  Serial.print(F(" missing=0x")); Serial.print(d.missingAckMask, HEX);
+  Serial.print(F(" nack=0x")); Serial.print(d.nackMask, HEX);
+  Serial.print(F(" rate10=")); Serial.print(d.frameRateX10);
+  Serial.print(F(" good=")); Serial.print(d.goodFrames);
+  Serial.print(F(" stream=")); Serial.print(d.streamFrames);
+  Serial.print(F(" sensorErr=")); Serial.print(d.sensorErrorFrames);
+  Serial.print(F(" errCode=")); Serial.print(d.lastSensorError);
+  Serial.print(F(" err15=")); Serial.print(d.errorCode15Frames);
+  Serial.print(F(" err16=")); Serial.print(d.errorCode16Frames);
+  Serial.print(F(" errOther=")); Serial.print(d.otherSensorErrorFrames);
+  Serial.print(F(" streak=")); Serial.print(d.currentErrorStreak);
+  Serial.print(F(" maxStreak=")); Serial.print(d.maxErrorStreak);
+  Serial.print(F(" maxAge=")); Serial.print(d.maxAgeMs);
+  Serial.print(F(" singleReq=")); Serial.print(d.singleRequests);
+  Serial.print(F(" singleRsp=")); Serial.print(d.singleResponses);
+  Serial.print(F(" singleTO=")); Serial.print(d.singleTimeouts);
+  Serial.print(F(" singlePending=")); Serial.print(d.singlePending ? 1 : 0);
+  Serial.print(F(" crc=")); Serial.print(d.checksumErrors);
+  Serial.print(F(" malformed=")); Serial.print(d.malformedFrames);
+  Serial.print(F(" range=")); Serial.print(d.rangeRejects);
+  Serial.print(F(" discard=")); Serial.print(d.discardedBytes);
+  Serial.print(F(" swOv=")); Serial.print(d.softwareOverruns);
+  Serial.print(F(" uartOE=")); Serial.print(d.uartOverrunErrors);
+  Serial.print(F(" uartPE=")); Serial.print(d.uartParityErrors);
+  Serial.print(F(" uartFE=")); Serial.print(d.uartFramingErrors);
+  Serial.print(F(" uartBI=")); Serial.print(d.uartBreakErrors);
+  Serial.print(F(" uartFIFO=")); Serial.println(d.uartFifoErrors);
+}
+
+void printAllLaserStatus()
+{
+  Serial.print(F("LASER ACQUISITION mode="));
+  Serial.print(g_laserAlternatingX.mode == LaserServiceModeV6::AlternatingX ? F("alternating-x") : F("continuous"));
+  if (g_laserAlternatingX.mode == LaserServiceModeV6::AlternatingX) {
+    Serial.print(F(" targetHz=")); Serial.print(g_laserAlternatingX.targetHzPerSensor);
+    Serial.print(F(" resolutionCode=")); Serial.print(g_laserAlternatingX.resolutionCode);
+    Serial.print(F(" preparing=")); Serial.print(g_laserAlternatingX.preparing ? 1 : 0);
+    Serial.print(F(" active="));
+    if (g_laserAlternatingX.activeSensor >= 0) Serial.print(g_sensor[(uint8_t)g_laserAlternatingX.activeSensor].label);
+    else Serial.print(F("none"));
+  }
+  Serial.println();
+  Serial.println(F("LASER STATUS BEGIN ack bits: 01 shutdown,02 laser,04 range,08 resolution,10 frequency,20 data-seen"));
+  for (uint8_t i = 0; i < SENSOR_COUNT; ++i) printLaserStatusLine(i);
+  Serial.println(F("LASER STATUS END"));
+}
+
+void resetAllLaserDiagnostics()
+{
+  const uint32_t now = millis();
+  for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
+    g_sensor[i].hw->resetDiagnostics(now);
+  }
+  resetAllSensorGuardDiagnostics();
+  Serial.println(F("LASER DIAGNOSTICS RESET"));
+  printAllLaserStatus();
+  printAllSensorGuardStatus();
+}
+
+int8_t laserIndexFromName(const char *name)
+{
+  if (!name) return -2;
+  if (!strcmp(name, "all")) return -1;
+  if (!strcmp(name, "x") || !strcmp(name, "xpair")) return -3;
+  if (!strcmp(name, "z") || !strcmp(name, "zpair")) return -4;
+  if (!strcmp(name, "x1")) return SENSOR_X1;
+  if (!strcmp(name, "x2")) return SENSOR_X2;
+  if (!strcmp(name, "z1")) return SENSOR_Z1;
+  if (!strcmp(name, "z2")) return SENSOR_Z2;
+  return -2;
+}
+
+bool configureLaserSensorsAdvanced(int8_t index, uint8_t frequencyHz,
+                                   FastLaserResolution resolution,
+                                   FastLaserAcquisitionMode mode)
+{
+  if (frequencyHz != 5 && frequencyHz != 10 && frequencyHz != 20) {
+    Serial.println(F("LASER CONFIG rejected: frequency must be 5, 10 or 20 Hz"));
+    return false;
+  }
+  if (!laserServiceChangeAllowed()) return false;
+
+  if (mode == FastLaserAcquisitionMode::Continuous &&
+      (index < 0 || index == SENSOR_X1 || index == SENSOR_X2)) {
+    g_laserAlternatingX.mode = LaserServiceModeV6::Continuous;
+    g_laserAlternatingX.preparing = false;
+    g_laserAlternatingX.activeSensor = -1;
+  }
+
+  const uint32_t now = millis();
+  bool any = false;
+  bool allRequested = true;
+  for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
+    if (index == -3 && i != SENSOR_X1 && i != SENSOR_X2) continue;
+    if (index == -4 && i != SENSOR_Z1 && i != SENSOR_Z2) continue;
+    if (index >= 0 && i != (uint8_t)index) continue;
+    if (!g_sensor[i].hwOk) {
+      Serial.print(F("LASER CONFIG skipped ")); Serial.print(g_sensor[i].label);
+      Serial.println(F(": SC16 channel unavailable/disabled"));
+      allRequested = false;
+      continue;
+    }
+    any = true;
+    const bool requested = g_sensor[i].hw->requestConfigure(
+        now, frequencyHz, resolution, mode);
+    Serial.print(F("LASER CONFIG ")); Serial.print(g_sensor[i].label);
+    Serial.print(F(" freq=")); Serial.print(frequencyHz);
+    Serial.print(F(" resolution="));
+    Serial.print(resolution == FastLaserResolution::TenthMm ? F("0.1mm") : F("1mm"));
+    Serial.print(F(" mode="));
+    Serial.print(mode == FastLaserAcquisitionMode::SingleShot ? F("single") : F("continuous"));
+    Serial.println(requested ? F(" REQUESTED") : F(" BUSY/REJECTED"));
+    if (!requested) allRequested = false;
+  }
+  if (!any) {
+    Serial.println(F("LASER CONFIG rejected: no matching active channel"));
+    return false;
+  }
+  return allRequested;
+}
+
+bool configureLaserSensors(int8_t index, uint8_t frequencyHz)
+{
+  return configureLaserSensorsAdvanced(index, frequencyHz,
+                                       FastLaserResolution::Mm1,
+                                       FastLaserAcquisitionMode::Continuous);
+}
+
+void printFieldReport()
+{
+  Serial.println(F("========== FIELD REPORT BEGIN =========="));
+  handleCommand(CMD_DIAG_SNAPSHOT);
+  printAllLaserStatus();
+  printAllSensorGuardStatus();
+  if (HE200_COMMISSIONING) {
+    Serial.println(F("FIELD REPORT: HE200 READ-ONLY test queued"));
+    handleCommand(CMD_VFD_TEST_ALL);
+  } else {
+    Serial.println(F("FIELD REPORT: HE200 test skipped (not commissioning build)"));
+  }
+  Serial.println(F("========== FIELD REPORT REQUESTED =========="));
 }
 
 void zeroSensor(SensorIndex idx)
@@ -1041,6 +1575,37 @@ void printProgramSummary()
   Serial.print(F("dry=")); Serial.print(g_program.dryingEnabled);
   Serial.print(F(" time=")); Serial.print(g_program.dryingTimeS);
   Serial.print(F(" staging=")); Serial.println(g_program.stagingZone + 1);
+
+  Serial.print(F("@PROGRAM slot=")); Serial.print(g_programSlot + 1);
+  Serial.print(F(" selected=")); Serial.print(g_programSelectedSlot + 1);
+  Serial.print(F(" dirty=")); Serial.print(g_programDirty ? 1 : 0);
+  Serial.print(F(" ready=")); Serial.print(g_programStorage.readyForAuto(g_program) ? 1 : 0);
+  Serial.print(F(" zones=")); Serial.print(g_program.zoneCount);
+  Serial.print(F(" home1=")); Serial.print(g_program.homeX[0]);
+  Serial.print(F(" home2=")); Serial.print(g_program.homeX[1]);
+  Serial.print(F(" travel1=")); Serial.print(g_program.travelZ[0]);
+  Serial.print(F(" travel2=")); Serial.print(g_program.travelZ[1]);
+  Serial.print(F(" drip=")); Serial.print(g_program.dripWaitS);
+  Serial.print(F(" tiltPct=")); Serial.print(g_program.tiltPercent);
+  Serial.print(F(" lowSide=")); Serial.print(g_program.lowSide);
+  Serial.print(F(" dry=")); Serial.print(g_program.dryingEnabled);
+  Serial.print(F(" dryTime=")); Serial.print(g_program.dryingTimeS);
+  Serial.print(F(" staging=")); Serial.println(g_program.stagingZone + 1);
+  for (uint8_t zi = 0; zi < g_program.zoneCount; ++zi) {
+    const AutoZoneV6& mz = g_program.zones[zi];
+    Serial.print(F("@ZONE n=")); Serial.print(zi + 1);
+    Serial.print(F(" en=")); Serial.print(mz.enabled);
+    Serial.print(F(" valid=0x")); Serial.print(mz.validMask, HEX);
+    Serial.print(F(" x1=")); Serial.print(mz.xMm[0]);
+    Serial.print(F(" x2=")); Serial.print(mz.xMm[1]);
+    Serial.print(F(" z1=")); Serial.print(mz.zMm[0]);
+    Serial.print(F(" z2=")); Serial.print(mz.zMm[1]);
+    Serial.print(F(" dip=")); Serial.print(mz.dipTimeS);
+    Serial.print(F(" wait=")); Serial.print(mz.stepWaitS);
+    Serial.print(F(" tilt=")); Serial.print(mz.tiltStepMm);
+    Serial.print(F(" hpct=")); Serial.print(mz.movePercent);
+    Serial.print(F(" vpct=")); Serial.println(mz.verticalPercent);
+  }
 }
 
 void setSystemMode(SystemModeV6 mode)
@@ -1078,6 +1643,7 @@ void reinitFastSensors()
   Serial.println(F("Manual sensor reinit requested"));
   initSensorsFast();
   writeAllValuesToDwin();
+  printAllSensorGuardStatus();
 }
 
 uint16_t motorStateForJogCommand(uint16_t cmd)
@@ -1102,6 +1668,13 @@ uint16_t motorStateForJogCommand(uint16_t cmd)
 
 bool handleManualJogCommand(uint16_t cmd)
 {
+  if (!DWIN_MOTION_ENABLED && cmd != CMD_JOG_STOP) {
+    const uint16_t candidate = motorStateForJogCommand(cmd);
+    if (candidate != MOTOR_STATE_IDLE) {
+      Serial.println(F("DWIN JOG BLOCKED in Step9I FIELD SERVICE; use browser service cockpit"));
+      return true;
+    }
+  }
   const uint16_t requestedState = motorStateForJogCommand(cmd);
   if (requestedState != MOTOR_STATE_IDLE && g_safety.blocksMotorState(requestedState))
   {
@@ -1174,6 +1747,10 @@ bool handleManualJogCommand(uint16_t cmd)
 bool handleJogHoldBits(uint16_t value)
 {
   value &= JOG_HOLD_VALID_MASK;
+  if (!DWIN_MOTION_ENABLED && value != 0) {
+    Serial.println(F("DWIN HOLD JOG BLOCKED in Step9I FIELD SERVICE"));
+    return true;
+  }
   if (value == 0) {
     if (g_systemMode == SystemModeV6::MANUAL || g_motor.isMotionActive()) {
       g_motor.manualStop(F("DWIN jog release"));
@@ -1342,6 +1919,7 @@ void handleCommand(uint16_t cmd)
 
   case CMD_STOP:
     g_auto.stop(F("operator STOP"));
+    if (HE200_FIELD_SERVICE) g_he200Service.stopAll(F("operator STOP"));
     setSystemMode(SystemModeV6::STOP);
     break;
 
@@ -1549,12 +2127,24 @@ void handleCommand(uint16_t cmd)
   g_dwin.clearCommand(VP_CMD);
 }
 
+void printStep9IServiceHelp();
+void printStep9IServiceInfo();
+
 void printBenchConsoleHelp()
 {
   Serial.println(F("USB console:"));
+  printStep9IServiceHelp();
   Serial.println(F("  help | clear | diag | estop on/off | limits on/off | save"));
   Serial.println(F("  log quiet | log normal | log verbose"));
-  Serial.println(F("  test h1/h2/v1/v2/all | he200 comm"));
+  Serial.println(F("  test h1/h2/v1/v2/all | he200 comm | report"));
+  Serial.println(F("  laser profile [all/x/z]   (field profile: continuous 5Hz, 1mm, 10m)"));
+  Serial.println(F("  laser status | laser reset | laser reinit"));
+  Serial.println(F("  guard status | guard reset | guard on/off"));
+  Serial.println(F("  guard motion x/z on/off   (SHADOW stop evaluation only)"));
+  Serial.println(F("  laser config all/x/z/x1/x2/z1/z2 5/10/20   (experimental)"));
+  Serial.println(F("  laser continuous all/x/z/x1/x2/z1/z2 5/10/20 1/01   (experimental)"));
+  Serial.println(F("  laser alternate start 1/2/5/10 1/01 | laser alternate stop"));
+  Serial.println(F("  laser single x1/x2   (manual request while in single mode)"));
   Serial.println(F("  sim on | sim off | sim demo | auto | home | stop | pause | resume | next"));
   Serial.println(F("  prog show | prog slot 1..4 | prog load | prog save | prog defaults"));
   Serial.println(F("  set home X1 X2 | set travel Z1 Z2"));
@@ -1620,6 +2210,106 @@ bool consoleSetPair(int32_t out[2], int a, int b)
   return true;
 }
 
+bool parseLaserResolutionToken(const char *token,
+                               FastLaserResolution &resolution)
+{
+  if (!token) return false;
+  if (!strcmp(token, "1") || !strcmp(token, "1mm")) {
+    resolution = FastLaserResolution::Mm1;
+    return true;
+  }
+  if (!strcmp(token, "01") || !strcmp(token, "0.1") ||
+      !strcmp(token, "0.1mm") || !strcmp(token, "2")) {
+    resolution = FastLaserResolution::TenthMm;
+    return true;
+  }
+  return false;
+}
+
+int8_t serviceDriveIndex(const char* token)
+{
+  if (!token) return -1;
+  if (!strcmp(token, "h1")) return DRIVE_H1;
+  if (!strcmp(token, "h2")) return DRIVE_H2;
+  if (!strcmp(token, "v1")) return DRIVE_V1;
+  if (!strcmp(token, "v2")) return DRIVE_V2;
+  return -1;
+}
+
+uint8_t serviceDriveMask(const char* token)
+{
+  const int8_t drive = serviceDriveIndex(token);
+  if (drive >= 0) return (uint8_t)(1u << drive);
+  if (!strcmp(token, "h") || !strcmp(token, "x")) return He200ServiceV6::MASK_H;
+  if (!strcmp(token, "v") || !strcmp(token, "z")) return He200ServiceV6::MASK_V;
+  return 0;
+}
+
+bool serviceDirectionPositive(const char* token, bool& positive)
+{
+  if (!token) return false;
+  if (!strcmp(token, "pos") || !strcmp(token, "fwd") || !strcmp(token, "right") || !strcmp(token, "up")) {
+    positive = true; return true;
+  }
+  if (!strcmp(token, "neg") || !strcmp(token, "rev") || !strcmp(token, "left") || !strcmp(token, "down")) {
+    positive = false; return true;
+  }
+  return false;
+}
+
+bool runServicePreflight()
+{
+  if (!HE200_FIELD_SERVICE) {
+    g_he200Service.setPreflight(false, F("FIELD_SERVICE_BUILD_REQUIRED"));
+    return false;
+  }
+  if (g_safety.estopActive() || g_safety.estopLatched()) {
+    g_he200Service.setPreflight(false, F("ESTOP"));
+    return false;
+  }
+  if (g_safety.limitsEnabled() && g_safety.limitMask() != 0) {
+    g_he200Service.setPreflight(false, F("LIMIT_INPUT_ACTIVE"));
+    return false;
+  }
+  const uint32_t now = millis();
+  for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
+    const DriveTelemetry& t = g_motor.vfdTelemetry(i);
+    if (!t.connected || t.lastOkMs == 0 || (uint32_t)(now - t.lastOkMs) > 5000) {
+      g_he200Service.setPreflight(false, F("DRIVE_STATUS_NOT_FRESH")); return false;
+    }
+    if (t.faultCode != 0) { g_he200Service.setPreflight(false, F("DRIVE_FAULT")); return false; }
+    if (t.runningFreq001Hz > 20 || t.statusWord != 0) {
+      g_he200Service.setPreflight(false, F("DRIVE_NOT_STOPPED")); return false;
+    }
+  }
+  g_he200Service.setPreflight(true, F("FOUR_DRIVES_STOPPED_SAFETY_OK"));
+  return true;
+}
+
+void printStep9IServiceInfo()
+{
+  Serial.print(F("@SERVICE_INFO fw=")); Serial.print(F(FW_VERSION_V6_BRINGUP));
+  Serial.print(F(" build="));
+  if (HE200_FIELD_SERVICE) Serial.print(F("FIELD"));
+  else if (HE200_COMMISSIONING && VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED) Serial.print(F("READONLY"));
+  else Serial.print(F("BENCH"));
+  Serial.print(F(" native=")); Serial.print(HE200_NATIVE_PROTOCOL ? 1 : 0);
+  Serial.print(F(" auto=")); Serial.print(AUTO_PHYSICAL_ENABLED ? 1 : 0);
+  Serial.print(F(" dwinMotion=")); Serial.print(DWIN_MOTION_ENABLED ? 1 : 0);
+  Serial.print(F(" waveshare=")); Serial.println(RS485_AUTO_DIRECTION ? 1 : 0);
+}
+
+void printStep9IServiceHelp()
+{
+  Serial.println(F("Step9I service cockpit commands:"));
+  Serial.println(F("  service info"));
+  Serial.println(F("  service preflight | service gate status | service gate reset | service stop  (all 4 drives)"));
+  Serial.println(F("  he200 probe h1/h2/v1/v2/all"));
+  Serial.println(F("  service pulse h1/h2/v1/v2/h/z pos/neg [pct 5..20] [ms 500..3000]"));
+  Serial.println(F("  service confirm h1/h2/v1/v2 pos/neg"));
+  Serial.println(F("  assist x/z pos/neg [basePct] | assist stop  (active pair) | assist clear"));
+}
+
 void serviceUsbConsole()
 {
   static char line[96];
@@ -1640,6 +2330,79 @@ void serviceUsbConsole()
     if (line[0] == '\0') continue;
 
     if (!strcmp(line, "help")) printBenchConsoleHelp();
+    else if (!strcmp(line, "service info")) printStep9IServiceInfo();
+    else if (!strcmp(line, "service gate status")) g_he200Service.printGateStatus();
+    else if (!strcmp(line, "service gate reset")) g_he200Service.resetGates();
+    else if (!strcmp(line, "service preflight")) (void)runServicePreflight();
+    else if (!strcmp(line, "service stop")) {
+      g_he200Service.stopAll(F("browser global STOP"));
+      g_systemMode = SystemModeV6::STOP;
+      writeMotorStateToDwin();
+    }
+    else if (!strcmp(line, "assist stop")) {
+      g_he200Service.stopAssist(F("browser assist STOP"));
+      writeMotorStateToDwin();
+    }
+    else if (!strcmp(line, "assist clear")) g_he200Service.clearAssistFault();
+    else if (!strncmp(line, "he200 probe ", 12)) {
+      if (!g_he200Service.preflightPassed()) {
+        Serial.println(F("@GATE name=PROTOCOL result=FAIL reason=PREFLIGHT_REQUIRED"));
+        continue;
+      }
+      char target[8] = {0};
+      if (sscanf(line, "he200 probe %7s", target) == 1) {
+        if (!strcmp(target, "all")) {
+          for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
+            He200ProtocolSnapshotV6 after{};
+            const bool ok = g_motor.probeHe200Protocol(i, 500, after);
+            g_he200Service.markProtocol(i, ok);
+            delay(60);
+          }
+          g_he200Service.printGateStatus();
+        } else {
+          const int8_t di = serviceDriveIndex(target);
+          if (di < 0) Serial.println(F("Use: he200 probe h1/h2/v1/v2/all"));
+          else {
+            He200ProtocolSnapshotV6 after{};
+            const bool ok = g_motor.probeHe200Protocol((uint8_t)di, 500, after);
+            g_he200Service.markProtocol((uint8_t)di, ok);
+          }
+        }
+      }
+    }
+    else if (!strncmp(line, "service confirm ", 16)) {
+      char target[8] = {0}, dir[8] = {0}; bool positive = true;
+      if (sscanf(line, "service confirm %7s %7s", target, dir) == 2 && serviceDirectionPositive(dir, positive)) {
+        const int8_t di = serviceDriveIndex(target);
+        if (di >= 0) g_he200Service.confirmDirection((uint8_t)di, positive, true);
+        else Serial.println(F("Confirm only individual h1/h2/v1/v2"));
+      } else Serial.println(F("Use: service confirm h1/h2/v1/v2 pos/neg"));
+    }
+    else if (!strncmp(line, "service pulse ", 14)) {
+      char target[8] = {0}, dir[8] = {0}; int pct = 10, ms = 1200; bool positive = true;
+      const int fields = sscanf(line, "service pulse %7s %7s %d %d", target, dir, &pct, &ms);
+      if (fields >= 2 && serviceDirectionPositive(dir, positive)) {
+        const uint8_t mask = serviceDriveMask(target);
+        if (!mask) Serial.println(F("Use target h1/h2/v1/v2/h/z"));
+        else (void)g_he200Service.startPulse(mask, positive, (uint8_t)pct, (uint16_t)ms, millis());
+      } else Serial.println(F("Use: service pulse TARGET pos/neg [pct] [ms]"));
+    }
+    else if (!strncmp(line, "assist ", 7)) {
+      char axis[8] = {0}, dir[8] = {0}; int pct = 0; bool positive = true;
+      if (sscanf(line, "assist %7s %7s %d", axis, dir, &pct) >= 2 && serviceDirectionPositive(dir, positive)) {
+        He200ServiceV6::AssistAxis ax = He200ServiceV6::AssistAxis::X;
+        bool axisOk = true;
+        if (!strcmp(axis,"x") || !strcmp(axis,"h")) { ax = He200ServiceV6::AssistAxis::X; if (pct <= 0) pct = 40; }
+        else if (!strcmp(axis,"z") || !strcmp(axis,"v")) { ax = He200ServiceV6::AssistAxis::Z; if (pct <= 0) pct = 68; }
+        else axisOk = false;
+        if (!axisOk) Serial.println(F("Use assist x/z ..."));
+        else {
+          uint32_t ages[4], lastSamples[4]; const uint32_t t = millis();
+          for (uint8_t i=0;i<4;++i) { ages[i]=g_sensor[i].lastValidMs ? (uint32_t)(t-g_sensor[i].lastValidMs) : UINT32_MAX; lastSamples[i]=g_sensor[i].lastValidMs; }
+          (void)g_he200Service.startAssist(ax, positive, (uint8_t)pct, t, ages, lastSamples);
+        }
+      } else Serial.println(F("Use: assist x/z pos/neg [basePct]"));
+    }
     else if (!strcmp(line, "log quiet")) {
       g_consolePeriodicEnabled = false;
       Serial.println(F("Periodic status log QUIET; events/faults remain visible"));
@@ -1661,20 +2424,91 @@ void serviceUsbConsole()
     else if (!strcmp(line, "estop off")) setBenchSafetyFromConsole(true, false);
     else if (!strcmp(line, "limits on")) setBenchSafetyFromConsole(false, true);
     else if (!strcmp(line, "limits off")) setBenchSafetyFromConsole(false, false);
+    else if (!strcmp(line, "laser status")) { printAllLaserStatus(); printAllSensorGuardStatus(); }
+    else if (!strcmp(line, "laser reset")) resetAllLaserDiagnostics();
+    else if (!strcmp(line, "laser reinit")) reinitFastSensors();
+    else if (!strcmp(line, "laser profile") || !strcmp(line, "laser profile all"))
+      (void)configureLaserSensorsAdvanced(-1, FAST_LASER_DEFAULT_FREQ_HZ, FastLaserResolution::Mm1, FastLaserAcquisitionMode::Continuous);
+    else if (!strcmp(line, "laser profile x"))
+      (void)configureLaserSensorsAdvanced(-3, FAST_LASER_DEFAULT_FREQ_HZ, FastLaserResolution::Mm1, FastLaserAcquisitionMode::Continuous);
+    else if (!strcmp(line, "laser profile z"))
+      (void)configureLaserSensorsAdvanced(-4, FAST_LASER_DEFAULT_FREQ_HZ, FastLaserResolution::Mm1, FastLaserAcquisitionMode::Continuous);
+    else if (!strcmp(line, "guard status")) printAllSensorGuardStatus();
+    else if (!strcmp(line, "guard reset")) { resetAllSensorGuardDiagnostics(); printAllSensorGuardStatus(); }
+    else if (!strcmp(line, "guard on")) { g_sensorGuardEnabled = true; configureSensorGuards(millis(), false); Serial.println(F("SENSOR GUARD ON (shadow only)")); }
+    else if (!strcmp(line, "guard off")) { g_sensorGuardEnabled = false; configureSensorGuards(millis(), false); Serial.println(F("SENSOR GUARD OFF")); }
+    else if (!strcmp(line, "guard motion x on")) setSensorGuardMotion(true, true);
+    else if (!strcmp(line, "guard motion x off")) setSensorGuardMotion(true, false);
+    else if (!strcmp(line, "guard motion z on")) setSensorGuardMotion(false, true);
+    else if (!strcmp(line, "guard motion z off")) setSensorGuardMotion(false, false);
+    else if (!strcmp(line, "report")) printFieldReport();
+    else if (!strncmp(line, "laser continuous ", 17)) {
+      char target[8] = {0};
+      char resolutionToken[8] = {0};
+      int frequency = 0;
+      FastLaserResolution resolution = FastLaserResolution::Mm1;
+      if (sscanf(line, "laser continuous %7s %d %7s", target, &frequency,
+                 resolutionToken) == 3 &&
+          parseLaserResolutionToken(resolutionToken, resolution)) {
+        const int8_t index = laserIndexFromName(target);
+        if (index == -2) {
+          Serial.println(F("Use: laser continuous all/x/z/x1/x2/z1/z2 5/10/20 1/01"));
+        } else {
+          (void)configureLaserSensorsAdvanced(index, (uint8_t)frequency,
+                                              resolution,
+                                              FastLaserAcquisitionMode::Continuous);
+        }
+      } else {
+        Serial.println(F("Use: laser continuous all/x/z/x1/x2/z1/z2 5/10/20 1/01"));
+      }
+    }
+    else if (!strncmp(line, "laser alternate start ", 22)) {
+      char resolutionToken[8] = {0};
+      int rate = 0;
+      FastLaserResolution resolution = FastLaserResolution::Mm1;
+      if (sscanf(line, "laser alternate start %d %7s", &rate,
+                 resolutionToken) == 2 &&
+          parseLaserResolutionToken(resolutionToken, resolution)) {
+        (void)startAlternatingX((uint8_t)rate, resolution);
+      } else {
+        Serial.println(F("Use: laser alternate start 1/2/5/10 1/01"));
+      }
+    }
+    else if (!strcmp(line, "laser alternate stop")) {
+      (void)stopAlternatingXAndRestore(FAST_LASER_DEFAULT_FREQ_HZ,
+                                      FastLaserResolution::Mm1);
+    }
+    else if (!strncmp(line, "laser single ", 13)) {
+      char target[8] = {0};
+      if (sscanf(line, "laser single %7s", target) == 1) {
+        const int8_t index = laserIndexFromName(target);
+        if (index < 0 || (index != SENSOR_X1 && index != SENSOR_X2)) {
+          Serial.println(F("Use: laser single x1/x2"));
+        } else {
+          const bool requested = g_sensor[(uint8_t)index].hw->requestSingleMeasurement(millis());
+          Serial.print(F("LASER SINGLE ")); Serial.print(g_sensor[(uint8_t)index].label);
+          Serial.println(requested ? F(" REQUESTED") : F(" BUSY/WRONG MODE"));
+        }
+      } else {
+        Serial.println(F("Use: laser single x1/x2"));
+      }
+    }
+    else if (!strncmp(line, "laser config ", 13)) {
+      char target[8] = {0};
+      int frequency = 0;
+      if (sscanf(line, "laser config %7s %d", target, &frequency) == 2) {
+        const int8_t index = laserIndexFromName(target);
+        if (index == -2) Serial.println(F("Use: laser config all/x/z/x1/x2/z1/z2 5/10/20"));
+        else (void)configureLaserSensors(index, (uint8_t)frequency);
+      } else {
+        Serial.println(F("Use: laser config all/x/z/x1/x2/z1/z2 5/10/20"));
+      }
+    }
     else if (!strcmp(line, "he200 comm")) {
       if (!HE200_COMMISSIONING) {
         Serial.println(F("he200 comm is intended for the HE200 commissioning build"));
       } else {
-        g_settings.vfd.baudCode = VFD_BAUD_9600;
-        g_settings.vfd.parity = VFD_PARITY_NONE;
-        g_settings.vfd.stopBits = 1;
-        g_settings.vfd.retries = 1;
-        g_settings.vfd.responseTimeoutMs = 250;
-        g_settings.vfd.interRequestMs = 20;
-        g_settings.vfd.address[DRIVE_H1] = 1;
-        g_settings.vfd.address[DRIVE_H2] = 2;
-        g_settings.vfd.address[DRIVE_V1] = 3;
-        g_settings.vfd.address[DRIVE_V2] = 4;
+        applyHe200CommissioningProfile(g_settings);
         g_editSettings = g_settings;
         g_motor.applySettings(g_settings);
         g_settingsDirty = true;
@@ -1818,7 +2652,7 @@ void setup()
   Serial.begin(DBG_BAUD);
   delay(300);
   Serial.println();
-  Serial.println(F("========== V6 SYSTEM STEP9E HE200 READ-ONLY COMMISSIONING START =========="));
+  Serial.println(F("========== V6 SYSTEM STEP9I HE200 SERVICE COCKPIT START =========="));
   Serial.print(F("FW: ")); Serial.println(F(FW_VERSION_V6_BRINGUP));
 
   g_dwin.begin(DWIN_BAUD);
@@ -1838,6 +2672,13 @@ void setup()
                        : F("Settings: loaded from EEPROM v2"));
   }
 
+  if (HE200_COMMISSIONING)
+  {
+    applyHe200CommissioningProfile(g_settings);
+    Serial.println(F("HE200 commissioning profile enforced in RAM: 9600 8-N-1, addresses 1/2/3/4"));
+    Serial.println(F("EEPROM is not modified automatically"));
+  }
+
   g_editSettings = g_settings;
   g_settingsDirty = false;
   g_settingsUiState = SETTINGS_UI_IDLE;
@@ -1846,6 +2687,7 @@ void setup()
   applySafetySettings(g_settings);
   g_motor.begin(g_settings);
   g_auto.begin(g_motor, g_settings);
+  g_he200Service.begin(g_motor);
 
   // Programs live in a separate EEPROM area. Invalid/empty memory is never
   // auto-filled with runnable coordinates: safe uncalibrated defaults stay in RAM.
@@ -1868,6 +2710,9 @@ void setup()
   Serial.println(F("Commands: 0x0001 MANUAL, 0x0002 AUTO START, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION"));
   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
+  Serial.println(F("Laser profile: SEN0366-compatible continuous 5Hz / 1mm / 10m"));
+  if (HE200_FIELD_SERVICE) Serial.println(F("Step9I service cockpit: native HE200 0x1000/0x2000/0x3000 writes runtime-gated; physical AUTO/HOME BLOCKED"));
+  printStep9IServiceInfo();
   Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
   Serial.println(F("Manual jog legacy: 0x0101..0x010C, 0x010F JOG STOP"));
   Serial.println(F("Manual hold-to-run: VP 0x1110 bit0..11, DGUS Bit Button/Inching; release=STOP"));
@@ -1885,11 +2730,14 @@ void setup()
   else
     Serial.println(F("VFD layer: FIELD AUTO WRITE ENABLED"));
 
+  Serial.print(F("RS485 transceiver direction: "));
+  Serial.println(RS485_AUTO_DIRECTION ? F("AUTO/Waveshare (Mega pin 6 unused)") : F("MANUAL/MAX485 (Mega pin 6 DE/RE)"));
   Serial.print(F("Physical AUTO/HOME interlock: "));
   Serial.println(AUTO_PHYSICAL_ENABLED ? F("ENABLED") : F("BLOCKED"));
   Serial.println(F("VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST"));
   printBenchConsoleHelp();
   printProgramSummary();
+  printAllSensorGuardStatus();
 
   Serial.print(F("Safety inputs: "));
   Serial.print(SAFETY_BENCH_MODE ? F("BENCH active-low") : F("FIELD NC active-high"));
@@ -1966,6 +2814,17 @@ void loop()
     writeModeToDwin();
     writeMotorStateToDwin();
     writePersistentHeaderToDwin();
+  }
+
+  {
+    uint32_t ages[4];
+    uint32_t lastSamples[4];
+    for (uint8_t i = 0; i < 4; ++i) {
+      ages[i] = g_sensor[i].lastValidMs ? (uint32_t)(now - g_sensor[i].lastValidMs) : UINT32_MAX;
+      lastSamples[i] = g_sensor[i].lastValidMs;
+    }
+    const bool serviceSafetyBlocked = g_safety.estopActive() || g_safety.estopLatched();
+    g_he200Service.service(now, serviceSafetyBlocked, ages, lastSamples);
   }
 
   if (g_motor.service(now))

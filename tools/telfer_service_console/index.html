@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Тельферы — Step9I Service Cockpit</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <h1>Тельферы — Service Cockpit</h1>
+    <p>Step9I · HE200 native Modbus · SEN0366 5 Гц / 1 мм · AUTO/HOME физически заблокирован</p>
+  </div>
+  <div class="connection-box">
+    <span id="connectionPill" class="pill offline">ОТКЛЮЧЕНО</span>
+    <button id="connectBtn" class="primary">Подключить COM</button>
+    <button id="disconnectBtn" disabled>Отключить</button>
+    <button id="stopAllBtn" class="danger" disabled>■ ПЛАВНЫЙ STOP ВСЕХ</button>
+  </div>
+</header>
+<div id="browserWarning" class="warning hidden">Web Serial недоступен. Запустите <b>OPEN_SERVICE_CONSOLE.bat</b> и используйте Chrome/Edge.</div>
+<div id="runtimeAlert" class="warning hidden"></div>
+<div class="safety-banner">
+  FIELD SERVICE может физически двигать механизмы только после последовательных ворот допуска. Аппаратный E‑STOP остаётся обязательным. Команда 0x2000=0005 (free/coast stop) интерфейсом не используется.
+</div>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="commission">Пусконаладка</button>
+  <button class="tab" data-tab="sensors">Датчики</button>
+  <button class="tab" data-tab="program">Программа</button>
+  <button class="tab" data-tab="logtab">Журнал</button>
+</nav>
+
+<main>
+<section id="commission" class="tabpage active">
+  <section class="card">
+    <div class="section-title-row">
+      <div><h2>1. Общая готовность</h2><p class="subtle">Одна кнопка выполняет профиль связи, профиль лазеров, опрос 4 ПЧ и проверку ворот PRE-FLIGHT.</p></div>
+      <button id="prepareBtn" class="accent">Подготовить систему</button>
+    </div>
+    <div class="gate-grid">
+      <div class="gate" data-gate="preflight"><b>PRE-FLIGHT</b><span>—</span></div>
+      <div class="gate" data-gate="protocol"><b>Протокол HE200</b><span>0/4</span></div>
+      <div class="gate" data-gate="source"><b>Источник Modbus</b><span>НЕ ПОДТВЕРЖДЁН</span></div>
+      <div class="gate" data-gate="directions"><b>Направления</b><span>0/8</span></div>
+      <div class="gate" data-gate="pairs"><b>Парные тесты</b><span>0/2</span></div>
+      <div class="gate" data-gate="assist"><b>Ассистент</b><span>OFF</span></div>
+    </div>
+    <div id="gateDecision" class="decision wait"><b>СЛЕДУЮЩЕЕ ДЕЙСТВИЕ:</b><span>Подключите COM и загрузите FIELD SERVICE.</span></div>
+    <div class="status-strip">
+      <span>Порт: <b id="portLabel">—</b></span><span>FW: <b id="firmwareLabel">—</b></span><span>Сборка: <b id="buildLabel">—</b></span><span>Ответ: <b id="lastRxLabel">—</b></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-title-row"><div><h2>2. Подтверждение Modbus-карты</h2><p class="subtle">ПЧ должны стоять. Проверяется 1000H → 701CH и 2000H=0006 без команды RUN. Пробное значение ограничено 5%.</p></div><button id="probeAllBtn" class="accent">Проверить все 4</button></div>
+    <div id="protocolCards" class="drive-actions"></div>
+  </section>
+
+  <section class="card source-card">
+    <div class="section-title-row">
+      <div><h2>3. Переключение источника управления</h2><p class="subtle">Только после PASS протокола. На всех четырёх HE200 вручную установите <b>P0.02=2</b> (Communication control) и <b>P0.03=9</b> (Communication setting). Физические кнопки RUN/REV после этого не являются источником движения; аппаратный E‑STOP должен оставаться доступен.</p></div>
+      <label class="source-confirm"><input id="sourceConfirm" type="checkbox"> Подтверждаю: P0.02=2 и P0.03=9 установлены на H1/H2/V1/V2</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>4. Низкоскоростные импульсные тесты</h2>
+    <p class="subtle">Каждый тест автоматически даёт малую скорость, проверяет факт вращения и сам отправляет плавный STOP. После PASS подтвердите глазами правильное направление.</p>
+    <div id="pulseCards" class="drive-actions"></div>
+  </section>
+
+  <section class="card">
+    <h2>5. Парные тесты</h2>
+    <div class="two-col">
+      <div class="subcard"><h3>Горизонталь H1+H2</h3><button data-pair="h" data-dir="pos">Коротко вправо</button><button data-pair="h" data-dir="neg">Коротко влево</button><div class="pair-state" data-pair-state="h">—</div></div>
+      <div class="subcard"><h3>Вертикаль V1+V2</h3><button data-pair="z" data-dir="pos">Коротко вверх</button><button data-pair="z" data-dir="neg">Коротко вниз</button><div class="pair-state" data-pair-state="z">—</div></div>
+    </div>
+  </section>
+
+  <section class="card assist-card">
+    <div class="section-title-row"><div><h2>6. Контролируемое движение с восстановлением датчиков</h2><p class="subtle">Если один датчик пары старше 650 мс — синхронно уменьшается скорость обоих ПЧ. После восстановления скорость плавно возвращается. После 1200 мс — дотормаживание до 0; после свежих кадров возможен автоматический мягкий рестарт. 5 с без данных = FAULT.</p></div><div id="assistState" class="big-state">OFF</div></div>
+    <div class="assist-controls">
+      <label>Ось <select id="assistAxis"><option value="x">X / H1+H2</option><option value="z">Z / V1+V2</option></select></label>
+      <label>Скорость, % <input id="assistPct" type="number" min="5" max="80" value="40"></label>
+      <button id="assistPosBtn" class="accent">Пуск +</button><button id="assistNegBtn" class="accent">Пуск −</button><button id="assistStopBtn" class="danger">Плавный STOP</button><button id="assistClearBtn">Сброс FAULT</button>
+    </div>
+    <div id="assistDetails" class="status-strip"><span>Возраст A: <b>—</b></span><span>Возраст B: <b>—</b></span><span>Текущая скорость: <b>—</b></span></div>
+  </section>
+
+  <section class="card">
+    <div class="section-title-row"><h2>HE200 — текущая телеметрия</h2><button id="refreshDrivesBtn">Обновить 4 ПЧ</button></div>
+    <div class="table-wrap"><table id="he200Table"><thead><tr><th>ПЧ</th><th>Связь</th><th>Раб., Гц</th><th>Зад., Гц</th><th>Ток, А</th><th>DI</th><th>Fault</th><th>State</th></tr></thead><tbody>
+      <tr data-drive="H1"><td>H1</td><td class="online">—</td><td class="run">—</td><td class="set">—</td><td class="outi">—</td><td class="di">—</td><td class="fault">—</td><td class="state">—</td></tr>
+      <tr data-drive="H2"><td>H2</td><td class="online">—</td><td class="run">—</td><td class="set">—</td><td class="outi">—</td><td class="di">—</td><td class="fault">—</td><td class="state">—</td></tr>
+      <tr data-drive="V1"><td>V1</td><td class="online">—</td><td class="run">—</td><td class="set">—</td><td class="outi">—</td><td class="di">—</td><td class="fault">—</td><td class="state">—</td></tr>
+      <tr data-drive="V2"><td>V2</td><td class="online">—</td><td class="run">—</td><td class="set">—</td><td class="outi">—</td><td class="di">—</td><td class="fault">—</td><td class="state">—</td></tr>
+    </tbody></table></div>
+  </section>
+</section>
+
+<section id="sensors" class="tabpage">
+  <section class="card">
+    <div class="section-title-row"><div><h2>SEN0366 — зафиксированный рабочий профиль</h2><p class="subtle">Continuous · 5 Гц · 1 мм · 10 м. Экспериментальные 10/20 Гц, 0,1 мм и single-shot из интерфейса удалены.</p></div><div class="button-row"><button id="sensorProfileBtn" class="accent">Применить профиль</button><button id="sensorReinitBtn">Реинициализация</button><button id="sensorStatusBtn">Обновить</button><button id="sensorResetBtn">Сброс статистики</button></div></div>
+    <div class="table-wrap"><table id="laserTable"><thead><tr><th>Канал</th><th>HW</th><th>мм</th><th>Возраст</th><th>max age</th><th>Кадр/с</th><th>GOOD</th><th>ERR</th><th>CRC</th><th>UART</th><th>ACK</th></tr></thead><tbody>
+      <tr data-laser="X1"><td>X1</td><td class="hw">—</td><td class="mm">—</td><td class="age">—</td><td class="maxage">—</td><td class="rate">—</td><td class="good">—</td><td class="serr">—</td><td class="crc">—</td><td class="uart">—</td><td class="ack">—</td></tr>
+      <tr data-laser="X2"><td>X2</td><td class="hw">—</td><td class="mm">—</td><td class="age">—</td><td class="maxage">—</td><td class="rate">—</td><td class="good">—</td><td class="serr">—</td><td class="crc">—</td><td class="uart">—</td><td class="ack">—</td></tr>
+      <tr data-laser="Z1"><td>Z1</td><td class="hw">—</td><td class="mm">—</td><td class="age">—</td><td class="maxage">—</td><td class="rate">—</td><td class="good">—</td><td class="serr">—</td><td class="crc">—</td><td class="uart">—</td><td class="ack">—</td></tr>
+      <tr data-laser="Z2"><td>Z2</td><td class="hw">—</td><td class="mm">—</td><td class="age">—</td><td class="maxage">—</td><td class="rate">—</td><td class="good">—</td><td class="serr">—</td><td class="crc">—</td><td class="uart">—</td><td class="ack">—</td></tr>
+    </tbody></table></div>
+  </section>
+</section>
+
+<section id="program" class="tabpage">
+  <section class="card">
+    <div class="section-title-row"><div><h2>Программа — резервный редактор</h2><p class="subtle">Работает через те же структуры EEPROM, что и DWIN. Физический AUTO в Step9I не разрешён.</p></div><div class="button-row"><label>Слот <select id="programSlot"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label><button id="programLoadBtn">Загрузить</button><button id="programSaveBtn" class="accent">Сохранить</button><button id="programRefreshBtn">Прочитать</button></div></div>
+    <div id="programStatus" class="status-strip"><span>Слот: <b>—</b></span><span>Ready: <b>—</b></span><span>Зон: <b>—</b></span><span>Dirty: <b>—</b></span></div>
+    <div class="form-grid">
+      <label>HOME X1 <input id="homeX1" type="number" min="0" max="10000"></label><label>HOME X2 <input id="homeX2" type="number" min="0" max="10000"></label><button id="setHomeBtn">Записать HOME</button><button id="capHomeBtn">Снять HOME с датчиков</button>
+      <label>TRAVEL Z1 <input id="travelZ1" type="number" min="0" max="10000"></label><label>TRAVEL Z2 <input id="travelZ2" type="number" min="0" max="10000"></label><button id="setTravelBtn">Записать TRAVEL</button><button id="capTravelBtn">Снять TRAVEL</button>
+    </div>
+  </section>
+  <section class="card">
+    <div class="section-title-row"><h2>Зона</h2><label>№ <input id="zoneN" type="number" min="1" max="10" value="1"></label></div>
+    <div class="form-grid zone-grid">
+      <label>X1 <input id="zoneX1" type="number"></label><label>X2 <input id="zoneX2" type="number"></label><button id="setZoneXBtn">Записать X</button><button id="capZoneXBtn">Снять X</button>
+      <label>Z1 <input id="zoneZ1" type="number"></label><label>Z2 <input id="zoneZ2" type="number"></label><button id="setZoneZBtn">Записать Z</button><button id="capZoneZBtn">Снять Z</button>
+      <label>Выдержка, с <input id="zoneDip" type="number" min="0" value="60"></label><label>После наклона, с <input id="zoneWait" type="number" min="0" value="30"></label><label>Перепад Z1-Z2, мм <input id="zoneTilt" type="number" min="0" value="30"></label><button id="setZoneTimesBtn">Записать времена</button>
+      <label>Скорость H, % <input id="zoneHPct" type="number" min="1" max="100" value="40"></label><label>Скорость V, % <input id="zoneVPct" type="number" min="1" max="100" value="45"></label><button id="setZoneSpeedBtn">Записать скорости</button><div class="button-row"><button id="zoneOnBtn">Зона ВКЛ</button><button id="zoneOffBtn">Зона ВЫКЛ</button></div>
+    </div>
+  </section>
+</section>
+
+<section id="logtab" class="tabpage">
+  <section class="card">
+    <div class="section-title-row"><h2>Журнал</h2><div class="button-row"><label class="checkbox"><input id="autoScroll" type="checkbox" checked> Автопрокрутка</label><button id="saveLogBtn">Сохранить</button><button id="clearLogBtn">Очистить окно</button></div></div>
+    <pre id="log"></pre>
+    <details class="advanced"><summary>Сервисная команда вручную</summary><div class="manual-command"><input id="manualCommand" placeholder="например: service gate status"><button id="sendManualBtn">Отправить</button></div></details>
+  </section>
+</section>
+</main>
+<footer>Step9I Service Cockpit · браузер — дополнительный сервисный интерфейс; аппаратные защиты не заменяет.</footer>
+<script src="app.js"></script>
+</body>
+</html>

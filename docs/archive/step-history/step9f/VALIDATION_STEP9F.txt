@@ -1,0 +1,33 @@
+V6 STEP9F VALIDATION REPORT
+===========================
+
+1. Laser command and ACK checksum verification
+   Result: PASS
+   Tool: tools/protocol_checks/verify_laser_protocol.py
+
+2. Host parser unit test
+   Cases:
+   - measurement 008.806 -> 8806 mm
+   - ERR--16
+   - frequency ACK FA 04 8A 78
+   - damaged checksum
+   Result: PASS
+   Source: test/host/test_fast_laser_protocol.cpp
+
+3. Host syntax compilation (-Wall -Wextra -Werror)
+   Active sources compiled for:
+   - mega_v6_sensor_core_fast equivalent macros
+   - mega_v6_he200_waveshare_readonly equivalent macros
+   - mega_v6_he200_max485_readonly equivalent macros
+   Result: PASS
+
+4. Browser service console JavaScript
+   Command: node --check tools/telfer_service_console/app.js
+   Result: PASS
+
+LIMITATION
+----------
+The preparation environment does not include PlatformIO/AVR toolchain.
+A real `PlatformIO: Build` of all three environments must be run on the user's
+computer before field deployment. Host compilation is a strong syntax/type
+check but is not a replacement for the final AVR link and flash-size check.

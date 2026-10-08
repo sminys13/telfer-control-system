@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-#define FW_VERSION_V6_BRINGUP "v6-system-step9e-he200-readonly"
+#define FW_VERSION_V6_BRINGUP "v6-system-step9i-he200-service-cockpit"
 
 // =====================================================
 // Debug / UART
@@ -65,13 +65,18 @@ static constexpr uint16_t FAST_SENSOR_PHASE_MS = 30;
 static constexpr uint16_t FAST_SENSOR_RESPONSE_TIMEOUT_MS = 260;
 static constexpr uint16_t FAST_DWIN_UPDATE_MS = 80;
 
-// True continuous stream mode.
-// Working base after field diagnostics:
-// LASER ON -> RANGE 10m -> RES 1mm -> FREQ 20Hz -> CONTINUOUS.
-// No READ_CACHE, no auto-restart, no SINGLE in motion.
-static constexpr uint16_t FAST_CONTINUOUS_INIT_GAP_MS = 160;
+// SEN0366-compatible acquisition configuration.
+// Step9I keeps the field profile at continuous 5 Hz, 1 mm and 10 m.
+// Experimental modes remain available only through the service console.
+// The sensor supervisor below is diagnostic/shadow-only in this step.
+static constexpr uint8_t FAST_LASER_DEFAULT_FREQ_HZ = 5;
+static constexpr uint16_t FAST_LASER_INTER_COMMAND_GAP_MS = 30;
+static constexpr uint16_t FAST_LASER_ACK_TIMEOUT_MS = 260;
+static constexpr uint16_t FAST_LASER_STREAM_START_TIMEOUT_MS = 1200;
+static constexpr uint16_t FAST_LASER_SINGLE_TIMEOUT_MS = 1200;
+static constexpr uint16_t FAST_CONTINUOUS_INIT_GAP_MS = 160; // backward-compatible alias
 static constexpr uint16_t FAST_CONTINUOUS_RESTART_GAP_MS = 160;
-static constexpr uint16_t FAST_CONTINUOUS_RESTART_MS = 900; // reserved; auto-restart disabled
+static constexpr uint16_t FAST_CONTINUOUS_RESTART_MS = 900; // auto-restart remains disabled
 
 // Sensor freshness.
 // FRESH: age <= SENSOR_FRESH_TIMEOUT_MS.
@@ -81,22 +86,42 @@ static constexpr uint16_t SENSOR_FRESH_TIMEOUT_MS = 350;
 static constexpr uint16_t SENSOR_FRESH_MS = SENSOR_FRESH_TIMEOUT_MS; // readable alias
 static constexpr uint16_t SENSOR_LOST_MS = 1200; // default value; actual value is stored in SettingsV6.staleTimeoutMs
 
-// Laser setup commands, sent once at start before CONTINUOUS.
-static constexpr bool FAST_LASER_SET_RANGE_10M = true;
-static constexpr bool FAST_LASER_SET_RESOLUTION_1MM = true;
-static constexpr bool FAST_LASER_SET_FREQ_10HZ = false;
-static constexpr bool FAST_LASER_SET_FREQ_20HZ = true;
+// Sensor-supervisor diagnostic thresholds. Step9I assisted service motion uses
+// the separate SENSOR_ASSIST_* thresholds below for controlled pair slowdown.
+static constexpr uint16_t SENSOR_GUARD_WARNING_MS = 450;
+static constexpr uint16_t SENSOR_GUARD_SHADOW_STOP_MS = 650;
+static constexpr uint16_t SENSOR_GUARD_FAULT_MS = 5000;
+static constexpr uint8_t SENSOR_GUARD_RECOVERY_FRAMES = 5;
+
+// Step9I assisted-service motion thresholds. These are NOT hard safety limits;
+// they define the supervised slowdown/resume behaviour of the browser service
+// tool. A real E-STOP and field safety chain remain independent.
+static constexpr uint16_t SENSOR_ASSIST_DECEL_START_MS = 650;
+static constexpr uint16_t SENSOR_ASSIST_HOLD_MS = 1200;
+static constexpr uint16_t SENSOR_ASSIST_FAULT_MS = 5000;
+static constexpr uint16_t SENSOR_ASSIST_RAMP_PERIOD_MS = 200;
+static constexpr uint8_t SENSOR_ASSIST_RAMP_STEP_PCT = 5;
+static constexpr uint8_t SENSOR_ASSIST_MIN_RUNNING_PCT = 5;
+static constexpr uint8_t SENSOR_ASSIST_RECOVERY_MOVING_FRAMES = 3;
+static constexpr uint8_t SENSOR_ASSIST_RECOVERY_STOPPED_FRAMES = 5;
+static constexpr uint16_t SENSOR_GUARD_REFERENCE_VELOCITY_MM_S = 250;
+static constexpr uint16_t SENSOR_GUARD_JUMP_MARGIN_MM = 80;
 
 static constexpr bool LASER_USE_CONTINUOUS = true;
 static constexpr bool LASER_USE_READ_CACHE = false;
 static constexpr bool LASER_AUTO_RESTART   = false;
 
-// Optional readable command constants for documentation/future code.
-static const uint8_t LASER_CMD_ON[]         = {0x80, 0x06, 0x05, 0x01, 0x74};
-static const uint8_t LASER_CMD_CONTINUOUS[] = {0x80, 0x06, 0x03, 0x77};
-static const uint8_t LASER_CMD_RANGE_10M[]  = {0x04, 0x09, 0x0A, 0xEF};
-static const uint8_t LASER_CMD_RES_1MM[]    = {0x04, 0x0C, 0x01, 0xF5};
-static const uint8_t LASER_CMD_FREQ_20HZ[]  = {0x04, 0x0A, 0x14, 0xE4};
+// Full frames from the verified SEN0366-compatible protocol.
+// Earlier project revisions incorrectly omitted the leading 0xFA byte from
+// configuration commands; Step9I keeps this fix and verifies their ACKs.
+static const uint8_t LASER_CMD_SHUTDOWN[]    = {0x80, 0x04, 0x02, 0x7A};
+static const uint8_t LASER_CMD_ON[]          = {0x80, 0x06, 0x05, 0x01, 0x74};
+static const uint8_t LASER_CMD_CONTINUOUS[]  = {0x80, 0x06, 0x03, 0x77};
+static const uint8_t LASER_CMD_RANGE_10M[]   = {0xFA, 0x04, 0x09, 0x0A, 0xEF};
+static const uint8_t LASER_CMD_RES_1MM[]     = {0xFA, 0x04, 0x0C, 0x01, 0xF5};
+static const uint8_t LASER_CMD_FREQ_5HZ[]    = {0xFA, 0x04, 0x0A, 0x05, 0xF3};
+static const uint8_t LASER_CMD_FREQ_10HZ[]   = {0xFA, 0x04, 0x0A, 0x0A, 0xEE};
+static const uint8_t LASER_CMD_FREQ_20HZ[]   = {0xFA, 0x04, 0x0A, 0x14, 0xE4};
 
 // =====================================================
 // DWIN VP MAP
@@ -431,6 +456,18 @@ static constexpr uint16_t MANUAL_JOG_TIMEOUT_DEFAULT_MS = 2500;
 #ifndef V6_HE200_COMMISSIONING
   #define V6_HE200_COMMISSIONING 0
 #endif
+#ifndef V6_RS485_AUTO_DIRECTION
+  #define V6_RS485_AUTO_DIRECTION 0
+#endif
+#ifndef V6_HE200_NATIVE_PROTOCOL
+  #define V6_HE200_NATIVE_PROTOCOL 0
+#endif
+#ifndef V6_HE200_FIELD_SERVICE
+  #define V6_HE200_FIELD_SERVICE 0
+#endif
+#ifndef V6_DWIN_MOTION_ENABLED
+  #define V6_DWIN_MOTION_ENABLED 1
+#endif
 static constexpr bool VFD_RS485_ENABLED = (V6_VFD_RS485_ENABLED != 0);
 static constexpr bool VFD_DRY_RUN       = (V6_VFD_DRY_RUN != 0);
 static constexpr bool VFD_WRITE_COMMANDS_ENABLED = (V6_VFD_WRITE_COMMANDS_ENABLED != 0);
@@ -438,7 +475,11 @@ static constexpr bool VFD_WRITE_COMMANDS_ENABLED = (V6_VFD_WRITE_COMMANDS_ENABLE
 // without allowing HOME/AUTO. Only the explicit FIELD AUTO build sets this to 1.
 static constexpr bool AUTO_PHYSICAL_ENABLED = (V6_AUTO_PHYSICAL_ENABLED != 0);
 static constexpr bool HE200_COMMISSIONING = (V6_HE200_COMMISSIONING != 0);
-static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // MAX485 DE+/RE, RO=RX1/19, DI=TX1/18
+static constexpr bool RS485_AUTO_DIRECTION = (V6_RS485_AUTO_DIRECTION != 0);
+static constexpr bool HE200_NATIVE_PROTOCOL = (V6_HE200_NATIVE_PROTOCOL != 0);
+static constexpr bool HE200_FIELD_SERVICE = (V6_HE200_FIELD_SERVICE != 0);
+static constexpr bool DWIN_MOTION_ENABLED = (V6_DWIN_MOTION_ENABLED != 0);
+static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // used only by manual-direction MAX485 builds
 // Baud/parity/stop bits/timeouts are now read from SettingsV6 and EEPROM.
 
 // Step7B uses the already existing ModbusMasterRTU/Drives files.
@@ -455,11 +496,30 @@ static_assert(!VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED || !SAFETY_BENCH
               "Physical VFD writes require SAFETY_BENCH_MODE=false and verified NC safety wiring");
 static_assert(!AUTO_PHYSICAL_ENABLED || (VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED && !SAFETY_BENCH_MODE),
               "Physical AUTO/HOME requires RS485 writes, FIELD safety logic and explicit AUTO enable");
-static_assert(!HE200_COMMISSIONING || !VFD_WRITE_COMMANDS_ENABLED,
-              "HE200 commissioning profile is READ-ONLY until the HE200 RUN/STOP write map is verified");
+static_assert(!HE200_COMMISSIONING || !VFD_WRITE_COMMANDS_ENABLED || HE200_NATIVE_PROTOCOL,
+              "HE200 write builds require the verified native 0x1000/0x2000/0x3000 protocol map");
+static_assert(!HE200_FIELD_SERVICE || (VFD_RS485_ENABLED && VFD_WRITE_COMMANDS_ENABLED && HE200_NATIVE_PROTOCOL && !SAFETY_BENCH_MODE),
+              "HE200 field service requires RS485 writes, native protocol and FIELD safety mode");
+
+// Verified native HE200 Modbus control map from the Chinese HE200 A6 protocol appendix.
+// Communication setpoint is 0.01% of P0.10 (10000 = 100%).
+static constexpr uint16_t HE200_REG_COMM_SETPOINT = 0x1000;
+static constexpr uint16_t HE200_REG_CONTROL_WORD  = 0x2000;
+static constexpr uint16_t HE200_REG_STATUS_WORD   = 0x3000;
+static constexpr uint16_t HE200_REG_COMM_VALUE    = 0x701C; // 0.01%
+
+static constexpr uint16_t HE200_CMD_FORWARD       = 0x0001;
+static constexpr uint16_t HE200_CMD_REVERSE       = 0x0002;
+static constexpr uint16_t HE200_CMD_FWD_JOG       = 0x0003;
+static constexpr uint16_t HE200_CMD_REV_JOG       = 0x0004;
+static constexpr uint16_t HE200_CMD_FREE_STOP     = 0x0005;
+static constexpr uint16_t HE200_CMD_DECEL_STOP    = 0x0006;
+static constexpr uint16_t HE200_CMD_RESET_FAULT   = 0x0007;
+static constexpr uint16_t HE200_SETPOINT_MIN      = 0;
+static constexpr uint16_t HE200_SETPOINT_MAX      = 10000;
 
 // LEGACY NE200/300 write map retained only for dry-run history.
-// DO NOT use these writes with HE200 until its command/write table is verified.
+// Never use this legacy map with HE200. Native HE200 writes use 0x1000/0x2000.
 // Control register: 0x0001; network setpoint: 0x0002.
 static constexpr uint16_t NE200_REG_COMMAND  = 0x0001;
 static constexpr uint16_t NE200_REG_SETPOINT = 0x0002;

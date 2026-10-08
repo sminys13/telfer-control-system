@@ -265,6 +265,44 @@ void MotorControlV6::testVfdConnection(uint8_t driveIndex)
   _vfd.testConnection(driveIndex);
 }
 
+bool MotorControlV6::requestServiceTargets(int16_t h1RightPct, int16_t h2RightPct,
+                                           int16_t v1UpPct, int16_t v2UpPct)
+{
+  if (!HE200_FIELD_SERVICE || !VFD_WRITE_COMMANDS_ENABLED || !HE200_NATIVE_PROTOCOL)
+  {
+    Serial.println(F("SERVICE MOTION BLOCKED: dedicated HE200 FIELD SERVICE build required"));
+    return false;
+  }
+  _lastManualCmdMs = 0; // service-cockpit owns its own deadman/stop policy
+  _motionActive = h1RightPct || h2RightPct || v1UpPct || v2UpPct;
+  _state = stateForAutoTargets(h1RightPct, h2RightPct, v1UpPct, v2UpPct);
+  return _vfd.setAutoLogicalTargets(h1RightPct, h2RightPct, v1UpPct, v2UpPct);
+}
+
+void MotorControlV6::serviceDecelStop(const __FlashStringHelper* reason)
+{
+  _motionActive = false;
+  _lastManualCmdMs = 0;
+  _state = MotorStateV6::STOPPED;
+  _vfd.stopAll(reason);
+}
+
+void MotorControlV6::serviceDecelStopMask(uint8_t driveMask, const __FlashStringHelper* reason)
+{
+  _lastManualCmdMs = 0;
+  _vfd.stopMask(driveMask, reason);
+  // Step9I Service Cockpit never runs two independent service motions concurrently.
+  // The state therefore becomes STOPPED when the active service mask is stopped.
+  _motionActive = false;
+  _state = MotorStateV6::STOPPED;
+}
+
+bool MotorControlV6::probeHe200Protocol(uint8_t driveIndex, uint16_t probePct001,
+                                        He200ProtocolSnapshotV6& outAfter)
+{
+  return _vfd.probeHe200Protocol(driveIndex, probePct001, outAfter);
+}
+
 const __FlashStringHelper* MotorControlV6::stateName() const
 {
   switch (_state)

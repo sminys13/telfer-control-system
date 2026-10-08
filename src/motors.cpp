@@ -105,16 +105,36 @@ uint16_t Drives::setpointMagnitude(int16_t effectivePct) const {
   int16_t magnitudePct = effectivePct < 0 ? (int16_t)-effectivePct : effectivePct;
   magnitudePct = clampT<int16_t>(magnitudePct, 0, 100);
   const uint16_t sp = (uint16_t)(magnitudePct * 100);
-  return clampT<uint16_t>(sp, NE200_SETPOINT_MIN, NE200_SETPOINT_MAX);
+  return HE200_NATIVE_PROTOCOL
+      ? clampT<uint16_t>(sp, HE200_SETPOINT_MIN, HE200_SETPOINT_MAX)
+      : clampT<uint16_t>(sp, NE200_SETPOINT_MIN, NE200_SETPOINT_MAX);
 }
 
 uint16_t Drives::directionCommand(int16_t effectivePct) const {
+  if (HE200_NATIVE_PROTOCOL)
+    return effectivePct >= 0 ? HE200_CMD_FORWARD : HE200_CMD_REVERSE;
   return effectivePct >= 0 ? NE200_CMD_FORWARD : NE200_CMD_REVERSE;
+}
+
+uint16_t Drives::commandRegister() const {
+  return HE200_NATIVE_PROTOCOL ? HE200_REG_CONTROL_WORD : NE200_REG_COMMAND;
+}
+
+uint16_t Drives::setpointRegister() const {
+  return HE200_NATIVE_PROTOCOL ? HE200_REG_COMM_SETPOINT : NE200_REG_SETPOINT;
+}
+
+uint16_t Drives::stopCommand() const {
+  return HE200_NATIVE_PROTOCOL ? HE200_CMD_DECEL_STOP : NE200_CMD_STOP;
+}
+
+uint16_t Drives::resetCommand() const {
+  return HE200_NATIVE_PROTOCOL ? HE200_CMD_RESET_FAULT : NE200_CMD_RESET_FAULT;
 }
 
 void Drives::printPlan(uint8_t i, const __FlashStringHelper* action,
                        uint16_t reg, uint16_t value) const {
-  Serial.print(F("NE200 "));
+  Serial.print(HE200_NATIVE_PROTOCOL ? F("HE200 ") : F("NE200 "));
   Serial.print(driveName(driveFromIndex(i)));
   Serial.print(F(" addr="));
   Serial.print(_map[i].addr);
@@ -216,6 +236,12 @@ bool Drives::finishTransaction(uint8_t i, const ModbusResult& r,
   Serial.print(driveName(driveFromIndex(i)));
   Serial.print(F(" error="));
   Serial.println(r.error);
+  Serial.print(F("@HE200 name="));
+  Serial.print(driveName(driveFromIndex(i)));
+  Serial.print(F(" addr="));
+  Serial.print(_map[i].addr);
+  Serial.print(F(" online=0 error="));
+  Serial.println(r.error);
 
   // Do not hold the whole scheduler forever on one missing drive.
   if (st.failStreak >= 3) {
@@ -260,17 +286,26 @@ bool Drives::processActiveDrive(uint32_t nowMs) {
       st.transactionPct = st.targetPct;
       const int16_t eff = effectivePercent(i, st.transactionPct);
       const uint16_t sp = setpointMagnitude(eff);
-      printPlan(i, F("SETPOINT"), NE200_REG_SETPOINT, sp);
-      r = _mb->writeSingleRegister(map.addr, NE200_REG_SETPOINT, sp);
+      const uint16_t reg = setpointRegister();
+      printPlan(i, F("SETPOINT"), reg, sp);
+      r = _mb->writeSingleRegister(map.addr, reg, sp);
+      if (HE200_NATIVE_PROTOCOL && (r.ok || r.simulated) && st.appliedPct != 0) {
+        const int16_t prevEff = effectivePercent(i, st.appliedPct);
+        const bool sameDirection = (prevEff >= 0) == (eff >= 0);
+        if (sameDirection) {
+          st.appliedPct = st.transactionPct;
+          return finishTransaction(i, r, TxPhase::IDLE);
+        }
+      }
       return finishTransaction(i, r, TxPhase::WRITE_RUN_COMMAND);
     }
 
     case TxPhase::WRITE_RUN_COMMAND: {
       const int16_t eff = effectivePercent(i, st.transactionPct);
       const uint16_t cmd = directionCommand(eff);
-      printPlan(i, eff >= 0 ? F("RUN FWD") : F("RUN REV"),
-                NE200_REG_COMMAND, cmd);
-      r = _mb->writeSingleRegister(map.addr, NE200_REG_COMMAND, cmd);
+      const uint16_t reg = commandRegister();
+      printPlan(i, eff >= 0 ? F("RUN FWD") : F("RUN REV"), reg, cmd);
+      r = _mb->writeSingleRegister(map.addr, reg, cmd);
       if (r.ok || r.simulated) {
         st.appliedPct = st.transactionPct;
         st.forceStop = false;
@@ -278,14 +313,22 @@ bool Drives::processActiveDrive(uint32_t nowMs) {
       return finishTransaction(i, r, TxPhase::IDLE);
     }
 
-    case TxPhase::WRITE_STOP_COMMAND:
-      printPlan(i, F("STOP"), NE200_REG_COMMAND, NE200_CMD_STOP);
-      r = _mb->writeSingleRegister(map.addr, NE200_REG_COMMAND, NE200_CMD_STOP);
+    case TxPhase::WRITE_STOP_COMMAND: {
+      const uint16_t reg = commandRegister();
+      const uint16_t cmd = stopCommand();
+      printPlan(i, HE200_NATIVE_PROTOCOL ? F("DECEL STOP") : F("STOP"), reg, cmd);
+      r = _mb->writeSingleRegister(map.addr, reg, cmd);
+      if (HE200_NATIVE_PROTOCOL && (r.ok || r.simulated)) {
+        st.appliedPct = 0;
+        st.forceStop = false;
+        return finishTransaction(i, r, TxPhase::IDLE);
+      }
       return finishTransaction(i, r, TxPhase::WRITE_ZERO_SETPOINT);
+    }
 
     case TxPhase::WRITE_ZERO_SETPOINT:
-      printPlan(i, F("ZERO SETPOINT"), NE200_REG_SETPOINT, 0);
-      r = _mb->writeSingleRegister(map.addr, NE200_REG_SETPOINT, 0);
+      printPlan(i, F("ZERO SETPOINT"), setpointRegister(), 0);
+      r = _mb->writeSingleRegister(map.addr, setpointRegister(), 0);
       if (r.ok || r.simulated) {
         st.appliedPct = 0;
         st.forceStop = false;
@@ -293,10 +336,8 @@ bool Drives::processActiveDrive(uint32_t nowMs) {
       return finishTransaction(i, r, TxPhase::IDLE);
 
     case TxPhase::WRITE_RESET_FAULT:
-      printPlan(i, F("RESET FAULT"), NE200_REG_COMMAND,
-                NE200_CMD_RESET_FAULT);
-      r = _mb->writeSingleRegister(map.addr, NE200_REG_COMMAND,
-                                   NE200_CMD_RESET_FAULT);
+      printPlan(i, F("RESET FAULT"), commandRegister(), resetCommand());
+      r = _mb->writeSingleRegister(map.addr, commandRegister(), resetCommand());
       if (r.ok || r.simulated) st.resetRequested = false;
       return finishTransaction(i, r, TxPhase::IDLE);
 
@@ -322,10 +363,12 @@ bool Drives::processActiveDrive(uint32_t nowMs) {
           tel.lastOkMs = nowMs;
           Serial.print(F("HE200 READ OK run="));
           Serial.print(values[0] / 100); Serial.print('.');
-          if ((values[0] % 100) < 10) Serial.print('0'); Serial.print(values[0] % 100);
+          if ((values[0] % 100) < 10) Serial.print('0');
+          Serial.print(values[0] % 100);
           Serial.print(F("Hz set="));
           Serial.print(values[1] / 100); Serial.print('.');
-          if ((values[1] % 100) < 10) Serial.print('0'); Serial.print(values[1] % 100);
+          if ((values[1] % 100) < 10) Serial.print('0');
+          Serial.print(values[1] % 100);
           Serial.print(F("Hz bus="));
           Serial.print(values[2] / 10); Serial.print('.'); Serial.print(values[2] % 10);
           Serial.print(F("V outV=")); Serial.print(values[3]);
@@ -370,14 +413,30 @@ bool Drives::processActiveDrive(uint32_t nowMs) {
       if (r.ok) {
         DriveTelemetry& tel = _tel[i];
         tel.currentSetFreq001Pct = values[0];
-        tel.currentRunFreq001Pct = values[1];
+        tel.currentRunFreq001Pct = (int16_t)values[1];
         tel.statusWord = values[2];
         tel.connected = true;
         tel.lastErr = MODBUS_ERROR_NONE;
         tel.lastOkMs = nowMs;
         Serial.print(F("HE200 state 0x703B/3C/3D="));
         Serial.print(values[0]); Serial.print('/');
-        Serial.print(values[1]); Serial.print(F("/0x")); Serial.println(values[2], HEX);
+        Serial.print((int16_t)values[1]); Serial.print(F("/0x")); Serial.println(values[2], HEX);
+
+        // Stable machine-readable line for the browser service console.
+        Serial.print(F("@HE200 name="));
+        Serial.print(driveName(driveFromIndex(i)));
+        Serial.print(F(" addr=")); Serial.print(map.addr);
+        Serial.print(F(" online=1 run001=")); Serial.print(tel.runningFreq001Hz);
+        Serial.print(F(" set001=")); Serial.print(tel.setFreq001Hz);
+        Serial.print(F(" bus01=")); Serial.print(tel.busVoltage01V);
+        Serial.print(F(" outV=")); Serial.print(tel.outputVoltageV);
+        Serial.print(F(" outI001=")); Serial.print(tel.outputCurrent001A);
+        Serial.print(F(" di=0x")); Serial.print(tel.digitalInputState, HEX);
+        Serial.print(F(" fault=0x")); Serial.print(tel.faultCode, HEX);
+        Serial.print(F(" setPct001=")); Serial.print(tel.currentSetFreq001Pct);
+        Serial.print(F(" runPct001=")); Serial.print(tel.currentRunFreq001Pct);
+        Serial.print(F(" state=0x")); Serial.print(tel.statusWord, HEX);
+        Serial.println(F(" error=0"));
       }
       return finishTransaction(i, r, TxPhase::IDLE);
     }

@@ -1,0 +1,692 @@
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/README_V6_SYSTEM_STEP8A.md ./README_V6_SYSTEM_STEP8A.md
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/README_V6_SYSTEM_STEP8A.md	1970-01-01 00:00:00.000000000 +0000
++++ ./README_V6_SYSTEM_STEP8A.md	2026-08-10 12:43:09.389709016 +0000
+@@ -0,0 +1,123 @@
++# V6 System Step8A — field safety + persistent DWIN diagnostics
++
++Основа: проверенный `v6-system-step7b-ne200-modbus-dry-run`.
++
++## Зачем этот шаг
++
++Перед подключением AUTO/HOME и тем более перед физическим MAX485 в активную V6-сборку возвращена аппаратная защита старого проекта:
++
++- E-STOP: pin 2;
++- H1 LEFT/RIGHT: pins 36/37;
++- H2 LEFT/RIGHT: pins 38/39.
++
++Физический RS485 всё ещё **выключен**. Это принципиально: Step8A проверяется только по DWIN и Serial Monitor.
++
++## Режим безопасности
++
++По умолчанию:
++
++```cpp
++SAFETY_BENCH_MODE = true;
++VFD_RS485_ENABLED = false;
++VFD_DRY_RUN = true;
++```
++
++В bench mode вход считается активным при LOW (удобно для NO-кнопки на GND или незадействованных входов с `INPUT_PULLUP`).
++
++Для реального шкафа с рекомендуемой NC-цепью нужно после проверки проводки поставить:
++
++```cpp
++SAFETY_BENCH_MODE = false;
++```
++
++При этом healthy NC-to-GND = LOW, а нажатие/обрыв = HIGH = авария.
++
++Добавлен `static_assert`: физический `VFD_RS485_ENABLED=true` нельзя собрать, пока `SAFETY_BENCH_MODE=true`.
++
++## Поведение E-STOP
++
++- активный E-STOP немедленно ставит `STOP ALL`;
++- режим переводится в STOP даже если E-STOP сработал в покое;
++- при старте с уже активной цепью система сразу остаётся в STOP;
++- E-STOP защёлкивается программно;
++- отпускание кнопки само по себе движение не разрешает;
++- пока E-STOP активен или защёлкнут, переход в MANUAL/AUTO/HOME блокируется;
++- сброс защёлки: `0x0044 CLEAR STATUS` или отдельная `0x0047 SAFETY CLEAR`;
++- сброс при всё ещё активном E-STOP отвергается.
++
++## Поведение концевиков
++
++Концевики не запрещают движение *от* сработавшего концевика. Они блокируют только движение *в него*:
++
++- H1 FWD/right блокируется H1 RIGHT;
++- H1 BWD/left блокируется H1 LEFT;
++- H2 FWD/right блокируется H2 RIGHT;
++- H2 BWD/left блокируется H2 LEFT;
++- для H1+H2 достаточно соответствующего концевика любой стороны, чтобы остановить пару.
++
++Вертикальные концевики в старой аппаратной конфигурации отсутствовали, поэтому Step8A их не выдумывает.
++
++## Новые DWIN VP для постоянных строк
++
++Базовые VP `X1/X2/Z1/Z2`, `MODE`, `ERROR`, `MOTOR_STATE`, `VFD_STATUS`, `CMD` не менялись.
++
++Добавлены:
++
++```text
++0x1020 PROGRAM_INDEX
++0x1022 ZONE_CURRENT
++0x1024 ZONE_TOTAL
++0x1026 STEP_CURRENT
++0x1028 STEP_TOTAL
++
++0x1030 ELAPSED_H
++0x1032 ELAPSED_M
++0x1034 ELAPSED_S
++0x1036 TOTAL_H
++0x1038 TOTAL_M
++0x103A TOTAL_S
++
++0x1040 SENSOR_OK_COUNT
++0x1042 SENSOR_TOTAL
++0x1044 VFD_OK_COUNT
++0x1046 VFD_TOTAL
++0x1048 RS485_STATE       0=off, 1=physical, 2=dry-run
++0x104A NETWORK_STATE     currently 0/planned
++0x104C SAFETY_STATE      bit0=E-stop active, bit1=latched
++0x104E LIMIT_STATE       bits H1L/H1R/H2L/H2R
++0x1050 MODBUS_QUEUE_BUSY 0/1
++```
++
++Поля программы/зоны/шага/времени пока честно равны нулю. Никакие тестовые значения не подставляются. Их начнёт заполнять program runner в следующем шаге.
++
++`SENSOR_OK_COUNT` считает канал online, если есть валидное удерживаемое значение не старше `staleTimeoutMs`. Поэтому STALE ещё считается online, LOST — нет.
++
++`VFD_OK_COUNT` в dry-run будет 0/4, потому что это именно число реально ответивших ПЧ, а не число настроенных адресов.
++
++## Новые сервисные команды
++
++Все пишутся в `VP_CMD=0x1100`:
++
++```text
++0x0046 DIAG SNAPSHOT
++0x0047 SAFETY CLEAR
++```
++
++`0x0046` печатает одной строкой состояние датчиков, ПЧ, RS485, E-STOP, концевиков и очереди Modbus.
++
++## Что проверить
++
++1. Сборка `mega_v6_sensor_core_fast`.
++2. Стартовая строка должна содержать `SafetyV6: mode=BENCH ...`.
++3. В обычном bench-подключении без нажатых входов: `saf=0 lim=0x0`.
++4. Замкнуть E-STOP input pin 2 на GND: `SAFETY E-STOP ACTIVE`, ошибка получает бит `0x0200`, движение блокируется.
++5. Отпустить: latch остаётся; jog должен быть BLOCKED.
++6. Команда `0x0047`: latch сбрасывается, если E-STOP уже отпущен.
++7. Замкнуть H1 RIGHT (pin 37) на GND: `lim=0x2`.
++8. H1 FWD `0x0101` должен быть BLOCKED; H1 BWD `0x0102` должен формировать dry-run кадры.
++9. Остальные manual-jog и STOP должны работать как Step7B.
++10. Команда `0x0046` должна дать `DIAG sensors=.../4 vfd=0/4 rs485=DRY/DISABLED ...`.
++
++## Следующий шаг
++
++После этого прогона — Step8B: перенос технологического `AutoRunner` и HOME из старой `app.cpp` на четыре лазерных канала `X1/X2/Z1/Z2`, с отдельным EEPROM-блоком программ/зон и без включения физического RS485.
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/config_v6_bringup.h ./include/config_v6_bringup.h
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/config_v6_bringup.h	2026-08-01 14:20:57.000000000 +0000
++++ ./include/config_v6_bringup.h	2026-08-10 12:40:15.824547065 +0000
+@@ -3,7 +3,7 @@
+ #include <Arduino.h>
+ #include <stdint.h>
+ 
+-#define FW_VERSION_V6_BRINGUP "v6-system-step7b-ne200-modbus-dry-run"
++#define FW_VERSION_V6_BRINGUP "v6-system-step8a-field-safety-diagnostics"
+ 
+ // =====================================================
+ // Debug / UART
+@@ -12,6 +12,23 @@
+ static constexpr uint32_t DWIN_BAUD = 115200;
+ 
+ // =====================================================
++// FIELD SAFETY INPUTS (restored from the proven legacy project)
++// =====================================================
++// Bench mode keeps the old convenient NO-to-GND logic. Physical VFD TX is
++// forbidden while bench mode is active. For the cabinet/field build the NC
++// safety chain must be verified first, then SAFETY_BENCH_MODE is set false.
++static constexpr bool SAFETY_BENCH_MODE = true;
++static constexpr uint8_t PIN_ESTOP = 2;
++static constexpr uint8_t PIN_LIM_H1_LEFT  = 36;
++static constexpr uint8_t PIN_LIM_H1_RIGHT = 37;
++static constexpr uint8_t PIN_LIM_H2_LEFT  = 38;
++static constexpr uint8_t PIN_LIM_H2_RIGHT = 39;
++static constexpr bool ESTOP_ACTIVE_LOW = SAFETY_BENCH_MODE ? true : false;
++static constexpr bool LIMIT_ACTIVE_LOW = SAFETY_BENCH_MODE ? true : false;
++static constexpr bool ENABLE_ESTOP = true;
++static constexpr bool ENABLE_LIMIT_SWITCHES = true;
++
++// =====================================================
+ // SPI / SC16IS752
+ // =====================================================
+ // SC16IS752 #1 -> X1/X2
+@@ -91,7 +108,33 @@
+ static constexpr uint16_t VP_MODE        = 0x1010;
+ static constexpr uint16_t VP_ERROR       = 0x1012;
+ static constexpr uint16_t VP_MOTOR_STATE = 0x1014; // состояние ручного/будущего движения
+-static constexpr uint16_t VP_VFD_STATUS   = 0x1016; // статус будущего RS485/VFD слоя, можно вывести на DWIN позже
++static constexpr uint16_t VP_VFD_STATUS   = 0x1016; // состояние слоя RS485/VFD
++
++// Persistent header/status row for the new 1024x600 DWIN pages.
++// These VPs are safe to add even before all DGUS objects are placed: writing
++// an unused VP does not change the background image.
++static constexpr uint16_t VP_PROGRAM_INDEX    = 0x1020; // 0=no active program, otherwise 1..4
++static constexpr uint16_t VP_ZONE_CURRENT     = 0x1022; // 0 when idle
++static constexpr uint16_t VP_ZONE_TOTAL       = 0x1024;
++static constexpr uint16_t VP_STEP_CURRENT     = 0x1026;
++static constexpr uint16_t VP_STEP_TOTAL       = 0x1028;
++
++static constexpr uint16_t VP_TIME_ELAPSED_H   = 0x1030;
++static constexpr uint16_t VP_TIME_ELAPSED_M   = 0x1032;
++static constexpr uint16_t VP_TIME_ELAPSED_S   = 0x1034;
++static constexpr uint16_t VP_TIME_TOTAL_H     = 0x1036;
++static constexpr uint16_t VP_TIME_TOTAL_M     = 0x1038;
++static constexpr uint16_t VP_TIME_TOTAL_S     = 0x103A;
++
++static constexpr uint16_t VP_SENSOR_OK_COUNT  = 0x1040;
++static constexpr uint16_t VP_SENSOR_TOTAL     = 0x1042;
++static constexpr uint16_t VP_VFD_OK_COUNT     = 0x1044;
++static constexpr uint16_t VP_VFD_TOTAL        = 0x1046;
++static constexpr uint16_t VP_RS485_STATE      = 0x1048; // 0=disabled,1=ready/physical,2=dry-run
++static constexpr uint16_t VP_NETWORK_STATE    = 0x104A; // reserved; network is planned
++static constexpr uint16_t VP_SAFETY_STATE     = 0x104C; // bit0=E-stop active, bit1=E-stop latched
++static constexpr uint16_t VP_LIMIT_STATE      = 0x104E; // H1L,H1R,H2L,H2R bits 0..3
++static constexpr uint16_t VP_MODBUS_QUEUE_BUSY= 0x1050;
+ 
+ // Команды от кнопок DWIN.
+ // Все кнопки должны писать сюда.
+@@ -176,6 +219,8 @@
+ // Сервис
+ static constexpr uint16_t CMD_CLEAR_STATUS  = 0x0044;
+ static constexpr uint16_t CMD_SENSOR_REINIT = 0x0045;
++static constexpr uint16_t CMD_DIAG_SNAPSHOT = 0x0046;
++static constexpr uint16_t CMD_SAFETY_CLEAR  = 0x0047;
+ 
+ // Настройки RS485/VFD (страница Settings).
+ static constexpr uint16_t CMD_VFD_SETTINGS_APPLY    = 0x0200;
+@@ -286,6 +331,11 @@
+ static constexpr bool VFD_MODBUS_TRACE = true;
+ static constexpr bool VFD_BACKGROUND_POLL_ENABLED = false; // enable only after the NE200 monitoring map is verified
+ 
++// Hard compile-time interlock: real drive TX must never be enabled with the
++// convenient bench interpretation of the safety chain.
++static_assert(!VFD_RS485_ENABLED || !SAFETY_BENCH_MODE,
++              "Physical VFD RS485 requires SAFETY_BENCH_MODE=false and verified NC safety wiring");
++
+ // NE200 network-control map already recorded in the project/manual notes.
+ // Control register: 0x0001; network setpoint: 0x0002.
+ static constexpr uint16_t NE200_REG_COMMAND  = 0x0001;
+@@ -331,6 +381,10 @@
+ // EEPROM/settings problem.
+ static constexpr uint16_t ERR_SETTINGS = 0x0100;
+ 
++// Hardware safety. These bits are intentionally above the sensor/status range.
++static constexpr uint16_t ERR_ESTOP = 0x0200;
++static constexpr uint16_t ERR_LIMIT = 0x0400;
++
+ // Backward-compatible aliases for earlier code.
+ static constexpr uint16_t ERROR_X1_INVALID = ERR_X1_LOST;
+ static constexpr uint16_t ERROR_X2_INVALID = ERR_X2_LOST;
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/motor_control_v6.h ./include/motor_control_v6.h
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/motor_control_v6.h	2026-08-01 12:54:11.000000000 +0000
++++ ./include/motor_control_v6.h	2026-08-10 12:40:15.824904245 +0000
+@@ -64,6 +64,8 @@
+   MotorStateV6 state() const { return _state; }
+   uint16_t stateCode() const { return static_cast<uint16_t>(_state); }
+   uint16_t vfdStatusCode() const { return _vfd.statusCode(); }
++  uint8_t vfdConnectedCount() const { return _vfd.connectedCount(); }
++  bool vfdHasPendingWork() const { return _vfd.hasPendingWork(); }
+   const __FlashStringHelper* stateName() const;
+ 
+ private:
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/safety_v6.h ./include/safety_v6.h
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/safety_v6.h	1970-01-01 00:00:00.000000000 +0000
++++ ./include/safety_v6.h	2026-08-10 12:40:15.824672591 +0000
+@@ -0,0 +1,41 @@
++#pragma once
++
++#include <Arduino.h>
++#include <stdint.h>
++#include "config_v6_bringup.h"
++
++class SafetyV6 {
++public:
++  enum LimitBits : uint8_t {
++    LIM_H1_LEFT  = 0x01,
++    LIM_H1_RIGHT = 0x02,
++    LIM_H2_LEFT  = 0x04,
++    LIM_H2_RIGHT = 0x08
++  };
++
++  void begin();
++  bool service();
++
++  bool estopActive() const { return _estopActive; }
++  bool estopLatched() const { return _estopLatched; }
++  uint8_t limitMask() const { return _limitMask; }
++  uint16_t stateWord() const {
++    return (_estopActive ? 0x0001 : 0) | (_estopLatched ? 0x0002 : 0);
++  }
++
++  // Clear only the latch. An actually active E-stop can never be cleared.
++  bool clearEstopLatch();
++
++  // motorStateCode uses MOTOR_STATE_* constants from config_v6_bringup.h.
++  bool blocksMotorState(uint16_t motorStateCode) const;
++  const __FlashStringHelper* blockReason(uint16_t motorStateCode) const;
++
++private:
++  bool readActive(uint8_t pin, bool activeLow) const;
++  uint8_t readLimitMask() const;
++
++private:
++  bool _estopActive = false;
++  bool _estopLatched = false;
++  uint8_t _limitMask = 0;
++};
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/vfd_driver_v6.h ./include/vfd_driver_v6.h
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/include/vfd_driver_v6.h	2026-08-01 14:13:32.000000000 +0000
++++ ./include/vfd_driver_v6.h	2026-08-10 12:40:15.825042349 +0000
+@@ -26,6 +26,7 @@
+   uint8_t address(uint8_t driveIndex) const;
+   uint32_t baud() const { return SettingsStorageV6::baudFromCode(_comm.baudCode); }
+   bool hasPendingWork() const { return _drives.hasPendingWork(); }
++  uint8_t connectedCount() const;
+ 
+ private:
+   uint16_t serialMode() const;
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/platformio.ini ./platformio.ini
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/platformio.ini	2026-08-01 14:08:56.000000000 +0000
++++ ./platformio.ini	2026-08-10 12:40:15.830802052 +0000
+@@ -83,3 +83,4 @@
+   +<modbus.cpp>
+   +<motors.cpp>
+   +<utils.cpp>
++  +<safety_v6.cpp>
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/src/main_v6_fast.cpp ./src/main_v6_fast.cpp
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/src/main_v6_fast.cpp	2026-08-01 14:13:52.000000000 +0000
++++ ./src/main_v6_fast.cpp	2026-08-10 12:42:40.505221779 +0000
+@@ -6,6 +6,7 @@
+ #include "settings_v6.h"
+ #include "system_state.h"
+ #include "motor_control_v6.h"
++#include "safety_v6.h"
+ 
+ // =====================================================
+ // v6 sensor core FAST CONTINUOUS working base.
+@@ -26,6 +27,7 @@
+ static SettingsV6 g_settings;
+ static SettingsV6 g_editSettings;
+ static MotorControlV6 g_motor;
++static SafetyV6 g_safety;
+ 
+ static bool g_settingsFault = false;
+ static bool g_settingsDirty = false;
+@@ -81,6 +83,48 @@
+   g_dwin.writeU16(VP_VFD_STATUS, g_motor.vfdStatusCode());
+ }
+ 
++uint8_t sensorOnlineCount()
++{
++  const uint32_t now = millis();
++  uint8_t n = 0;
++  for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
++  {
++    if (!g_settings.sensor[i].enabled) continue;
++    const SensorRuntimeFast &s = g_sensor[i];
++    if (s.hwOk && s.valid && s.lastValidMs != 0 &&
++        (uint32_t)(now - s.lastValidMs) <= g_settings.staleTimeoutMs)
++      ++n;
++  }
++  return n;
++}
++
++void writePersistentHeaderToDwin()
++{
++  // Program runner is connected in the next step. Keep explicit zeroes now
++  // instead of showing mock data on the DWIN backgrounds.
++  g_dwin.writeU16(VP_PROGRAM_INDEX, 0);
++  g_dwin.writeU16(VP_ZONE_CURRENT, 0);
++  g_dwin.writeU16(VP_ZONE_TOTAL, 0);
++  g_dwin.writeU16(VP_STEP_CURRENT, 0);
++  g_dwin.writeU16(VP_STEP_TOTAL, 0);
++  g_dwin.writeU16(VP_TIME_ELAPSED_H, 0);
++  g_dwin.writeU16(VP_TIME_ELAPSED_M, 0);
++  g_dwin.writeU16(VP_TIME_ELAPSED_S, 0);
++  g_dwin.writeU16(VP_TIME_TOTAL_H, 0);
++  g_dwin.writeU16(VP_TIME_TOTAL_M, 0);
++  g_dwin.writeU16(VP_TIME_TOTAL_S, 0);
++
++  g_dwin.writeU16(VP_SENSOR_OK_COUNT, sensorOnlineCount());
++  g_dwin.writeU16(VP_SENSOR_TOTAL, SENSOR_COUNT);
++  g_dwin.writeU16(VP_VFD_OK_COUNT, g_motor.vfdConnectedCount());
++  g_dwin.writeU16(VP_VFD_TOTAL, DRIVE_COUNT_V6);
++  g_dwin.writeU16(VP_RS485_STATE, VFD_RS485_ENABLED ? 1 : (VFD_DRY_RUN ? 2 : 0));
++  g_dwin.writeU16(VP_NETWORK_STATE, 0); // planned, deliberately no fake status
++  g_dwin.writeU16(VP_SAFETY_STATE, g_safety.stateWord());
++  g_dwin.writeU16(VP_LIMIT_STATE, g_safety.limitMask());
++  g_dwin.writeU16(VP_MODBUS_QUEUE_BUSY, g_motor.vfdHasPendingWork() ? 1 : 0);
++}
++
+ void writeBootScreen()
+ {
+   writeModeToDwin();
+@@ -90,6 +134,7 @@
+   g_dwin.writeU16(VP_Z1, 0);
+   g_dwin.writeU16(VP_Z2, 0);
+   writeMotorStateToDwin();
++  writePersistentHeaderToDwin();
+   g_dwin.clearCommand(VP_CMD);
+ }
+ 
+@@ -126,6 +171,10 @@
+ 
+   if (g_settingsFault)
+     err |= ERR_SETTINGS;
++  if (g_safety.estopActive() || g_safety.estopLatched())
++    err |= ERR_ESTOP;
++  if (g_safety.limitMask() != 0)
++    err |= ERR_LIMIT;
+ 
+   g_dwin.writeU16(VP_ERROR, err);
+ }
+@@ -493,6 +542,16 @@
+ 
+ void setSystemMode(SystemModeV6 mode)
+ {
++  // A released E-stop remains latched until the operator explicitly clears it.
++  // Do not allow MANUAL/AUTO/HOME while the safety chain is active or latched.
++  if (mode != SystemModeV6::STOP &&
++      (g_safety.estopActive() || g_safety.estopLatched()))
++  {
++    Serial.print(F("MODE BLOCKED by E-STOP safety latch; requested="));
++    Serial.println(systemModeName(mode));
++    mode = SystemModeV6::STOP;
++  }
++
+   // STOP has priority and always goes through MotorControlV6::stopAll().
+   g_systemMode = mode;
+   g_motor.onModeChanged(g_systemMode);
+@@ -512,8 +571,38 @@
+   writeAllValuesToDwin();
+ }
+ 
++uint16_t motorStateForJogCommand(uint16_t cmd)
++{
++  switch (cmd)
++  {
++  case CMD_JOG_H1_FWD: return MOTOR_STATE_H1_FWD;
++  case CMD_JOG_H1_BWD: return MOTOR_STATE_H1_BWD;
++  case CMD_JOG_H2_FWD: return MOTOR_STATE_H2_FWD;
++  case CMD_JOG_H2_BWD: return MOTOR_STATE_H2_BWD;
++  case CMD_JOG_H_BOTH_FWD: return MOTOR_STATE_H_BOTH_FWD;
++  case CMD_JOG_H_BOTH_BWD: return MOTOR_STATE_H_BOTH_BWD;
++  case CMD_JOG_V1_UP: return MOTOR_STATE_V1_UP;
++  case CMD_JOG_V1_DOWN: return MOTOR_STATE_V1_DOWN;
++  case CMD_JOG_V2_UP: return MOTOR_STATE_V2_UP;
++  case CMD_JOG_V2_DOWN: return MOTOR_STATE_V2_DOWN;
++  case CMD_JOG_V_BOTH_UP: return MOTOR_STATE_V_BOTH_UP;
++  case CMD_JOG_V_BOTH_DOWN: return MOTOR_STATE_V_BOTH_DOWN;
++  default: return MOTOR_STATE_IDLE;
++  }
++}
++
+ bool handleManualJogCommand(uint16_t cmd)
+ {
++  const uint16_t requestedState = motorStateForJogCommand(cmd);
++  if (requestedState != MOTOR_STATE_IDLE && g_safety.blocksMotorState(requestedState))
++  {
++    Serial.print(F("MANUAL JOG BLOCKED by safety: "));
++    Serial.println(g_safety.blockReason(requestedState));
++    g_motor.manualStop(F("safety interlock"));
++    writeMotorStateToDwin();
++    updateErrorMask();
++    return true;
++  }
+   bool isManualCmd = true;
+ 
+   switch (cmd)
+@@ -694,6 +783,7 @@
+ 
+   case CMD_CLEAR_STATUS:
+     Serial.println(F("Status clear requested"));
++    (void)g_safety.clearEstopLatch();
+     updateErrorMask();
+     break;
+ 
+@@ -701,6 +791,30 @@
+     reinitFastSensors();
+     break;
+ 
++  case CMD_DIAG_SNAPSHOT:
++    Serial.print(F("DIAG sensors="));
++    Serial.print(sensorOnlineCount());
++    Serial.print(F("/4 vfd="));
++    Serial.print(g_motor.vfdConnectedCount());
++    Serial.print(F("/4 rs485="));
++    Serial.print(VFD_RS485_ENABLED ? F("PHYSICAL") : F("DRY/DISABLED"));
++    Serial.print(F(" estop="));
++    Serial.print(g_safety.estopActive() ? F("ACTIVE") : F("OK"));
++    Serial.print(F(" latched="));
++    Serial.print(g_safety.estopLatched() ? F("YES") : F("NO"));
++    Serial.print(F(" limits=0x"));
++    Serial.print(g_safety.limitMask(), HEX);
++    Serial.print(F(" queue="));
++    Serial.println(g_motor.vfdHasPendingWork() ? F("BUSY") : F("IDLE"));
++    writePersistentHeaderToDwin();
++    break;
++
++  case CMD_SAFETY_CLEAR:
++    (void)g_safety.clearEstopLatch();
++    updateErrorMask();
++    writePersistentHeaderToDwin();
++    break;
++
+   default:
+     Serial.println(F("Unknown command"));
+     break;
+@@ -717,6 +831,7 @@
+   Serial.println(F("========== V6 SENSOR CORE FAST CONTINUOUS START =========="));
+ 
+   g_dwin.begin(DWIN_BAUD);
++  g_safety.begin();
+   writeBootScreen();
+ 
+   if (!g_storage.load(g_settings))
+@@ -739,6 +854,14 @@
+   g_settingsUiError = SETTINGS_VALID;
+ 
+   g_motor.begin(g_settings);
++  if (g_safety.estopActive() || g_safety.estopLatched())
++  {
++    // Power-up with an open/pressed safety chain must never leave a runnable
++    // logical mode, even though physical MAX485 TX is still disabled in Step8A.
++    g_motor.stopAll(F("E-STOP at boot"));
++    g_systemMode = SystemModeV6::STOP;
++    writeModeToDwin();
++  }
+   writeMotorStateToDwin();
+   writeSettingsToDwin(g_settings);
+ 
+@@ -747,10 +870,17 @@
+ 
+   Serial.println(F("Commands: 0x0001 MANUAL, 0x0002 AUTO, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION"));
+   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
+-  Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT"));
++  Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
+   Serial.println(F("Manual jog: 0x0101..0x010C build NE200 RTU frames, 0x010F JOG STOP"));
+   Serial.println(F("VFD layer: Step7B existing Modbus/Drives integration; exact frames printed, MAX485 TX disabled"));
+   Serial.println(F("VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST"));
++  Serial.print(F("Safety inputs: "));
++  Serial.print(SAFETY_BENCH_MODE ? F("BENCH active-low") : F("FIELD NC active-high"));
++  Serial.print(F(" E-stop="));
++  Serial.print(g_safety.estopActive() ? F("ACTIVE") : F("OK"));
++  Serial.print(F(" limits=0x"));
++  Serial.println(g_safety.limitMask(), HEX);
++
+   Serial.print(F("Manual jog watchdog from EEPROM: "));
+   Serial.print(MANUAL_JOG_TIMEOUT_ENABLED ? F("ON ") : F("OFF "));
+   Serial.print(g_motor.manualJogTimeoutMs());
+@@ -762,6 +892,31 @@
+   const uint32_t now = millis();
+ 
+   serviceSensorsFast();
++
++  const bool safetyChanged = g_safety.service();
++  const bool estopBlocked = g_safety.estopActive() || g_safety.estopLatched();
++  if (estopBlocked && (g_motor.isMotionActive() || g_systemMode != SystemModeV6::STOP))
++  {
++    // One transition to STOP is enough; keeping the latch set prevents any new
++    // runnable mode until CMD_SAFETY_CLEAR is accepted.
++    g_motor.stopAll(g_safety.estopActive() ? F("E-STOP") : F("E-STOP latched"));
++    g_systemMode = SystemModeV6::STOP;
++    writeModeToDwin();
++    writeMotorStateToDwin();
++  }
++  else if (g_motor.isMotionActive() && g_safety.blocksMotorState(g_motor.stateCode()))
++  {
++    g_motor.stopAll(F("limit switch"));
++    g_systemMode = SystemModeV6::STOP;
++    writeModeToDwin();
++    writeMotorStateToDwin();
++  }
++  if (safetyChanged)
++  {
++    updateErrorMask();
++    writePersistentHeaderToDwin();
++  }
++
+   if (g_motor.service(now))
+   {
+     writeMotorStateToDwin();
+@@ -790,6 +945,7 @@
+     lastUiMs = now;
+     writeModeToDwin();
+     writeMotorStateToDwin();
++    writePersistentHeaderToDwin();
+     updateErrorMask();
+   }
+ 
+@@ -805,6 +961,10 @@
+     Serial.print(g_motor.stateName());
+     Serial.print(F(" vfd="));
+     Serial.print(g_motor.vfdStatusCode());
++    Serial.print(F(" saf="));
++    Serial.print(g_safety.stateWord());
++    Serial.print(F(" lim=0x"));
++    Serial.print(g_safety.limitMask(), HEX);
+     Serial.print(F(" X1="));
+     Serial.print(g_sensor[SENSOR_X1].valueMm);
+     Serial.print(F(" a1="));
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/src/safety_v6.cpp ./src/safety_v6.cpp
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/src/safety_v6.cpp	1970-01-01 00:00:00.000000000 +0000
++++ ./src/safety_v6.cpp	2026-08-10 12:40:15.824832819 +0000
+@@ -0,0 +1,89 @@
++#include "safety_v6.h"
++
++bool SafetyV6::readActive(uint8_t pin, bool activeLow) const {
++  const bool levelHigh = (digitalRead(pin) == HIGH);
++  return activeLow ? !levelHigh : levelHigh;
++}
++
++uint8_t SafetyV6::readLimitMask() const {
++  if (!ENABLE_LIMIT_SWITCHES) return 0;
++  uint8_t m = 0;
++  if (readActive(PIN_LIM_H1_LEFT,  LIMIT_ACTIVE_LOW)) m |= LIM_H1_LEFT;
++  if (readActive(PIN_LIM_H1_RIGHT, LIMIT_ACTIVE_LOW)) m |= LIM_H1_RIGHT;
++  if (readActive(PIN_LIM_H2_LEFT,  LIMIT_ACTIVE_LOW)) m |= LIM_H2_LEFT;
++  if (readActive(PIN_LIM_H2_RIGHT, LIMIT_ACTIVE_LOW)) m |= LIM_H2_RIGHT;
++  return m;
++}
++
++void SafetyV6::begin() {
++  if (ENABLE_ESTOP) pinMode(PIN_ESTOP, INPUT_PULLUP);
++  if (ENABLE_LIMIT_SWITCHES) {
++    pinMode(PIN_LIM_H1_LEFT, INPUT_PULLUP);
++    pinMode(PIN_LIM_H1_RIGHT, INPUT_PULLUP);
++    pinMode(PIN_LIM_H2_LEFT, INPUT_PULLUP);
++    pinMode(PIN_LIM_H2_RIGHT, INPUT_PULLUP);
++  }
++
++  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
++  _estopLatched = _estopActive;
++  _limitMask = readLimitMask();
++
++  Serial.print(F("SafetyV6: mode="));
++  Serial.print(SAFETY_BENCH_MODE ? F("BENCH") : F("FIELD/NC"));
++  Serial.print(F(" estop="));
++  Serial.print(_estopActive ? F("ACTIVE") : F("OK"));
++  Serial.print(F(" limits=0x"));
++  Serial.println(_limitMask, HEX);
++}
++
++bool SafetyV6::service() {
++  const bool oldActive = _estopActive;
++  const bool oldLatched = _estopLatched;
++  const uint8_t oldLimits = _limitMask;
++
++  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
++  if (_estopActive) _estopLatched = true;
++  _limitMask = readLimitMask();
++
++  if (_estopActive != oldActive) {
++    Serial.print(F("SAFETY E-STOP "));
++    Serial.println(_estopActive ? F("ACTIVE") : F("released; latch remains until CLEAR"));
++  }
++  if (_limitMask != oldLimits) {
++    Serial.print(F("SAFETY LIMIT mask=0x"));
++    Serial.println(_limitMask, HEX);
++  }
++
++  return (_estopActive != oldActive) || (_estopLatched != oldLatched) || (_limitMask != oldLimits);
++}
++
++bool SafetyV6::clearEstopLatch() {
++  if (_estopActive) {
++    Serial.println(F("SAFETY CLEAR rejected: E-stop is still active"));
++    return false;
++  }
++  if (_estopLatched) Serial.println(F("SAFETY E-stop latch cleared"));
++  _estopLatched = false;
++  return true;
++}
++
++bool SafetyV6::blocksMotorState(uint16_t state) const {
++  if (_estopActive || _estopLatched) return true;
++
++  switch (state) {
++    case MOTOR_STATE_H1_FWD:     return (_limitMask & LIM_H1_RIGHT) != 0;
++    case MOTOR_STATE_H1_BWD:     return (_limitMask & LIM_H1_LEFT) != 0;
++    case MOTOR_STATE_H2_FWD:     return (_limitMask & LIM_H2_RIGHT) != 0;
++    case MOTOR_STATE_H2_BWD:     return (_limitMask & LIM_H2_LEFT) != 0;
++    case MOTOR_STATE_H_BOTH_FWD: return (_limitMask & (LIM_H1_RIGHT | LIM_H2_RIGHT)) != 0;
++    case MOTOR_STATE_H_BOTH_BWD: return (_limitMask & (LIM_H1_LEFT  | LIM_H2_LEFT)) != 0;
++    default:                     return false; // no vertical limit switches in the legacy hardware
++  }
++}
++
++const __FlashStringHelper* SafetyV6::blockReason(uint16_t state) const {
++  if (_estopActive) return F("E-STOP active");
++  if (_estopLatched) return F("E-STOP latched");
++  if (blocksMotorState(state)) return F("horizontal limit switch");
++  return F("none");
++}
+diff -ruN /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/src/vfd_driver_v6.cpp ./src/vfd_driver_v6.cpp
+--- /mnt/data/telfer_orig_step7b/telfer-control-system-v6-system-step7b/src/vfd_driver_v6.cpp	2026-08-01 14:13:32.000000000 +0000
++++ ./src/vfd_driver_v6.cpp	2026-08-10 12:40:15.825180584 +0000
+@@ -88,6 +88,14 @@
+   Serial.println(F("ms"));
+ }
+ 
++uint8_t VfdDriverV6::connectedCount() const {
++  uint8_t n = 0;
++  for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
++    if (_drives.telemetry((DriveId)i).connected) ++n;
++  }
++  return n;
++}
++
+ uint8_t VfdDriverV6::address(uint8_t driveIndex) const {
+   if (driveIndex >= DRIVE_COUNT_V6) return 0;
+   return _comm.address[driveIndex];

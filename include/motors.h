@@ -35,7 +35,8 @@ struct DriveTelemetry {
   uint16_t digitalInputState = 0;
   uint16_t faultCode = 0;
   uint16_t currentSetFreq001Pct = 0;
-  uint16_t currentRunFreq001Pct = 0;
+  // 0x703C is signed: reverse direction is represented by a negative value.
+  int16_t currentRunFreq001Pct = 0;
   uint16_t statusWord = 0; // HE200 running state (0x703D)
   bool connected = false;
   uint8_t lastErr = MODBUS_ERROR_NONE;
@@ -107,6 +108,10 @@ private:
   uint16_t setpointMagnitude(int16_t effectivePct) const;
   int16_t effectivePercent(uint8_t i, int16_t requestedPct) const;
   uint16_t directionCommand(int16_t effectivePct) const;
+  uint16_t commandRegister() const;
+  uint16_t setpointRegister() const;
+  uint16_t stopCommand() const;
+  uint16_t resetCommand() const;
   void printPlan(uint8_t i, const __FlashStringHelper* action,
                  uint16_t reg, uint16_t value) const;
 };

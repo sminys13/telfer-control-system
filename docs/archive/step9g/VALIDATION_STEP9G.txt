@@ -1,0 +1,57 @@
+V6 STEP9G VALIDATION REPORT
+===========================
+Release name: v6-system-step9g-sen0366-acquisition
+
+1. SEN0366 protocol checksum verification
+   - shutdown / laser on
+   - range 10 m
+   - output resolution 1 mm
+   - output resolution 0.1 mm
+   - frequency 5/10/20 Hz
+   - continuous request
+   - single measurement request
+   - all known ACK frames
+   Result: PASS
+
+2. Host parser/unit test
+   - 1 mm measurement frame
+   - 0.1 mm frame and rounding to integer millimetres
+   - ERR--15 / ERR--16 classification
+   - configuration ACK
+   - damaged checksum
+   - single request state
+   - single response counter
+   Result: PASS
+
+3. Host syntax compilation (-Wall -Wextra -Werror)
+   Active source files: 14
+   - sensor-core profile
+   - isolated Waveshare HE200 READ-ONLY profile
+   - MAX485 READ-ONLY fallback profile
+   Result: PASS for all profiles
+
+4. Step9G safety/configuration changes checked
+   - target `x` selects X1+X2 only
+   - alternating prechecks both channels before reconfiguration
+   - singleReq/singleRsp/singleTO diagnostics present
+   - HE200 0x703C decoded as signed int16_t
+   - Waveshare environment keeps V6_VFD_WRITE_COMMANDS_ENABLED=0
+   Result: PASS
+
+5. Service console JavaScript
+   Command: node --check tools/telfer_service_console/app.js
+   - channel selector defaults to X1+X2
+   - output-resolution selector
+   - continuous and alternating timed tests
+   - normal 2-second log during tests, quiet log afterward
+   - physical laser-dot observation markers
+   Result: PASS
+
+LIMITATION
+----------
+The preparation environment does not include PlatformIO/AVR toolchain.
+Run BUILD_STEP9G.bat on the user's Windows computer and require:
+
+    ALL STEP9G BUILDS: SUCCESS
+
+before uploading to Arduino Mega or performing field tests.

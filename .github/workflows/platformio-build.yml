@@ -7,27 +7,28 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - mega_v6_sensor_core_fast
+          - mega_v6_he200_waveshare_readonly
+          - mega_v6_he200_field_service
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-
       - name: Cache PlatformIO
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.platformio
+          path: ~/.platformio
           key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
-          restore-keys: |
-            ${{ runner.os }}-platformio-
-
+          restore-keys: ${{ runner.os }}-platformio-
       - name: Install PlatformIO
         run: pip install -U platformio
-
-      - name: Build (mega_v6_sensor_core_fast)
-        run: platformio run -e mega_v6_sensor_core_fast
+      - name: Build ${{ matrix.environment }}
+        run: platformio run -e ${{ matrix.environment }}

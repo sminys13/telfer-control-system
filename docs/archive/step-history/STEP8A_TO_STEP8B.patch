@@ -1,0 +1,2205 @@
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/README_V6_SYSTEM_STEP8B.md telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP8B.md
+--- step8a_src/telfer-control-system-v6-system-step8a/README_V6_SYSTEM_STEP8B.md	1970-01-01 00:00:00.000000000 +0000
++++ telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP8B.md	2026-08-10 15:27:45.520922085 +0000
+@@ -0,0 +1,89 @@
++# V6 System Step8B — configurable bench safety + physical RS485 READ-ONLY commissioning
++
++## What changed from Step8A
++
++1. E-stop and horizontal limit monitoring can be enabled/disabled at runtime in BENCH mode.
++2. Existing EEPROM v2 layout is preserved. The former reserved byte is now `safetyDisableMask`:
++   - bit0 = disable E-stop monitoring
++   - bit1 = disable horizontal limit monitoring
++   - 0 = both enabled (old EEPROM therefore stays safe/compatible)
++3. DWIN/service commands:
++   - `0x0047` clear E-stop latch (only when physical E-stop input is inactive)
++   - `0x0048` toggle E-stop monitoring (BENCH only)
++   - `0x0049` toggle horizontal limit monitoring (BENCH only)
++   - use `SAVE` (`0x0030` or settings save `0x0201`) to persist a toggle
++4. New editable VP values:
++   - `0x1222` E-stop monitor 0/1
++   - `0x1224` limit monitor 0/1
++5. New header/status VPs:
++   - `0x1052` effective E-stop monitor state 0/1
++   - `0x1054` effective limit monitor state 0/1
++6. FIELD/NC build refuses software attempts to disable either safety function.
++7. Added a second PlatformIO environment `mega_v6_ne200_readonly`.
++
++## Mega2560 ↔ MAX485 wiring
++
++- Mega TX1 pin 18 -> MAX485 DI
++- Mega RX1 pin 19 <- MAX485 RO
++- Mega pin 6 -> MAX485 DE + /RE tied together
++- Mega GND <-> MAX485 GND
++- MAX485 A/B -> NE200 RS485 A/B bus
++- Pin 7 is only a legacy reserve and is not used by Step8B.
++
++## Default environment — still no physical RS485
++
++Build/upload:
++
++`mega_v6_sensor_core_fast`
++
++This remains dry-run and safe. Exact RTU frames are printed only.
++
++## How to get out of STOP after testing E-stop
++
++After E-stop is RELEASED:
++
++1. Send DWIN command `0x0047 SAFETY CLEAR`, or use the existing `0x0044 CLEAR STATUS` button/command.
++2. The terminal should print `SAFETY E-stop latch cleared`.
++3. Then select MANUAL/AUTO/HOME.
++
++If you do not have a physical E-stop during bench work, send `0x0048` once to disable E-stop monitoring in RAM. Send `SAVE` only if you intentionally want that bench setting to survive reboot.
++
++If you do not have horizontal limit switches, send `0x0049` once to disable them in RAM. Again, SAVE is optional.
++
++## Physical RS485 read-only test
++
++After soldering MAX485, build/upload:
++
++`mega_v6_ne200_readonly`
++
++Expected boot line:
++
++`VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked`
++
++In this environment:
++
++- manual jog commands are blocked before any NE200 write;
++- STOP does not write STOP/setpoint registers;
++- only safe status read requests from `0x0204..0x0208` are intended.
++
++For one connected NE200 at address 1 use `0x0204 TEST H1` first. The request is FC03 status read. If the drive answers, the terminal should show `NE200 READ OK ...` and VFD connected count should become 1.
++
++Do not use the future write-enabled environment until A/B polarity, address, baud/parity and status reads have been verified.
++
++## Current laser test setup
++
++One physical laser is sufficient. X1/X2/Z1/Z2 are already independent channels through two SC16IS752 devices. Move the same laser connector/channel between inputs as needed; missing channels will remain `a=9999` and are expected during bench work.
++
++## USB / PlatformIO service console
++
++Set the terminal input to send a newline (`send_on_enter` is fine), then type:
++
++- `help`
++- `clear` — clear released E-stop latch
++- `diag`
++- `estop off` / `estop on` — BENCH only
++- `limits off` / `limits on` — BENCH only
++- `save` — persist current settings to EEPROM
++- `test h1`, `test h2`, `test v1`, `test v2`, `test all`
++
++This means no new physical button and no new DWIN button is required for bench commissioning.
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/STEP8A_TO_STEP8B.patch telfer-control-system-v6-system-step8b/STEP8A_TO_STEP8B.patch
+--- step8a_src/telfer-control-system-v6-system-step8a/STEP8A_TO_STEP8B.patch	1970-01-01 00:00:00.000000000 +0000
++++ telfer-control-system-v6-system-step8b/STEP8A_TO_STEP8B.patch	2026-08-10 15:29:29.668041762 +0000
+@@ -0,0 +1,1405 @@
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/README_V6_SYSTEM_STEP8B.md telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP8B.md
++--- step8a_src/telfer-control-system-v6-system-step8a/README_V6_SYSTEM_STEP8B.md	1970-01-01 00:00:00.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP8B.md	2026-08-10 15:27:45.520922085 +0000
++@@ -0,0 +1,89 @@
+++# V6 System Step8B — configurable bench safety + physical RS485 READ-ONLY commissioning
+++
+++## What changed from Step8A
+++
+++1. E-stop and horizontal limit monitoring can be enabled/disabled at runtime in BENCH mode.
+++2. Existing EEPROM v2 layout is preserved. The former reserved byte is now `safetyDisableMask`:
+++   - bit0 = disable E-stop monitoring
+++   - bit1 = disable horizontal limit monitoring
+++   - 0 = both enabled (old EEPROM therefore stays safe/compatible)
+++3. DWIN/service commands:
+++   - `0x0047` clear E-stop latch (only when physical E-stop input is inactive)
+++   - `0x0048` toggle E-stop monitoring (BENCH only)
+++   - `0x0049` toggle horizontal limit monitoring (BENCH only)
+++   - use `SAVE` (`0x0030` or settings save `0x0201`) to persist a toggle
+++4. New editable VP values:
+++   - `0x1222` E-stop monitor 0/1
+++   - `0x1224` limit monitor 0/1
+++5. New header/status VPs:
+++   - `0x1052` effective E-stop monitor state 0/1
+++   - `0x1054` effective limit monitor state 0/1
+++6. FIELD/NC build refuses software attempts to disable either safety function.
+++7. Added a second PlatformIO environment `mega_v6_ne200_readonly`.
+++
+++## Mega2560 ↔ MAX485 wiring
+++
+++- Mega TX1 pin 18 -> MAX485 DI
+++- Mega RX1 pin 19 <- MAX485 RO
+++- Mega pin 6 -> MAX485 DE + /RE tied together
+++- Mega GND <-> MAX485 GND
+++- MAX485 A/B -> NE200 RS485 A/B bus
+++- Pin 7 is only a legacy reserve and is not used by Step8B.
+++
+++## Default environment — still no physical RS485
+++
+++Build/upload:
+++
+++`mega_v6_sensor_core_fast`
+++
+++This remains dry-run and safe. Exact RTU frames are printed only.
+++
+++## How to get out of STOP after testing E-stop
+++
+++After E-stop is RELEASED:
+++
+++1. Send DWIN command `0x0047 SAFETY CLEAR`, or use the existing `0x0044 CLEAR STATUS` button/command.
+++2. The terminal should print `SAFETY E-stop latch cleared`.
+++3. Then select MANUAL/AUTO/HOME.
+++
+++If you do not have a physical E-stop during bench work, send `0x0048` once to disable E-stop monitoring in RAM. Send `SAVE` only if you intentionally want that bench setting to survive reboot.
+++
+++If you do not have horizontal limit switches, send `0x0049` once to disable them in RAM. Again, SAVE is optional.
+++
+++## Physical RS485 read-only test
+++
+++After soldering MAX485, build/upload:
+++
+++`mega_v6_ne200_readonly`
+++
+++Expected boot line:
+++
+++`VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked`
+++
+++In this environment:
+++
+++- manual jog commands are blocked before any NE200 write;
+++- STOP does not write STOP/setpoint registers;
+++- only safe status read requests from `0x0204..0x0208` are intended.
+++
+++For one connected NE200 at address 1 use `0x0204 TEST H1` first. The request is FC03 status read. If the drive answers, the terminal should show `NE200 READ OK ...` and VFD connected count should become 1.
+++
+++Do not use the future write-enabled environment until A/B polarity, address, baud/parity and status reads have been verified.
+++
+++## Current laser test setup
+++
+++One physical laser is sufficient. X1/X2/Z1/Z2 are already independent channels through two SC16IS752 devices. Move the same laser connector/channel between inputs as needed; missing channels will remain `a=9999` and are expected during bench work.
+++
+++## USB / PlatformIO service console
+++
+++Set the terminal input to send a newline (`send_on_enter` is fine), then type:
+++
+++- `help`
+++- `clear` — clear released E-stop latch
+++- `diag`
+++- `estop off` / `estop on` — BENCH only
+++- `limits off` / `limits on` — BENCH only
+++- `save` — persist current settings to EEPROM
+++- `test h1`, `test h2`, `test v1`, `test v2`, `test all`
+++
+++This means no new physical button and no new DWIN button is required for bench commissioning.
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/STEP8A_TO_STEP8B.patch telfer-control-system-v6-system-step8b/STEP8A_TO_STEP8B.patch
++--- step8a_src/telfer-control-system-v6-system-step8a/STEP8A_TO_STEP8B.patch	1970-01-01 00:00:00.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/STEP8A_TO_STEP8B.patch	2026-08-10 15:27:11.236851031 +0000
++@@ -0,0 +1,603 @@
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/README_V6_SYSTEM_STEP8B.md telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP8B.md
+++--- step8a_src/telfer-control-system-v6-system-step8a/README_V6_SYSTEM_STEP8B.md	1970-01-01 00:00:00.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/README_V6_SYSTEM_STEP8B.md	2026-08-10 15:27:11.198409546 +0000
+++@@ -0,0 +1,75 @@
++++# V6 System Step8B — configurable bench safety + physical RS485 READ-ONLY commissioning
++++
++++## What changed from Step8A
++++
++++1. E-stop and horizontal limit monitoring can be enabled/disabled at runtime in BENCH mode.
++++2. Existing EEPROM v2 layout is preserved. The former reserved byte is now `safetyDisableMask`:
++++   - bit0 = disable E-stop monitoring
++++   - bit1 = disable horizontal limit monitoring
++++   - 0 = both enabled (old EEPROM therefore stays safe/compatible)
++++3. DWIN/service commands:
++++   - `0x0047` clear E-stop latch (only when physical E-stop input is inactive)
++++   - `0x0048` toggle E-stop monitoring (BENCH only)
++++   - `0x0049` toggle horizontal limit monitoring (BENCH only)
++++   - use `SAVE` (`0x0030` or settings save `0x0201`) to persist a toggle
++++4. New editable VP values:
++++   - `0x1222` E-stop monitor 0/1
++++   - `0x1224` limit monitor 0/1
++++5. New header/status VPs:
++++   - `0x1052` effective E-stop monitor state 0/1
++++   - `0x1054` effective limit monitor state 0/1
++++6. FIELD/NC build refuses software attempts to disable either safety function.
++++7. Added a second PlatformIO environment `mega_v6_ne200_readonly`.
++++
++++## Mega2560 ↔ MAX485 wiring
++++
++++- Mega TX1 pin 18 -> MAX485 DI
++++- Mega RX1 pin 19 <- MAX485 RO
++++- Mega pin 6 -> MAX485 DE + /RE tied together
++++- Mega GND <-> MAX485 GND
++++- MAX485 A/B -> NE200 RS485 A/B bus
++++- Pin 7 is only a legacy reserve and is not used by Step8B.
++++
++++## Default environment — still no physical RS485
++++
++++Build/upload:
++++
++++`mega_v6_sensor_core_fast`
++++
++++This remains dry-run and safe. Exact RTU frames are printed only.
++++
++++## How to get out of STOP after testing E-stop
++++
++++After E-stop is RELEASED:
++++
++++1. Send DWIN command `0x0047 SAFETY CLEAR`, or use the existing `0x0044 CLEAR STATUS` button/command.
++++2. The terminal should print `SAFETY E-stop latch cleared`.
++++3. Then select MANUAL/AUTO/HOME.
++++
++++If you do not have a physical E-stop during bench work, send `0x0048` once to disable E-stop monitoring in RAM. Send `SAVE` only if you intentionally want that bench setting to survive reboot.
++++
++++If you do not have horizontal limit switches, send `0x0049` once to disable them in RAM. Again, SAVE is optional.
++++
++++## Physical RS485 read-only test
++++
++++After soldering MAX485, build/upload:
++++
++++`mega_v6_ne200_readonly`
++++
++++Expected boot line:
++++
++++`VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked`
++++
++++In this environment:
++++
++++- manual jog commands are blocked before any NE200 write;
++++- STOP does not write STOP/setpoint registers;
++++- only safe status read requests from `0x0204..0x0208` are intended.
++++
++++For one connected NE200 at address 1 use `0x0204 TEST H1` first. The request is FC03 status read. If the drive answers, the terminal should show `NE200 READ OK ...` and VFD connected count should become 1.
++++
++++Do not use the future write-enabled environment until A/B polarity, address, baud/parity and status reads have been verified.
++++
++++## Current laser test setup
++++
++++One physical laser is sufficient. X1/X2/Z1/Z2 are already independent channels through two SC16IS752 devices. Move the same laser connector/channel between inputs as needed; missing channels will remain `a=9999` and are expected during bench work.
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/config_v6_bringup.h telfer-control-system-v6-system-step8b/include/config_v6_bringup.h
+++--- step8a_src/telfer-control-system-v6-system-step8a/include/config_v6_bringup.h	2026-08-10 12:40:15.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/include/config_v6_bringup.h	2026-08-10 15:27:07.814157036 +0000
+++@@ -3,7 +3,7 @@
+++ #include <Arduino.h>
+++ #include <stdint.h>
+++ 
+++-#define FW_VERSION_V6_BRINGUP "v6-system-step8a-field-safety-diagnostics"
++++#define FW_VERSION_V6_BRINGUP "v6-system-step8b-configurable-safety-rs485-readonly"
+++ 
+++ // =====================================================
+++ // Debug / UART
+++@@ -135,6 +135,8 @@
+++ static constexpr uint16_t VP_SAFETY_STATE     = 0x104C; // bit0=E-stop active, bit1=E-stop latched
+++ static constexpr uint16_t VP_LIMIT_STATE      = 0x104E; // H1L,H1R,H2L,H2R bits 0..3
+++ static constexpr uint16_t VP_MODBUS_QUEUE_BUSY= 0x1050;
++++static constexpr uint16_t VP_ESTOP_ENABLED     = 0x1052; // effective runtime state
++++static constexpr uint16_t VP_LIMITS_ENABLED    = 0x1054; // effective runtime state
+++ 
+++ // Команды от кнопок DWIN.
+++ // Все кнопки должны писать сюда.
+++@@ -160,6 +162,9 @@
+++ static constexpr uint16_t VP_VFD_ADDR_V2            = 0x1216;
+++ static constexpr uint16_t VP_VFD_INVERT_MASK        = 0x1218;
+++ static constexpr uint16_t VP_MANUAL_JOG_TIMEOUT_MS  = 0x1220;
++++// Bench-only safety editor. Values 0/1. In FIELD mode disabling is rejected.
++++static constexpr uint16_t VP_SAFETY_ESTOP_ENABLE    = 0x1222;
++++static constexpr uint16_t VP_SAFETY_LIMITS_ENABLE   = 0x1224;
+++ 
+++ // 5 values per drive: manual%, max%, slow%, slowdown distance mm, stop tolerance mm.
+++ static constexpr uint16_t VP_DRIVE_H1_BASE           = 0x1230;
+++@@ -220,7 +225,9 @@
+++ static constexpr uint16_t CMD_CLEAR_STATUS  = 0x0044;
+++ static constexpr uint16_t CMD_SENSOR_REINIT = 0x0045;
+++ static constexpr uint16_t CMD_DIAG_SNAPSHOT = 0x0046;
+++-static constexpr uint16_t CMD_SAFETY_CLEAR  = 0x0047;
++++static constexpr uint16_t CMD_SAFETY_CLEAR        = 0x0047;
++++static constexpr uint16_t CMD_SAFETY_TOGGLE_ESTOP = 0x0048; // BENCH only
++++static constexpr uint16_t CMD_SAFETY_TOGGLE_LIMITS= 0x0049; // BENCH only
+++ 
+++ // Настройки RS485/VFD (страница Settings).
+++ static constexpr uint16_t CMD_VFD_SETTINGS_APPLY    = 0x0200;
+++@@ -320,9 +327,20 @@
+++ // Step7B: подключены существующие ModbusMasterRTU + Drives. Полные кадры
+++ // NE200 строятся и печатаются, но НЕ отправляются, пока VFD_RS485_ENABLED=false.
+++ // =====================================================
+++-static constexpr bool VFD_RS485_ENABLED = false; // ВКЛЮЧАТЬ только после проверки схемы и протокола ПЧ
+++-static constexpr bool VFD_DRY_RUN       = true;
+++-static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // из старого проекта: MAX485 DE+RE
++++// Build-time switches. Default environment remains fully dry-run.
++++#ifndef V6_VFD_RS485_ENABLED
++++  #define V6_VFD_RS485_ENABLED 0
++++#endif
++++#ifndef V6_VFD_DRY_RUN
++++  #define V6_VFD_DRY_RUN 1
++++#endif
++++#ifndef V6_VFD_WRITE_COMMANDS_ENABLED
++++  #define V6_VFD_WRITE_COMMANDS_ENABLED 0
++++#endif
++++static constexpr bool VFD_RS485_ENABLED = (V6_VFD_RS485_ENABLED != 0);
++++static constexpr bool VFD_DRY_RUN       = (V6_VFD_DRY_RUN != 0);
++++static constexpr bool VFD_WRITE_COMMANDS_ENABLED = (V6_VFD_WRITE_COMMANDS_ENABLED != 0);
++++static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // MAX485 DE+/RE, RO=RX1/19, DI=TX1/18
+++ // Baud/parity/stop bits/timeouts are now read from SettingsV6 and EEPROM.
+++ 
+++ // Step7B uses the already existing ModbusMasterRTU/Drives files.
+++@@ -333,8 +351,10 @@
+++ 
+++ // Hard compile-time interlock: real drive TX must never be enabled with the
+++ // convenient bench interpretation of the safety chain.
+++-static_assert(!VFD_RS485_ENABLED || !SAFETY_BENCH_MODE,
+++-              "Physical VFD RS485 requires SAFETY_BENCH_MODE=false and verified NC safety wiring");
++++// Physical writes are never allowed with the convenient BENCH safety logic.
++++// Physical READ-ONLY diagnostics are allowed, because no motion/stop register is written.
++++static_assert(!VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED || !SAFETY_BENCH_MODE,
++++              "Physical VFD writes require SAFETY_BENCH_MODE=false and verified NC safety wiring");
+++ 
+++ // NE200 network-control map already recorded in the project/manual notes.
+++ // Control register: 0x0001; network setpoint: 0x0002.
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/safety_v6.h telfer-control-system-v6-system-step8b/include/safety_v6.h
+++--- step8a_src/telfer-control-system-v6-system-step8a/include/safety_v6.h	2026-08-10 12:40:15.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/include/safety_v6.h	2026-08-10 15:27:09.308922493 +0000
+++@@ -19,11 +19,21 @@
+++   bool estopActive() const { return _estopActive; }
+++   bool estopLatched() const { return _estopLatched; }
+++   uint8_t limitMask() const { return _limitMask; }
++++  bool estopEnabled() const { return _estopEnabled; }
++++  bool limitsEnabled() const { return _limitsEnabled; }
++++
+++   uint16_t stateWord() const {
+++-    return (_estopActive ? 0x0001 : 0) | (_estopLatched ? 0x0002 : 0);
++++    return (_estopActive ? 0x0001 : 0) |
++++           (_estopLatched ? 0x0002 : 0) |
++++           (_estopEnabled ? 0x0100 : 0) |
++++           (_limitsEnabled ? 0x0200 : 0);
+++   }
+++ 
+++-  // Clear only the latch. An actually active E-stop can never be cleared.
++++  // Runtime safety configuration. Disabling is accepted only in BENCH build.
++++  bool setEstopEnabled(bool enabled);
++++  bool setLimitsEnabled(bool enabled);
++++
++++  // Clear only the latch. An actually active enabled E-stop can never be cleared.
+++   bool clearEstopLatch();
+++ 
+++   // motorStateCode uses MOTOR_STATE_* constants from config_v6_bringup.h.
+++@@ -33,8 +43,11 @@
+++ private:
+++   bool readActive(uint8_t pin, bool activeLow) const;
+++   uint8_t readLimitMask() const;
++++  void refreshInputs();
+++ 
+++ private:
++++  bool _estopEnabled = ENABLE_ESTOP;
++++  bool _limitsEnabled = ENABLE_LIMIT_SWITCHES;
+++   bool _estopActive = false;
+++   bool _estopLatched = false;
+++   uint8_t _limitMask = 0;
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/settings_v6.h telfer-control-system-v6-system-step8b/include/settings_v6.h
+++--- step8a_src/telfer-control-system-v6-system-step8a/include/settings_v6.h	2026-08-01 12:56:59.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/include/settings_v6.h	2026-08-10 15:27:08.517858622 +0000
+++@@ -40,6 +40,12 @@
+++   uint8_t enabled;
+++ };
+++ 
++++enum SafetyDisableBitsV6 : uint8_t {
++++  SAFETY_DISABLE_NONE   = 0x00,
++++  SAFETY_DISABLE_ESTOP  = 0x01,
++++  SAFETY_DISABLE_LIMITS = 0x02
++++};
++++
+++ struct VfdCommSettingsV6 {
+++   uint8_t baudCode;
+++   uint8_t parity;
+++@@ -53,7 +59,9 @@
+++ 
+++   uint8_t address[DRIVE_COUNT_V6];
+++   uint8_t invertDirectionMask;
+++-  uint8_t reserved0;
++++  // Kept in the same byte as legacy reserved0: bit=1 means disabled.
++++  // Zero in existing EEPROM therefore preserves the original safe behaviour.
++++  uint8_t safetyDisableMask;
+++   uint16_t manualJogTimeoutMs;
+++ };
+++ 
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/platformio.ini telfer-control-system-v6-system-step8b/platformio.ini
+++--- step8a_src/telfer-control-system-v6-system-step8a/platformio.ini	2026-08-10 12:40:15.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/platformio.ini	2026-08-10 15:27:11.192922472 +0000
+++@@ -84,3 +84,34 @@
+++   +<motors.cpp>
+++   +<utils.cpp>
+++   +<safety_v6.cpp>
++++
++++; Physical RS485 commissioning mode: Serial1/MAX485 is enabled, but every
++++; register write/motion command is blocked in VfdDriverV6. Only 0x0204..0x0208
++++; safe status READ tests are intended in this environment.
++++[env:mega_v6_ne200_readonly]
++++platform = atmelavr
++++board = megaatmega2560
++++framework = arduino
++++monitor_speed = 115200
++++upload_port = COM6
++++upload_speed = 115200
++++
++++build_flags =
++++  -DV6_VFD_RS485_ENABLED=1
++++  -DV6_VFD_DRY_RUN=0
++++  -DV6_VFD_WRITE_COMMANDS_ENABLED=0
++++
++++build_src_filter =
++++  -<*>
++++  +<main_v6_fast.cpp>
++++  +<dwin_link.cpp>
++++  +<fast_laser_sensor.cpp>
++++  +<sc16is752.cpp>
++++  +<settings_v6.cpp>
++++  +<system_state.cpp>
++++  +<motor_control_v6.cpp>
++++  +<vfd_driver_v6.cpp>
++++  +<modbus.cpp>
++++  +<motors.cpp>
++++  +<utils.cpp>
++++  +<safety_v6.cpp>
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/main_v6_fast.cpp telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp
+++--- step8a_src/telfer-control-system-v6-system-step8a/src/main_v6_fast.cpp	2026-08-10 12:42:40.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp	2026-08-10 15:27:11.068735390 +0000
+++@@ -98,6 +98,22 @@
+++   return n;
+++ }
+++ 
++++bool safetyEstopRequestedEnabled(const SettingsV6 &cfg)
++++{
++++  return (cfg.vfd.safetyDisableMask & SAFETY_DISABLE_ESTOP) == 0;
++++}
++++
++++bool safetyLimitsRequestedEnabled(const SettingsV6 &cfg)
++++{
++++  return (cfg.vfd.safetyDisableMask & SAFETY_DISABLE_LIMITS) == 0;
++++}
++++
++++void applySafetySettings(const SettingsV6 &cfg)
++++{
++++  (void)g_safety.setEstopEnabled(safetyEstopRequestedEnabled(cfg));
++++  (void)g_safety.setLimitsEnabled(safetyLimitsRequestedEnabled(cfg));
++++}
++++
+++ void writePersistentHeaderToDwin()
+++ {
+++   // Program runner is connected in the next step. Keep explicit zeroes now
+++@@ -123,6 +139,8 @@
+++   g_dwin.writeU16(VP_SAFETY_STATE, g_safety.stateWord());
+++   g_dwin.writeU16(VP_LIMIT_STATE, g_safety.limitMask());
+++   g_dwin.writeU16(VP_MODBUS_QUEUE_BUSY, g_motor.vfdHasPendingWork() ? 1 : 0);
++++  g_dwin.writeU16(VP_ESTOP_ENABLED, g_safety.estopEnabled() ? 1 : 0);
++++  g_dwin.writeU16(VP_LIMITS_ENABLED, g_safety.limitsEnabled() ? 1 : 0);
+++ }
+++ 
+++ void writeBootScreen()
+++@@ -208,6 +226,8 @@
+++   g_dwin.writeU16(VP_VFD_ADDR_V2, cfg.vfd.address[DRIVE_V2]);
+++   g_dwin.writeU16(VP_VFD_INVERT_MASK, cfg.vfd.invertDirectionMask);
+++   g_dwin.writeU16(VP_MANUAL_JOG_TIMEOUT_MS, cfg.vfd.manualJogTimeoutMs);
++++  g_dwin.writeU16(VP_SAFETY_ESTOP_ENABLE, safetyEstopRequestedEnabled(cfg) ? 1 : 0);
++++  g_dwin.writeU16(VP_SAFETY_LIMITS_ENABLE, safetyLimitsRequestedEnabled(cfg) ? 1 : 0);
+++ 
+++   for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i)
+++   {
+++@@ -727,6 +747,7 @@
+++     g_settingsUiState = SETTINGS_UI_LOADED;
+++     g_settingsUiError = SETTINGS_VALID;
+++     g_motor.applySettings(g_settings);
++++    applySafetySettings(g_settings);
+++     for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
+++     {
+++       if (g_sensor[i].valid)
+++@@ -804,6 +825,12 @@
+++     Serial.print(g_safety.estopLatched() ? F("YES") : F("NO"));
+++     Serial.print(F(" limits=0x"));
+++     Serial.print(g_safety.limitMask(), HEX);
++++    Serial.print(F(" estopMon="));
++++    Serial.print(g_safety.estopEnabled() ? F("ON") : F("OFF"));
++++    Serial.print(F(" limitMon="));
++++    Serial.print(g_safety.limitsEnabled() ? F("ON") : F("OFF"));
++++    Serial.print(F(" writes="));
++++    Serial.print(VFD_WRITE_COMMANDS_ENABLED ? F("ON") : F("BLOCKED"));
+++     Serial.print(F(" queue="));
+++     Serial.println(g_motor.vfdHasPendingWork() ? F("BUSY") : F("IDLE"));
+++     writePersistentHeaderToDwin();
+++@@ -815,6 +842,38 @@
+++     writePersistentHeaderToDwin();
+++     break;
+++ 
++++  case CMD_SAFETY_TOGGLE_ESTOP:
++++    if (!SAFETY_BENCH_MODE) {
++++      Serial.println(F("SAFETY E-stop toggle rejected outside BENCH mode"));
++++      break;
++++    }
++++    if (g_safety.estopEnabled()) g_settings.vfd.safetyDisableMask |= SAFETY_DISABLE_ESTOP;
++++    else                         g_settings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_ESTOP;
++++    g_editSettings = g_settings;
++++    applySafetySettings(g_settings);
++++    g_settingsDirty = true;
++++    Serial.println(F("Safety setting changed in RAM; SAVE to persist"));
++++    writeSettingsToDwin(g_settings);
++++    updateErrorMask();
++++    writePersistentHeaderToDwin();
++++    break;
++++
++++  case CMD_SAFETY_TOGGLE_LIMITS:
++++    if (!SAFETY_BENCH_MODE) {
++++      Serial.println(F("SAFETY limits toggle rejected outside BENCH mode"));
++++      break;
++++    }
++++    if (g_safety.limitsEnabled()) g_settings.vfd.safetyDisableMask |= SAFETY_DISABLE_LIMITS;
++++    else                          g_settings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_LIMITS;
++++    g_editSettings = g_settings;
++++    applySafetySettings(g_settings);
++++    g_settingsDirty = true;
++++    Serial.println(F("Safety setting changed in RAM; SAVE to persist"));
++++    writeSettingsToDwin(g_settings);
++++    updateErrorMask();
++++    writePersistentHeaderToDwin();
++++    break;
++++
+++   default:
+++     Serial.println(F("Unknown command"));
+++     break;
+++@@ -853,6 +912,7 @@
+++   g_settingsUiState = SETTINGS_UI_IDLE;
+++   g_settingsUiError = SETTINGS_VALID;
+++ 
++++  applySafetySettings(g_settings);
+++   g_motor.begin(g_settings);
+++   if (g_safety.estopActive() || g_safety.estopLatched())
+++   {
+++@@ -871,8 +931,14 @@
+++   Serial.println(F("Commands: 0x0001 MANUAL, 0x0002 AUTO, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION"));
+++   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
+++   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
++++  Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
+++   Serial.println(F("Manual jog: 0x0101..0x010C build NE200 RTU frames, 0x010F JOG STOP"));
+++-  Serial.println(F("VFD layer: Step7B existing Modbus/Drives integration; exact frames printed, MAX485 TX disabled"));
++++  if (!VFD_RS485_ENABLED)
++++    Serial.println(F("VFD layer: DRY-RUN; exact frames printed, MAX485 disabled"));
++++  else if (!VFD_WRITE_COMMANDS_ENABLED)
++++    Serial.println(F("VFD layer: PHYSICAL RS485 READ-ONLY; all writes/motion blocked"));
++++  else
++++    Serial.println(F("VFD layer: PHYSICAL RS485 WRITE ENABLED"));
+++   Serial.println(F("VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST"));
+++   Serial.print(F("Safety inputs: "));
+++   Serial.print(SAFETY_BENCH_MODE ? F("BENCH active-low") : F("FIELD NC active-high"));
+++@@ -965,6 +1031,10 @@
+++     Serial.print(g_safety.stateWord());
+++     Serial.print(F(" lim=0x"));
+++     Serial.print(g_safety.limitMask(), HEX);
++++    Serial.print(F(" se="));
++++    Serial.print(g_safety.estopEnabled() ? 1 : 0);
++++    Serial.print(F(" sl="));
++++    Serial.print(g_safety.limitsEnabled() ? 1 : 0);
+++     Serial.print(F(" X1="));
+++     Serial.print(g_sensor[SENSOR_X1].valueMm);
+++     Serial.print(F(" a1="));
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/safety_v6.cpp telfer-control-system-v6-system-step8b/src/safety_v6.cpp
+++--- step8a_src/telfer-control-system-v6-system-step8a/src/safety_v6.cpp	2026-08-10 12:40:15.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/src/safety_v6.cpp	2026-08-10 15:27:09.314076918 +0000
+++@@ -6,7 +6,7 @@
+++ }
+++ 
+++ uint8_t SafetyV6::readLimitMask() const {
+++-  if (!ENABLE_LIMIT_SWITCHES) return 0;
++++  if (!_limitsEnabled) return 0;
+++   uint8_t m = 0;
+++   if (readActive(PIN_LIM_H1_LEFT,  LIMIT_ACTIVE_LOW)) m |= LIM_H1_LEFT;
+++   if (readActive(PIN_LIM_H1_RIGHT, LIMIT_ACTIVE_LOW)) m |= LIM_H1_RIGHT;
+++@@ -15,6 +15,12 @@
+++   return m;
+++ }
+++ 
++++void SafetyV6::refreshInputs() {
++++  _estopActive = _estopEnabled ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
++++  if (_estopActive) _estopLatched = true;
++++  _limitMask = readLimitMask();
++++}
++++
+++ void SafetyV6::begin() {
+++   if (ENABLE_ESTOP) pinMode(PIN_ESTOP, INPUT_PULLUP);
+++   if (ENABLE_LIMIT_SWITCHES) {
+++@@ -24,9 +30,10 @@
+++     pinMode(PIN_LIM_H2_RIGHT, INPUT_PULLUP);
+++   }
+++ 
+++-  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
+++-  _estopLatched = _estopActive;
+++-  _limitMask = readLimitMask();
++++  _estopEnabled = ENABLE_ESTOP;
++++  _limitsEnabled = ENABLE_LIMIT_SWITCHES;
++++  _estopLatched = false;
++++  refreshInputs();
+++ 
+++   Serial.print(F("SafetyV6: mode="));
+++   Serial.print(SAFETY_BENCH_MODE ? F("BENCH") : F("FIELD/NC"));
+++@@ -36,14 +43,41 @@
+++   Serial.println(_limitMask, HEX);
+++ }
+++ 
++++bool SafetyV6::setEstopEnabled(bool enabled) {
++++  if (!enabled && !SAFETY_BENCH_MODE) {
++++    Serial.println(F("SAFETY CONFIG rejected: E-stop cannot be disabled in FIELD mode"));
++++    return false;
++++  }
++++  _estopEnabled = ENABLE_ESTOP && enabled;
++++  if (!_estopEnabled) {
++++    _estopActive = false;
++++    _estopLatched = false;
++++    Serial.println(F("SAFETY E-STOP monitoring DISABLED (BENCH)"));
++++  } else {
++++    refreshInputs();
++++    Serial.println(F("SAFETY E-STOP monitoring ENABLED"));
++++  }
++++  return true;
++++}
++++
++++bool SafetyV6::setLimitsEnabled(bool enabled) {
++++  if (!enabled && !SAFETY_BENCH_MODE) {
++++    Serial.println(F("SAFETY CONFIG rejected: limits cannot be disabled in FIELD mode"));
++++    return false;
++++  }
++++  _limitsEnabled = ENABLE_LIMIT_SWITCHES && enabled;
++++  _limitMask = readLimitMask();
++++  Serial.print(F("SAFETY LIMIT monitoring "));
++++  Serial.println(_limitsEnabled ? F("ENABLED") : F("DISABLED (BENCH)"));
++++  return true;
++++}
++++
+++ bool SafetyV6::service() {
+++   const bool oldActive = _estopActive;
+++   const bool oldLatched = _estopLatched;
+++   const uint8_t oldLimits = _limitMask;
+++ 
+++-  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
+++-  if (_estopActive) _estopLatched = true;
+++-  _limitMask = readLimitMask();
++++  refreshInputs();
+++ 
+++   if (_estopActive != oldActive) {
+++     Serial.print(F("SAFETY E-STOP "));
+++@@ -58,7 +92,7 @@
+++ }
+++ 
+++ bool SafetyV6::clearEstopLatch() {
+++-  if (_estopActive) {
++++  if (_estopEnabled && _estopActive) {
+++     Serial.println(F("SAFETY CLEAR rejected: E-stop is still active"));
+++     return false;
+++   }
+++@@ -68,7 +102,8 @@
+++ }
+++ 
+++ bool SafetyV6::blocksMotorState(uint16_t state) const {
+++-  if (_estopActive || _estopLatched) return true;
++++  if ((_estopEnabled && _estopActive) || _estopLatched) return true;
++++  if (!_limitsEnabled) return false;
+++ 
+++   switch (state) {
+++     case MOTOR_STATE_H1_FWD:     return (_limitMask & LIM_H1_RIGHT) != 0;
+++@@ -77,13 +112,13 @@
+++     case MOTOR_STATE_H2_BWD:     return (_limitMask & LIM_H2_LEFT) != 0;
+++     case MOTOR_STATE_H_BOTH_FWD: return (_limitMask & (LIM_H1_RIGHT | LIM_H2_RIGHT)) != 0;
+++     case MOTOR_STATE_H_BOTH_BWD: return (_limitMask & (LIM_H1_LEFT  | LIM_H2_LEFT)) != 0;
+++-    default:                     return false; // no vertical limit switches in the legacy hardware
++++    default:                     return false;
+++   }
+++ }
+++ 
+++ const __FlashStringHelper* SafetyV6::blockReason(uint16_t state) const {
+++-  if (_estopActive) return F("E-STOP active");
++++  if (_estopEnabled && _estopActive) return F("E-STOP active");
+++   if (_estopLatched) return F("E-STOP latched");
+++-  if (blocksMotorState(state)) return F("horizontal limit switch");
++++  if (_limitsEnabled && blocksMotorState(state)) return F("horizontal limit switch");
+++   return F("none");
+++ }
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/settings_v6.cpp telfer-control-system-v6-system-step8b/src/settings_v6.cpp
+++--- step8a_src/telfer-control-system-v6-system-step8a/src/settings_v6.cpp	2026-08-01 12:59:34.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/src/settings_v6.cpp	2026-08-10 15:27:09.194184773 +0000
+++@@ -45,7 +45,7 @@
+++   cfg.vfd.address[DRIVE_V1] = 3;
+++   cfg.vfd.address[DRIVE_V2] = 4;
+++   cfg.vfd.invertDirectionMask = 0;
+++-  cfg.vfd.reserved0 = 0;
++++  cfg.vfd.safetyDisableMask = SAFETY_DISABLE_NONE;
+++   cfg.vfd.manualJogTimeoutMs = 2500;
+++ 
+++   cfg.drive[DRIVE_H1] = {20, 80, 10, 0, 500, 10};
+++@@ -111,6 +111,10 @@
+++     err |= SETTINGS_ERR_WATCHDOG;
+++   }
+++ 
++++  if (cfg.vfd.safetyDisableMask & (uint8_t)~(SAFETY_DISABLE_ESTOP | SAFETY_DISABLE_LIMITS)) {
++++    err |= SETTINGS_ERR_UNSAFE_MODE;
++++  }
++++
+++   for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
+++     const DriveProfileV6& p = cfg.drive[i];
+++     if (p.manualPercent < 1 || p.manualPercent > 100 ||
+++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/vfd_driver_v6.cpp telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp
+++--- step8a_src/telfer-control-system-v6-system-step8a/src/vfd_driver_v6.cpp	2026-08-10 12:40:15.000000000 +0000
++++++ telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp	2026-08-10 15:27:10.112277052 +0000
+++@@ -26,7 +26,13 @@
+++                 : VFD_STATUS_READY;
+++ 
+++   Serial.println(F("VfdDriverV6: existing Modbus/Drives layer connected"));
+++-  Serial.println(F("VfdDriverV6: physical MAX485 TX disabled; exact NE200 frames will be printed"));
++++  if (!VFD_RS485_ENABLED) {
++++    Serial.println(F("VfdDriverV6: physical MAX485 disabled; exact NE200 frames will be printed"));
++++  } else if (!VFD_WRITE_COMMANDS_ENABLED) {
++++    Serial.println(F("VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked"));
++++  } else {
++++    Serial.println(F("VfdDriverV6: physical MAX485 enabled with WRITE commands"));
++++  }
+++   printConfiguration();
+++ }
+++ 
+++@@ -126,6 +132,12 @@
+++ }
+++ 
+++ void VfdDriverV6::startByMotorState(uint16_t motorStateCode) {
++++  if (!VFD_WRITE_COMMANDS_ENABLED) {
++++    _status = VFD_STATUS_BLOCKED;
++++    Serial.println(F("NE200 WRITE BLOCKED by read-only build: movement command not transmitted"));
++++    return;
++++  }
++++
+++   const int16_t h1 = manualPercent(DRIVE_H1);
+++   const int16_t h2 = manualPercent(DRIVE_H2);
+++   const int16_t v1 = manualPercent(DRIVE_V1);
+++@@ -163,7 +175,9 @@
+++ }
+++ 
+++ void VfdDriverV6::stopAll(const __FlashStringHelper* reason) {
+++-  _drives.stopAll();
++++  if (VFD_WRITE_COMMANDS_ENABLED) {
++++    _drives.stopAll();
++++  }
+++   _status = VFD_STATUS_STOPPED;
+++ 
+++   Serial.print(F("NE200 STOP ALL queued"));
+++@@ -171,11 +185,14 @@
+++     Serial.print(F(" reason="));
+++     Serial.print(reason);
+++   }
+++-  Serial.println(F("; each drive gets STOP then zero setpoint"));
++++  if (VFD_WRITE_COMMANDS_ENABLED)
++++    Serial.println(F("; each drive gets STOP then zero setpoint"));
++++  else
++++    Serial.println(F("; READ-ONLY build, no STOP/SETPOINT frame transmitted"));
+++ }
+++ 
+++ void VfdDriverV6::block(const __FlashStringHelper* reason) {
+++-  _drives.stopAll();
++++  if (VFD_WRITE_COMMANDS_ENABLED) _drives.stopAll();
+++   _status = VFD_STATUS_BLOCKED;
+++   Serial.print(F("VFD BLOCKED"));
+++   if (reason) {
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/config_v6_bringup.h telfer-control-system-v6-system-step8b/include/config_v6_bringup.h
++--- step8a_src/telfer-control-system-v6-system-step8a/include/config_v6_bringup.h	2026-08-10 12:40:15.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/include/config_v6_bringup.h	2026-08-10 15:27:07.814157036 +0000
++@@ -3,7 +3,7 @@
++ #include <Arduino.h>
++ #include <stdint.h>
++ 
++-#define FW_VERSION_V6_BRINGUP "v6-system-step8a-field-safety-diagnostics"
+++#define FW_VERSION_V6_BRINGUP "v6-system-step8b-configurable-safety-rs485-readonly"
++ 
++ // =====================================================
++ // Debug / UART
++@@ -135,6 +135,8 @@
++ static constexpr uint16_t VP_SAFETY_STATE     = 0x104C; // bit0=E-stop active, bit1=E-stop latched
++ static constexpr uint16_t VP_LIMIT_STATE      = 0x104E; // H1L,H1R,H2L,H2R bits 0..3
++ static constexpr uint16_t VP_MODBUS_QUEUE_BUSY= 0x1050;
+++static constexpr uint16_t VP_ESTOP_ENABLED     = 0x1052; // effective runtime state
+++static constexpr uint16_t VP_LIMITS_ENABLED    = 0x1054; // effective runtime state
++ 
++ // Команды от кнопок DWIN.
++ // Все кнопки должны писать сюда.
++@@ -160,6 +162,9 @@
++ static constexpr uint16_t VP_VFD_ADDR_V2            = 0x1216;
++ static constexpr uint16_t VP_VFD_INVERT_MASK        = 0x1218;
++ static constexpr uint16_t VP_MANUAL_JOG_TIMEOUT_MS  = 0x1220;
+++// Bench-only safety editor. Values 0/1. In FIELD mode disabling is rejected.
+++static constexpr uint16_t VP_SAFETY_ESTOP_ENABLE    = 0x1222;
+++static constexpr uint16_t VP_SAFETY_LIMITS_ENABLE   = 0x1224;
++ 
++ // 5 values per drive: manual%, max%, slow%, slowdown distance mm, stop tolerance mm.
++ static constexpr uint16_t VP_DRIVE_H1_BASE           = 0x1230;
++@@ -220,7 +225,9 @@
++ static constexpr uint16_t CMD_CLEAR_STATUS  = 0x0044;
++ static constexpr uint16_t CMD_SENSOR_REINIT = 0x0045;
++ static constexpr uint16_t CMD_DIAG_SNAPSHOT = 0x0046;
++-static constexpr uint16_t CMD_SAFETY_CLEAR  = 0x0047;
+++static constexpr uint16_t CMD_SAFETY_CLEAR        = 0x0047;
+++static constexpr uint16_t CMD_SAFETY_TOGGLE_ESTOP = 0x0048; // BENCH only
+++static constexpr uint16_t CMD_SAFETY_TOGGLE_LIMITS= 0x0049; // BENCH only
++ 
++ // Настройки RS485/VFD (страница Settings).
++ static constexpr uint16_t CMD_VFD_SETTINGS_APPLY    = 0x0200;
++@@ -320,9 +327,20 @@
++ // Step7B: подключены существующие ModbusMasterRTU + Drives. Полные кадры
++ // NE200 строятся и печатаются, но НЕ отправляются, пока VFD_RS485_ENABLED=false.
++ // =====================================================
++-static constexpr bool VFD_RS485_ENABLED = false; // ВКЛЮЧАТЬ только после проверки схемы и протокола ПЧ
++-static constexpr bool VFD_DRY_RUN       = true;
++-static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // из старого проекта: MAX485 DE+RE
+++// Build-time switches. Default environment remains fully dry-run.
+++#ifndef V6_VFD_RS485_ENABLED
+++  #define V6_VFD_RS485_ENABLED 0
+++#endif
+++#ifndef V6_VFD_DRY_RUN
+++  #define V6_VFD_DRY_RUN 1
+++#endif
+++#ifndef V6_VFD_WRITE_COMMANDS_ENABLED
+++  #define V6_VFD_WRITE_COMMANDS_ENABLED 0
+++#endif
+++static constexpr bool VFD_RS485_ENABLED = (V6_VFD_RS485_ENABLED != 0);
+++static constexpr bool VFD_DRY_RUN       = (V6_VFD_DRY_RUN != 0);
+++static constexpr bool VFD_WRITE_COMMANDS_ENABLED = (V6_VFD_WRITE_COMMANDS_ENABLED != 0);
+++static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // MAX485 DE+/RE, RO=RX1/19, DI=TX1/18
++ // Baud/parity/stop bits/timeouts are now read from SettingsV6 and EEPROM.
++ 
++ // Step7B uses the already existing ModbusMasterRTU/Drives files.
++@@ -333,8 +351,10 @@
++ 
++ // Hard compile-time interlock: real drive TX must never be enabled with the
++ // convenient bench interpretation of the safety chain.
++-static_assert(!VFD_RS485_ENABLED || !SAFETY_BENCH_MODE,
++-              "Physical VFD RS485 requires SAFETY_BENCH_MODE=false and verified NC safety wiring");
+++// Physical writes are never allowed with the convenient BENCH safety logic.
+++// Physical READ-ONLY diagnostics are allowed, because no motion/stop register is written.
+++static_assert(!VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED || !SAFETY_BENCH_MODE,
+++              "Physical VFD writes require SAFETY_BENCH_MODE=false and verified NC safety wiring");
++ 
++ // NE200 network-control map already recorded in the project/manual notes.
++ // Control register: 0x0001; network setpoint: 0x0002.
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/safety_v6.h telfer-control-system-v6-system-step8b/include/safety_v6.h
++--- step8a_src/telfer-control-system-v6-system-step8a/include/safety_v6.h	2026-08-10 12:40:15.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/include/safety_v6.h	2026-08-10 15:27:09.308922493 +0000
++@@ -19,11 +19,21 @@
++   bool estopActive() const { return _estopActive; }
++   bool estopLatched() const { return _estopLatched; }
++   uint8_t limitMask() const { return _limitMask; }
+++  bool estopEnabled() const { return _estopEnabled; }
+++  bool limitsEnabled() const { return _limitsEnabled; }
+++
++   uint16_t stateWord() const {
++-    return (_estopActive ? 0x0001 : 0) | (_estopLatched ? 0x0002 : 0);
+++    return (_estopActive ? 0x0001 : 0) |
+++           (_estopLatched ? 0x0002 : 0) |
+++           (_estopEnabled ? 0x0100 : 0) |
+++           (_limitsEnabled ? 0x0200 : 0);
++   }
++ 
++-  // Clear only the latch. An actually active E-stop can never be cleared.
+++  // Runtime safety configuration. Disabling is accepted only in BENCH build.
+++  bool setEstopEnabled(bool enabled);
+++  bool setLimitsEnabled(bool enabled);
+++
+++  // Clear only the latch. An actually active enabled E-stop can never be cleared.
++   bool clearEstopLatch();
++ 
++   // motorStateCode uses MOTOR_STATE_* constants from config_v6_bringup.h.
++@@ -33,8 +43,11 @@
++ private:
++   bool readActive(uint8_t pin, bool activeLow) const;
++   uint8_t readLimitMask() const;
+++  void refreshInputs();
++ 
++ private:
+++  bool _estopEnabled = ENABLE_ESTOP;
+++  bool _limitsEnabled = ENABLE_LIMIT_SWITCHES;
++   bool _estopActive = false;
++   bool _estopLatched = false;
++   uint8_t _limitMask = 0;
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/settings_v6.h telfer-control-system-v6-system-step8b/include/settings_v6.h
++--- step8a_src/telfer-control-system-v6-system-step8a/include/settings_v6.h	2026-08-01 12:56:59.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/include/settings_v6.h	2026-08-10 15:27:08.517858622 +0000
++@@ -40,6 +40,12 @@
++   uint8_t enabled;
++ };
++ 
+++enum SafetyDisableBitsV6 : uint8_t {
+++  SAFETY_DISABLE_NONE   = 0x00,
+++  SAFETY_DISABLE_ESTOP  = 0x01,
+++  SAFETY_DISABLE_LIMITS = 0x02
+++};
+++
++ struct VfdCommSettingsV6 {
++   uint8_t baudCode;
++   uint8_t parity;
++@@ -53,7 +59,9 @@
++ 
++   uint8_t address[DRIVE_COUNT_V6];
++   uint8_t invertDirectionMask;
++-  uint8_t reserved0;
+++  // Kept in the same byte as legacy reserved0: bit=1 means disabled.
+++  // Zero in existing EEPROM therefore preserves the original safe behaviour.
+++  uint8_t safetyDisableMask;
++   uint16_t manualJogTimeoutMs;
++ };
++ 
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/platformio.ini telfer-control-system-v6-system-step8b/platformio.ini
++--- step8a_src/telfer-control-system-v6-system-step8a/platformio.ini	2026-08-10 12:40:15.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/platformio.ini	2026-08-10 15:27:11.192922472 +0000
++@@ -84,3 +84,34 @@
++   +<motors.cpp>
++   +<utils.cpp>
++   +<safety_v6.cpp>
+++
+++; Physical RS485 commissioning mode: Serial1/MAX485 is enabled, but every
+++; register write/motion command is blocked in VfdDriverV6. Only 0x0204..0x0208
+++; safe status READ tests are intended in this environment.
+++[env:mega_v6_ne200_readonly]
+++platform = atmelavr
+++board = megaatmega2560
+++framework = arduino
+++monitor_speed = 115200
+++upload_port = COM6
+++upload_speed = 115200
+++
+++build_flags =
+++  -DV6_VFD_RS485_ENABLED=1
+++  -DV6_VFD_DRY_RUN=0
+++  -DV6_VFD_WRITE_COMMANDS_ENABLED=0
+++
+++build_src_filter =
+++  -<*>
+++  +<main_v6_fast.cpp>
+++  +<dwin_link.cpp>
+++  +<fast_laser_sensor.cpp>
+++  +<sc16is752.cpp>
+++  +<settings_v6.cpp>
+++  +<system_state.cpp>
+++  +<motor_control_v6.cpp>
+++  +<vfd_driver_v6.cpp>
+++  +<modbus.cpp>
+++  +<motors.cpp>
+++  +<utils.cpp>
+++  +<safety_v6.cpp>
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/main_v6_fast.cpp telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp
++--- step8a_src/telfer-control-system-v6-system-step8a/src/main_v6_fast.cpp	2026-08-10 12:42:40.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp	2026-08-10 15:28:24.939865040 +0000
++@@ -1,4 +1,5 @@
++ #include <Arduino.h>
+++#include <string.h>
++ #include "config_v6_bringup.h"
++ #include "sc16is752.h"
++ #include "fast_laser_sensor.h"
++@@ -98,6 +99,22 @@
++   return n;
++ }
++ 
+++bool safetyEstopRequestedEnabled(const SettingsV6 &cfg)
+++{
+++  return (cfg.vfd.safetyDisableMask & SAFETY_DISABLE_ESTOP) == 0;
+++}
+++
+++bool safetyLimitsRequestedEnabled(const SettingsV6 &cfg)
+++{
+++  return (cfg.vfd.safetyDisableMask & SAFETY_DISABLE_LIMITS) == 0;
+++}
+++
+++void applySafetySettings(const SettingsV6 &cfg)
+++{
+++  (void)g_safety.setEstopEnabled(safetyEstopRequestedEnabled(cfg));
+++  (void)g_safety.setLimitsEnabled(safetyLimitsRequestedEnabled(cfg));
+++}
+++
++ void writePersistentHeaderToDwin()
++ {
++   // Program runner is connected in the next step. Keep explicit zeroes now
++@@ -123,6 +140,8 @@
++   g_dwin.writeU16(VP_SAFETY_STATE, g_safety.stateWord());
++   g_dwin.writeU16(VP_LIMIT_STATE, g_safety.limitMask());
++   g_dwin.writeU16(VP_MODBUS_QUEUE_BUSY, g_motor.vfdHasPendingWork() ? 1 : 0);
+++  g_dwin.writeU16(VP_ESTOP_ENABLED, g_safety.estopEnabled() ? 1 : 0);
+++  g_dwin.writeU16(VP_LIMITS_ENABLED, g_safety.limitsEnabled() ? 1 : 0);
++ }
++ 
++ void writeBootScreen()
++@@ -208,6 +227,8 @@
++   g_dwin.writeU16(VP_VFD_ADDR_V2, cfg.vfd.address[DRIVE_V2]);
++   g_dwin.writeU16(VP_VFD_INVERT_MASK, cfg.vfd.invertDirectionMask);
++   g_dwin.writeU16(VP_MANUAL_JOG_TIMEOUT_MS, cfg.vfd.manualJogTimeoutMs);
+++  g_dwin.writeU16(VP_SAFETY_ESTOP_ENABLE, safetyEstopRequestedEnabled(cfg) ? 1 : 0);
+++  g_dwin.writeU16(VP_SAFETY_LIMITS_ENABLE, safetyLimitsRequestedEnabled(cfg) ? 1 : 0);
++ 
++   for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i)
++   {
++@@ -253,6 +274,28 @@
++   case VP_VFD_ADDR_V2: g_editSettings.vfd.address[DRIVE_V2] = valueToU8OrInvalid(value); break;
++   case VP_VFD_INVERT_MASK: g_editSettings.vfd.invertDirectionMask = (uint8_t)(value & 0x0F); break;
++   case VP_MANUAL_JOG_TIMEOUT_MS: g_editSettings.vfd.manualJogTimeoutMs = value; break;
+++  case VP_SAFETY_ESTOP_ENABLE:
+++    if (value > 1 || (!value && !SAFETY_BENCH_MODE)) {
+++      g_settingsUiState = SETTINGS_UI_REJECTED;
+++      g_settingsUiError = SETTINGS_ERR_UNSAFE_MODE;
+++      writeSettingsUiStatus();
+++      Serial.println(F("Settings safety E-stop change rejected"));
+++      return true;
+++    }
+++    if (value) g_editSettings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_ESTOP;
+++    else       g_editSettings.vfd.safetyDisableMask |= SAFETY_DISABLE_ESTOP;
+++    break;
+++  case VP_SAFETY_LIMITS_ENABLE:
+++    if (value > 1 || (!value && !SAFETY_BENCH_MODE)) {
+++      g_settingsUiState = SETTINGS_UI_REJECTED;
+++      g_settingsUiError = SETTINGS_ERR_UNSAFE_MODE;
+++      writeSettingsUiStatus();
+++      Serial.println(F("Settings limit change rejected"));
+++      return true;
+++    }
+++    if (value) g_editSettings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_LIMITS;
+++    else       g_editSettings.vfd.safetyDisableMask |= SAFETY_DISABLE_LIMITS;
+++    break;
++   default:
++     for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i)
++     {
++@@ -313,6 +356,7 @@
++ 
++   g_settings = g_editSettings;
++   g_motor.applySettings(g_settings);
+++  applySafetySettings(g_settings);
++   g_settingsDirty = false;
++   g_settingsUiError = SETTINGS_VALID;
++ 
++@@ -359,6 +403,7 @@
++   g_settings = loaded;
++   g_editSettings = loaded;
++   g_motor.applySettings(g_settings);
+++  applySafetySettings(g_settings);
++   g_settingsFault = false;
++   g_settingsDirty = false;
++   g_settingsUiState = SETTINGS_UI_LOADED;
++@@ -727,6 +772,7 @@
++     g_settingsUiState = SETTINGS_UI_LOADED;
++     g_settingsUiError = SETTINGS_VALID;
++     g_motor.applySettings(g_settings);
+++    applySafetySettings(g_settings);
++     for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
++     {
++       if (g_sensor[i].valid)
++@@ -804,6 +850,12 @@
++     Serial.print(g_safety.estopLatched() ? F("YES") : F("NO"));
++     Serial.print(F(" limits=0x"));
++     Serial.print(g_safety.limitMask(), HEX);
+++    Serial.print(F(" estopMon="));
+++    Serial.print(g_safety.estopEnabled() ? F("ON") : F("OFF"));
+++    Serial.print(F(" limitMon="));
+++    Serial.print(g_safety.limitsEnabled() ? F("ON") : F("OFF"));
+++    Serial.print(F(" writes="));
+++    Serial.print(VFD_WRITE_COMMANDS_ENABLED ? F("ON") : F("BLOCKED"));
++     Serial.print(F(" queue="));
++     Serial.println(g_motor.vfdHasPendingWork() ? F("BUSY") : F("IDLE"));
++     writePersistentHeaderToDwin();
++@@ -815,6 +867,38 @@
++     writePersistentHeaderToDwin();
++     break;
++ 
+++  case CMD_SAFETY_TOGGLE_ESTOP:
+++    if (!SAFETY_BENCH_MODE) {
+++      Serial.println(F("SAFETY E-stop toggle rejected outside BENCH mode"));
+++      break;
+++    }
+++    if (g_safety.estopEnabled()) g_settings.vfd.safetyDisableMask |= SAFETY_DISABLE_ESTOP;
+++    else                         g_settings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_ESTOP;
+++    g_editSettings = g_settings;
+++    applySafetySettings(g_settings);
+++    g_settingsDirty = true;
+++    Serial.println(F("Safety setting changed in RAM; SAVE to persist"));
+++    writeSettingsToDwin(g_settings);
+++    updateErrorMask();
+++    writePersistentHeaderToDwin();
+++    break;
+++
+++  case CMD_SAFETY_TOGGLE_LIMITS:
+++    if (!SAFETY_BENCH_MODE) {
+++      Serial.println(F("SAFETY limits toggle rejected outside BENCH mode"));
+++      break;
+++    }
+++    if (g_safety.limitsEnabled()) g_settings.vfd.safetyDisableMask |= SAFETY_DISABLE_LIMITS;
+++    else                          g_settings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_LIMITS;
+++    g_editSettings = g_settings;
+++    applySafetySettings(g_settings);
+++    g_settingsDirty = true;
+++    Serial.println(F("Safety setting changed in RAM; SAVE to persist"));
+++    writeSettingsToDwin(g_settings);
+++    updateErrorMask();
+++    writePersistentHeaderToDwin();
+++    break;
+++
++   default:
++     Serial.println(F("Unknown command"));
++     break;
++@@ -823,6 +907,72 @@
++   g_dwin.clearCommand(VP_CMD);
++ }
++ 
+++void printBenchConsoleHelp()
+++{
+++  Serial.println(F("USB console: help | clear | diag | estop on/off | limits on/off | save | test h1/h2/v1/v2/all"));
+++}
+++
+++void setBenchSafetyFromConsole(bool estop, bool enabled)
+++{
+++  if (!SAFETY_BENCH_MODE && !enabled)
+++  {
+++    Serial.println(F("Console safety disable rejected outside BENCH mode"));
+++    return;
+++  }
+++
+++  const uint8_t bit = estop ? SAFETY_DISABLE_ESTOP : SAFETY_DISABLE_LIMITS;
+++  if (enabled) g_settings.vfd.safetyDisableMask &= (uint8_t)~bit;
+++  else         g_settings.vfd.safetyDisableMask |= bit;
+++  g_editSettings = g_settings;
+++  applySafetySettings(g_settings);
+++  g_settingsDirty = true;
+++  writeSettingsToDwin(g_settings);
+++  updateErrorMask();
+++  writePersistentHeaderToDwin();
+++  Serial.println(F("Safety setting changed in RAM; type 'save' to persist"));
+++}
+++
+++void serviceUsbConsole()
+++{
+++  static char line[40];
+++  static uint8_t len = 0;
+++
+++  while (Serial.available())
+++  {
+++    const char c = (char)Serial.read();
+++    if (c == '\r') continue;
+++    if (c != '\n')
+++    {
+++      if (len + 1 < sizeof(line)) line[len++] = c;
+++      continue;
+++    }
+++
+++    line[len] = '\0';
+++    len = 0;
+++    if (line[0] == '\0') continue;
+++
+++    if (!strcmp(line, "help")) printBenchConsoleHelp();
+++    else if (!strcmp(line, "clear")) handleCommand(CMD_SAFETY_CLEAR);
+++    else if (!strcmp(line, "diag")) handleCommand(CMD_DIAG_SNAPSHOT);
+++    else if (!strcmp(line, "save")) handleCommand(CMD_SAVE);
+++    else if (!strcmp(line, "estop on")) setBenchSafetyFromConsole(true, true);
+++    else if (!strcmp(line, "estop off")) setBenchSafetyFromConsole(true, false);
+++    else if (!strcmp(line, "limits on")) setBenchSafetyFromConsole(false, true);
+++    else if (!strcmp(line, "limits off")) setBenchSafetyFromConsole(false, false);
+++    else if (!strcmp(line, "test h1")) handleCommand(CMD_VFD_TEST_H1);
+++    else if (!strcmp(line, "test h2")) handleCommand(CMD_VFD_TEST_H2);
+++    else if (!strcmp(line, "test v1")) handleCommand(CMD_VFD_TEST_V1);
+++    else if (!strcmp(line, "test v2")) handleCommand(CMD_VFD_TEST_V2);
+++    else if (!strcmp(line, "test all")) handleCommand(CMD_VFD_TEST_ALL);
+++    else
+++    {
+++      Serial.print(F("Unknown USB console command: "));
+++      Serial.println(line);
+++      printBenchConsoleHelp();
+++    }
+++  }
+++}
+++
++ void setup()
++ {
++   Serial.begin(DBG_BAUD);
++@@ -853,6 +1003,7 @@
++   g_settingsUiState = SETTINGS_UI_IDLE;
++   g_settingsUiError = SETTINGS_VALID;
++ 
+++  applySafetySettings(g_settings);
++   g_motor.begin(g_settings);
++   if (g_safety.estopActive() || g_safety.estopLatched())
++   {
++@@ -871,9 +1022,16 @@
++   Serial.println(F("Commands: 0x0001 MANUAL, 0x0002 AUTO, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION"));
++   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
++   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
+++  Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
++   Serial.println(F("Manual jog: 0x0101..0x010C build NE200 RTU frames, 0x010F JOG STOP"));
++-  Serial.println(F("VFD layer: Step7B existing Modbus/Drives integration; exact frames printed, MAX485 TX disabled"));
+++  if (!VFD_RS485_ENABLED)
+++    Serial.println(F("VFD layer: DRY-RUN; exact frames printed, MAX485 disabled"));
+++  else if (!VFD_WRITE_COMMANDS_ENABLED)
+++    Serial.println(F("VFD layer: PHYSICAL RS485 READ-ONLY; all writes/motion blocked"));
+++  else
+++    Serial.println(F("VFD layer: PHYSICAL RS485 WRITE ENABLED"));
++   Serial.println(F("VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST"));
+++  printBenchConsoleHelp();
++   Serial.print(F("Safety inputs: "));
++   Serial.print(SAFETY_BENCH_MODE ? F("BENCH active-low") : F("FIELD NC active-high"));
++   Serial.print(F(" E-stop="));
++@@ -892,6 +1050,7 @@
++   const uint32_t now = millis();
++ 
++   serviceSensorsFast();
+++  serviceUsbConsole();
++ 
++   const bool safetyChanged = g_safety.service();
++   const bool estopBlocked = g_safety.estopActive() || g_safety.estopLatched();
++@@ -965,6 +1124,10 @@
++     Serial.print(g_safety.stateWord());
++     Serial.print(F(" lim=0x"));
++     Serial.print(g_safety.limitMask(), HEX);
+++    Serial.print(F(" se="));
+++    Serial.print(g_safety.estopEnabled() ? 1 : 0);
+++    Serial.print(F(" sl="));
+++    Serial.print(g_safety.limitsEnabled() ? 1 : 0);
++     Serial.print(F(" X1="));
++     Serial.print(g_sensor[SENSOR_X1].valueMm);
++     Serial.print(F(" a1="));
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/motor_control_v6.cpp telfer-control-system-v6-system-step8b/src/motor_control_v6.cpp
++--- step8a_src/telfer-control-system-v6-system-step8a/src/motor_control_v6.cpp	2026-08-01 14:13:52.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/src/motor_control_v6.cpp	2026-08-10 15:28:57.470276027 +0000
++@@ -6,7 +6,12 @@
++   _state = MotorStateV6::IDLE;
++   _lastManualCmdMs = 0;
++   _manualJogTimeoutMs = settings.vfd.manualJogTimeoutMs;
++-  Serial.println(F("MotorControlV6: safe control layer initialized, NE200 dry-run scheduler enabled"));
+++  if (!VFD_RS485_ENABLED)
+++    Serial.println(F("MotorControlV6: safe control layer initialized, NE200 dry-run scheduler enabled"));
+++  else if (!VFD_WRITE_COMMANDS_ENABLED)
+++    Serial.println(F("MotorControlV6: safe control layer initialized, physical RS485 READ-ONLY"));
+++  else
+++    Serial.println(F("MotorControlV6: safe control layer initialized, physical RS485 writes enabled"));
++   _vfd.begin(settings);
++ }
++ 
++@@ -111,6 +116,15 @@
++ 
++ bool MotorControlV6::requestManualMove(SystemModeV6 currentMode, MotorAxisV6 axis, MotorDirV6 dir)
++ {
+++  if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED)
+++  {
+++    _motionActive = false;
+++    _lastManualCmdMs = 0;
+++    _state = MotorStateV6::BLOCKED;
+++    Serial.println(F("MANUAL JOG BLOCKED: physical RS485 build is READ-ONLY"));
+++    return false;
+++  }
+++
++   if (currentMode != SystemModeV6::MANUAL)
++   {
++     _motionActive = false;
++@@ -164,7 +178,12 @@
++   switch (mode)
++   {
++   case SystemModeV6::MANUAL:
++-    Serial.println(F("Manual mode selected. Jog commands build real NE200 RTU frames in dry-run."));
+++    if (!VFD_RS485_ENABLED)
+++      Serial.println(F("Manual mode selected. Jog commands build real NE200 RTU frames in dry-run."));
+++    else if (!VFD_WRITE_COMMANDS_ENABLED)
+++      Serial.println(F("Manual mode selected, but motion is blocked by physical RS485 READ-ONLY build."));
+++    else
+++      Serial.println(F("Manual mode selected. Physical NE200 write commands are enabled."));
++     break;
++   case SystemModeV6::AUTO:
++     Serial.println(F("Auto mode selected. Program runner is not connected yet."));
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/safety_v6.cpp telfer-control-system-v6-system-step8b/src/safety_v6.cpp
++--- step8a_src/telfer-control-system-v6-system-step8a/src/safety_v6.cpp	2026-08-10 12:40:15.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/src/safety_v6.cpp	2026-08-10 15:27:09.314076918 +0000
++@@ -6,7 +6,7 @@
++ }
++ 
++ uint8_t SafetyV6::readLimitMask() const {
++-  if (!ENABLE_LIMIT_SWITCHES) return 0;
+++  if (!_limitsEnabled) return 0;
++   uint8_t m = 0;
++   if (readActive(PIN_LIM_H1_LEFT,  LIMIT_ACTIVE_LOW)) m |= LIM_H1_LEFT;
++   if (readActive(PIN_LIM_H1_RIGHT, LIMIT_ACTIVE_LOW)) m |= LIM_H1_RIGHT;
++@@ -15,6 +15,12 @@
++   return m;
++ }
++ 
+++void SafetyV6::refreshInputs() {
+++  _estopActive = _estopEnabled ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
+++  if (_estopActive) _estopLatched = true;
+++  _limitMask = readLimitMask();
+++}
+++
++ void SafetyV6::begin() {
++   if (ENABLE_ESTOP) pinMode(PIN_ESTOP, INPUT_PULLUP);
++   if (ENABLE_LIMIT_SWITCHES) {
++@@ -24,9 +30,10 @@
++     pinMode(PIN_LIM_H2_RIGHT, INPUT_PULLUP);
++   }
++ 
++-  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
++-  _estopLatched = _estopActive;
++-  _limitMask = readLimitMask();
+++  _estopEnabled = ENABLE_ESTOP;
+++  _limitsEnabled = ENABLE_LIMIT_SWITCHES;
+++  _estopLatched = false;
+++  refreshInputs();
++ 
++   Serial.print(F("SafetyV6: mode="));
++   Serial.print(SAFETY_BENCH_MODE ? F("BENCH") : F("FIELD/NC"));
++@@ -36,14 +43,41 @@
++   Serial.println(_limitMask, HEX);
++ }
++ 
+++bool SafetyV6::setEstopEnabled(bool enabled) {
+++  if (!enabled && !SAFETY_BENCH_MODE) {
+++    Serial.println(F("SAFETY CONFIG rejected: E-stop cannot be disabled in FIELD mode"));
+++    return false;
+++  }
+++  _estopEnabled = ENABLE_ESTOP && enabled;
+++  if (!_estopEnabled) {
+++    _estopActive = false;
+++    _estopLatched = false;
+++    Serial.println(F("SAFETY E-STOP monitoring DISABLED (BENCH)"));
+++  } else {
+++    refreshInputs();
+++    Serial.println(F("SAFETY E-STOP monitoring ENABLED"));
+++  }
+++  return true;
+++}
+++
+++bool SafetyV6::setLimitsEnabled(bool enabled) {
+++  if (!enabled && !SAFETY_BENCH_MODE) {
+++    Serial.println(F("SAFETY CONFIG rejected: limits cannot be disabled in FIELD mode"));
+++    return false;
+++  }
+++  _limitsEnabled = ENABLE_LIMIT_SWITCHES && enabled;
+++  _limitMask = readLimitMask();
+++  Serial.print(F("SAFETY LIMIT monitoring "));
+++  Serial.println(_limitsEnabled ? F("ENABLED") : F("DISABLED (BENCH)"));
+++  return true;
+++}
+++
++ bool SafetyV6::service() {
++   const bool oldActive = _estopActive;
++   const bool oldLatched = _estopLatched;
++   const uint8_t oldLimits = _limitMask;
++ 
++-  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
++-  if (_estopActive) _estopLatched = true;
++-  _limitMask = readLimitMask();
+++  refreshInputs();
++ 
++   if (_estopActive != oldActive) {
++     Serial.print(F("SAFETY E-STOP "));
++@@ -58,7 +92,7 @@
++ }
++ 
++ bool SafetyV6::clearEstopLatch() {
++-  if (_estopActive) {
+++  if (_estopEnabled && _estopActive) {
++     Serial.println(F("SAFETY CLEAR rejected: E-stop is still active"));
++     return false;
++   }
++@@ -68,7 +102,8 @@
++ }
++ 
++ bool SafetyV6::blocksMotorState(uint16_t state) const {
++-  if (_estopActive || _estopLatched) return true;
+++  if ((_estopEnabled && _estopActive) || _estopLatched) return true;
+++  if (!_limitsEnabled) return false;
++ 
++   switch (state) {
++     case MOTOR_STATE_H1_FWD:     return (_limitMask & LIM_H1_RIGHT) != 0;
++@@ -77,13 +112,13 @@
++     case MOTOR_STATE_H2_BWD:     return (_limitMask & LIM_H2_LEFT) != 0;
++     case MOTOR_STATE_H_BOTH_FWD: return (_limitMask & (LIM_H1_RIGHT | LIM_H2_RIGHT)) != 0;
++     case MOTOR_STATE_H_BOTH_BWD: return (_limitMask & (LIM_H1_LEFT  | LIM_H2_LEFT)) != 0;
++-    default:                     return false; // no vertical limit switches in the legacy hardware
+++    default:                     return false;
++   }
++ }
++ 
++ const __FlashStringHelper* SafetyV6::blockReason(uint16_t state) const {
++-  if (_estopActive) return F("E-STOP active");
+++  if (_estopEnabled && _estopActive) return F("E-STOP active");
++   if (_estopLatched) return F("E-STOP latched");
++-  if (blocksMotorState(state)) return F("horizontal limit switch");
+++  if (_limitsEnabled && blocksMotorState(state)) return F("horizontal limit switch");
++   return F("none");
++ }
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/settings_v6.cpp telfer-control-system-v6-system-step8b/src/settings_v6.cpp
++--- step8a_src/telfer-control-system-v6-system-step8a/src/settings_v6.cpp	2026-08-01 12:59:34.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/src/settings_v6.cpp	2026-08-10 15:27:09.194184773 +0000
++@@ -45,7 +45,7 @@
++   cfg.vfd.address[DRIVE_V1] = 3;
++   cfg.vfd.address[DRIVE_V2] = 4;
++   cfg.vfd.invertDirectionMask = 0;
++-  cfg.vfd.reserved0 = 0;
+++  cfg.vfd.safetyDisableMask = SAFETY_DISABLE_NONE;
++   cfg.vfd.manualJogTimeoutMs = 2500;
++ 
++   cfg.drive[DRIVE_H1] = {20, 80, 10, 0, 500, 10};
++@@ -111,6 +111,10 @@
++     err |= SETTINGS_ERR_WATCHDOG;
++   }
++ 
+++  if (cfg.vfd.safetyDisableMask & (uint8_t)~(SAFETY_DISABLE_ESTOP | SAFETY_DISABLE_LIMITS)) {
+++    err |= SETTINGS_ERR_UNSAFE_MODE;
+++  }
+++
++   for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
++     const DriveProfileV6& p = cfg.drive[i];
++     if (p.manualPercent < 1 || p.manualPercent > 100 ||
++diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/vfd_driver_v6.cpp telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp
++--- step8a_src/telfer-control-system-v6-system-step8a/src/vfd_driver_v6.cpp	2026-08-10 12:40:15.000000000 +0000
+++++ telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp	2026-08-10 15:28:57.470132764 +0000
++@@ -26,7 +26,13 @@
++                 : VFD_STATUS_READY;
++ 
++   Serial.println(F("VfdDriverV6: existing Modbus/Drives layer connected"));
++-  Serial.println(F("VfdDriverV6: physical MAX485 TX disabled; exact NE200 frames will be printed"));
+++  if (!VFD_RS485_ENABLED) {
+++    Serial.println(F("VfdDriverV6: physical MAX485 disabled; exact NE200 frames will be printed"));
+++  } else if (!VFD_WRITE_COMMANDS_ENABLED) {
+++    Serial.println(F("VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked"));
+++  } else {
+++    Serial.println(F("VfdDriverV6: physical MAX485 enabled with WRITE commands"));
+++  }
++   printConfiguration();
++ }
++ 
++@@ -126,6 +132,12 @@
++ }
++ 
++ void VfdDriverV6::startByMotorState(uint16_t motorStateCode) {
+++  if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED) {
+++    _status = VFD_STATUS_BLOCKED;
+++    Serial.println(F("NE200 WRITE BLOCKED by read-only build: movement command not transmitted"));
+++    return;
+++  }
+++
++   const int16_t h1 = manualPercent(DRIVE_H1);
++   const int16_t h2 = manualPercent(DRIVE_H2);
++   const int16_t v1 = manualPercent(DRIVE_V1);
++@@ -163,7 +175,9 @@
++ }
++ 
++ void VfdDriverV6::stopAll(const __FlashStringHelper* reason) {
++-  _drives.stopAll();
+++  if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED) {
+++    _drives.stopAll();
+++  }
++   _status = VFD_STATUS_STOPPED;
++ 
++   Serial.print(F("NE200 STOP ALL queued"));
++@@ -171,11 +185,14 @@
++     Serial.print(F(" reason="));
++     Serial.print(reason);
++   }
++-  Serial.println(F("; each drive gets STOP then zero setpoint"));
+++  if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED)
+++    Serial.println(F("; each drive gets STOP then zero setpoint"));
+++  else
+++    Serial.println(F("; READ-ONLY build, no STOP/SETPOINT frame transmitted"));
++ }
++ 
++ void VfdDriverV6::block(const __FlashStringHelper* reason) {
++-  _drives.stopAll();
+++  if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED) _drives.stopAll();
++   _status = VFD_STATUS_BLOCKED;
++   Serial.print(F("VFD BLOCKED"));
++   if (reason) {
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/config_v6_bringup.h telfer-control-system-v6-system-step8b/include/config_v6_bringup.h
+--- step8a_src/telfer-control-system-v6-system-step8a/include/config_v6_bringup.h	2026-08-10 12:40:15.000000000 +0000
++++ telfer-control-system-v6-system-step8b/include/config_v6_bringup.h	2026-08-10 15:27:07.814157036 +0000
+@@ -3,7 +3,7 @@
+ #include <Arduino.h>
+ #include <stdint.h>
+ 
+-#define FW_VERSION_V6_BRINGUP "v6-system-step8a-field-safety-diagnostics"
++#define FW_VERSION_V6_BRINGUP "v6-system-step8b-configurable-safety-rs485-readonly"
+ 
+ // =====================================================
+ // Debug / UART
+@@ -135,6 +135,8 @@
+ static constexpr uint16_t VP_SAFETY_STATE     = 0x104C; // bit0=E-stop active, bit1=E-stop latched
+ static constexpr uint16_t VP_LIMIT_STATE      = 0x104E; // H1L,H1R,H2L,H2R bits 0..3
+ static constexpr uint16_t VP_MODBUS_QUEUE_BUSY= 0x1050;
++static constexpr uint16_t VP_ESTOP_ENABLED     = 0x1052; // effective runtime state
++static constexpr uint16_t VP_LIMITS_ENABLED    = 0x1054; // effective runtime state
+ 
+ // Команды от кнопок DWIN.
+ // Все кнопки должны писать сюда.
+@@ -160,6 +162,9 @@
+ static constexpr uint16_t VP_VFD_ADDR_V2            = 0x1216;
+ static constexpr uint16_t VP_VFD_INVERT_MASK        = 0x1218;
+ static constexpr uint16_t VP_MANUAL_JOG_TIMEOUT_MS  = 0x1220;
++// Bench-only safety editor. Values 0/1. In FIELD mode disabling is rejected.
++static constexpr uint16_t VP_SAFETY_ESTOP_ENABLE    = 0x1222;
++static constexpr uint16_t VP_SAFETY_LIMITS_ENABLE   = 0x1224;
+ 
+ // 5 values per drive: manual%, max%, slow%, slowdown distance mm, stop tolerance mm.
+ static constexpr uint16_t VP_DRIVE_H1_BASE           = 0x1230;
+@@ -220,7 +225,9 @@
+ static constexpr uint16_t CMD_CLEAR_STATUS  = 0x0044;
+ static constexpr uint16_t CMD_SENSOR_REINIT = 0x0045;
+ static constexpr uint16_t CMD_DIAG_SNAPSHOT = 0x0046;
+-static constexpr uint16_t CMD_SAFETY_CLEAR  = 0x0047;
++static constexpr uint16_t CMD_SAFETY_CLEAR        = 0x0047;
++static constexpr uint16_t CMD_SAFETY_TOGGLE_ESTOP = 0x0048; // BENCH only
++static constexpr uint16_t CMD_SAFETY_TOGGLE_LIMITS= 0x0049; // BENCH only
+ 
+ // Настройки RS485/VFD (страница Settings).
+ static constexpr uint16_t CMD_VFD_SETTINGS_APPLY    = 0x0200;
+@@ -320,9 +327,20 @@
+ // Step7B: подключены существующие ModbusMasterRTU + Drives. Полные кадры
+ // NE200 строятся и печатаются, но НЕ отправляются, пока VFD_RS485_ENABLED=false.
+ // =====================================================
+-static constexpr bool VFD_RS485_ENABLED = false; // ВКЛЮЧАТЬ только после проверки схемы и протокола ПЧ
+-static constexpr bool VFD_DRY_RUN       = true;
+-static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // из старого проекта: MAX485 DE+RE
++// Build-time switches. Default environment remains fully dry-run.
++#ifndef V6_VFD_RS485_ENABLED
++  #define V6_VFD_RS485_ENABLED 0
++#endif
++#ifndef V6_VFD_DRY_RUN
++  #define V6_VFD_DRY_RUN 1
++#endif
++#ifndef V6_VFD_WRITE_COMMANDS_ENABLED
++  #define V6_VFD_WRITE_COMMANDS_ENABLED 0
++#endif
++static constexpr bool VFD_RS485_ENABLED = (V6_VFD_RS485_ENABLED != 0);
++static constexpr bool VFD_DRY_RUN       = (V6_VFD_DRY_RUN != 0);
++static constexpr bool VFD_WRITE_COMMANDS_ENABLED = (V6_VFD_WRITE_COMMANDS_ENABLED != 0);
++static constexpr uint8_t PIN_VFD_RS485_DE_RE = 6; // MAX485 DE+/RE, RO=RX1/19, DI=TX1/18
+ // Baud/parity/stop bits/timeouts are now read from SettingsV6 and EEPROM.
+ 
+ // Step7B uses the already existing ModbusMasterRTU/Drives files.
+@@ -333,8 +351,10 @@
+ 
+ // Hard compile-time interlock: real drive TX must never be enabled with the
+ // convenient bench interpretation of the safety chain.
+-static_assert(!VFD_RS485_ENABLED || !SAFETY_BENCH_MODE,
+-              "Physical VFD RS485 requires SAFETY_BENCH_MODE=false and verified NC safety wiring");
++// Physical writes are never allowed with the convenient BENCH safety logic.
++// Physical READ-ONLY diagnostics are allowed, because no motion/stop register is written.
++static_assert(!VFD_RS485_ENABLED || !VFD_WRITE_COMMANDS_ENABLED || !SAFETY_BENCH_MODE,
++              "Physical VFD writes require SAFETY_BENCH_MODE=false and verified NC safety wiring");
+ 
+ // NE200 network-control map already recorded in the project/manual notes.
+ // Control register: 0x0001; network setpoint: 0x0002.
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/safety_v6.h telfer-control-system-v6-system-step8b/include/safety_v6.h
+--- step8a_src/telfer-control-system-v6-system-step8a/include/safety_v6.h	2026-08-10 12:40:15.000000000 +0000
++++ telfer-control-system-v6-system-step8b/include/safety_v6.h	2026-08-10 15:29:48.315857881 +0000
+@@ -19,11 +19,20 @@
+   bool estopActive() const { return _estopActive; }
+   bool estopLatched() const { return _estopLatched; }
+   uint8_t limitMask() const { return _limitMask; }
++  bool estopEnabled() const { return _estopEnabled; }
++  bool limitsEnabled() const { return _limitsEnabled; }
++
+   uint16_t stateWord() const {
++    // Preserve Step8A meaning for logs/DWIN: bit0=active, bit1=latched.
++    // Enable/disable states have their own VPs 0x1052/0x1054.
+     return (_estopActive ? 0x0001 : 0) | (_estopLatched ? 0x0002 : 0);
+   }
+ 
+-  // Clear only the latch. An actually active E-stop can never be cleared.
++  // Runtime safety configuration. Disabling is accepted only in BENCH build.
++  bool setEstopEnabled(bool enabled);
++  bool setLimitsEnabled(bool enabled);
++
++  // Clear only the latch. An actually active enabled E-stop can never be cleared.
+   bool clearEstopLatch();
+ 
+   // motorStateCode uses MOTOR_STATE_* constants from config_v6_bringup.h.
+@@ -33,8 +42,11 @@
+ private:
+   bool readActive(uint8_t pin, bool activeLow) const;
+   uint8_t readLimitMask() const;
++  void refreshInputs();
+ 
+ private:
++  bool _estopEnabled = ENABLE_ESTOP;
++  bool _limitsEnabled = ENABLE_LIMIT_SWITCHES;
+   bool _estopActive = false;
+   bool _estopLatched = false;
+   uint8_t _limitMask = 0;
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/include/settings_v6.h telfer-control-system-v6-system-step8b/include/settings_v6.h
+--- step8a_src/telfer-control-system-v6-system-step8a/include/settings_v6.h	2026-08-01 12:56:59.000000000 +0000
++++ telfer-control-system-v6-system-step8b/include/settings_v6.h	2026-08-10 15:27:08.517858622 +0000
+@@ -40,6 +40,12 @@
+   uint8_t enabled;
+ };
+ 
++enum SafetyDisableBitsV6 : uint8_t {
++  SAFETY_DISABLE_NONE   = 0x00,
++  SAFETY_DISABLE_ESTOP  = 0x01,
++  SAFETY_DISABLE_LIMITS = 0x02
++};
++
+ struct VfdCommSettingsV6 {
+   uint8_t baudCode;
+   uint8_t parity;
+@@ -53,7 +59,9 @@
+ 
+   uint8_t address[DRIVE_COUNT_V6];
+   uint8_t invertDirectionMask;
+-  uint8_t reserved0;
++  // Kept in the same byte as legacy reserved0: bit=1 means disabled.
++  // Zero in existing EEPROM therefore preserves the original safe behaviour.
++  uint8_t safetyDisableMask;
+   uint16_t manualJogTimeoutMs;
+ };
+ 
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/platformio.ini telfer-control-system-v6-system-step8b/platformio.ini
+--- step8a_src/telfer-control-system-v6-system-step8a/platformio.ini	2026-08-10 12:40:15.000000000 +0000
++++ telfer-control-system-v6-system-step8b/platformio.ini	2026-08-10 15:27:11.192922472 +0000
+@@ -84,3 +84,34 @@
+   +<motors.cpp>
+   +<utils.cpp>
+   +<safety_v6.cpp>
++
++; Physical RS485 commissioning mode: Serial1/MAX485 is enabled, but every
++; register write/motion command is blocked in VfdDriverV6. Only 0x0204..0x0208
++; safe status READ tests are intended in this environment.
++[env:mega_v6_ne200_readonly]
++platform = atmelavr
++board = megaatmega2560
++framework = arduino
++monitor_speed = 115200
++upload_port = COM6
++upload_speed = 115200
++
++build_flags =
++  -DV6_VFD_RS485_ENABLED=1
++  -DV6_VFD_DRY_RUN=0
++  -DV6_VFD_WRITE_COMMANDS_ENABLED=0
++
++build_src_filter =
++  -<*>
++  +<main_v6_fast.cpp>
++  +<dwin_link.cpp>
++  +<fast_laser_sensor.cpp>
++  +<sc16is752.cpp>
++  +<settings_v6.cpp>
++  +<system_state.cpp>
++  +<motor_control_v6.cpp>
++  +<vfd_driver_v6.cpp>
++  +<modbus.cpp>
++  +<motors.cpp>
++  +<utils.cpp>
++  +<safety_v6.cpp>
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/main_v6_fast.cpp telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp
+--- step8a_src/telfer-control-system-v6-system-step8a/src/main_v6_fast.cpp	2026-08-10 12:42:40.000000000 +0000
++++ telfer-control-system-v6-system-step8b/src/main_v6_fast.cpp	2026-08-10 15:28:24.939865040 +0000
+@@ -1,4 +1,5 @@
+ #include <Arduino.h>
++#include <string.h>
+ #include "config_v6_bringup.h"
+ #include "sc16is752.h"
+ #include "fast_laser_sensor.h"
+@@ -98,6 +99,22 @@
+   return n;
+ }
+ 
++bool safetyEstopRequestedEnabled(const SettingsV6 &cfg)
++{
++  return (cfg.vfd.safetyDisableMask & SAFETY_DISABLE_ESTOP) == 0;
++}
++
++bool safetyLimitsRequestedEnabled(const SettingsV6 &cfg)
++{
++  return (cfg.vfd.safetyDisableMask & SAFETY_DISABLE_LIMITS) == 0;
++}
++
++void applySafetySettings(const SettingsV6 &cfg)
++{
++  (void)g_safety.setEstopEnabled(safetyEstopRequestedEnabled(cfg));
++  (void)g_safety.setLimitsEnabled(safetyLimitsRequestedEnabled(cfg));
++}
++
+ void writePersistentHeaderToDwin()
+ {
+   // Program runner is connected in the next step. Keep explicit zeroes now
+@@ -123,6 +140,8 @@
+   g_dwin.writeU16(VP_SAFETY_STATE, g_safety.stateWord());
+   g_dwin.writeU16(VP_LIMIT_STATE, g_safety.limitMask());
+   g_dwin.writeU16(VP_MODBUS_QUEUE_BUSY, g_motor.vfdHasPendingWork() ? 1 : 0);
++  g_dwin.writeU16(VP_ESTOP_ENABLED, g_safety.estopEnabled() ? 1 : 0);
++  g_dwin.writeU16(VP_LIMITS_ENABLED, g_safety.limitsEnabled() ? 1 : 0);
+ }
+ 
+ void writeBootScreen()
+@@ -208,6 +227,8 @@
+   g_dwin.writeU16(VP_VFD_ADDR_V2, cfg.vfd.address[DRIVE_V2]);
+   g_dwin.writeU16(VP_VFD_INVERT_MASK, cfg.vfd.invertDirectionMask);
+   g_dwin.writeU16(VP_MANUAL_JOG_TIMEOUT_MS, cfg.vfd.manualJogTimeoutMs);
++  g_dwin.writeU16(VP_SAFETY_ESTOP_ENABLE, safetyEstopRequestedEnabled(cfg) ? 1 : 0);
++  g_dwin.writeU16(VP_SAFETY_LIMITS_ENABLE, safetyLimitsRequestedEnabled(cfg) ? 1 : 0);
+ 
+   for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i)
+   {
+@@ -253,6 +274,28 @@
+   case VP_VFD_ADDR_V2: g_editSettings.vfd.address[DRIVE_V2] = valueToU8OrInvalid(value); break;
+   case VP_VFD_INVERT_MASK: g_editSettings.vfd.invertDirectionMask = (uint8_t)(value & 0x0F); break;
+   case VP_MANUAL_JOG_TIMEOUT_MS: g_editSettings.vfd.manualJogTimeoutMs = value; break;
++  case VP_SAFETY_ESTOP_ENABLE:
++    if (value > 1 || (!value && !SAFETY_BENCH_MODE)) {
++      g_settingsUiState = SETTINGS_UI_REJECTED;
++      g_settingsUiError = SETTINGS_ERR_UNSAFE_MODE;
++      writeSettingsUiStatus();
++      Serial.println(F("Settings safety E-stop change rejected"));
++      return true;
++    }
++    if (value) g_editSettings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_ESTOP;
++    else       g_editSettings.vfd.safetyDisableMask |= SAFETY_DISABLE_ESTOP;
++    break;
++  case VP_SAFETY_LIMITS_ENABLE:
++    if (value > 1 || (!value && !SAFETY_BENCH_MODE)) {
++      g_settingsUiState = SETTINGS_UI_REJECTED;
++      g_settingsUiError = SETTINGS_ERR_UNSAFE_MODE;
++      writeSettingsUiStatus();
++      Serial.println(F("Settings limit change rejected"));
++      return true;
++    }
++    if (value) g_editSettings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_LIMITS;
++    else       g_editSettings.vfd.safetyDisableMask |= SAFETY_DISABLE_LIMITS;
++    break;
+   default:
+     for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i)
+     {
+@@ -313,6 +356,7 @@
+ 
+   g_settings = g_editSettings;
+   g_motor.applySettings(g_settings);
++  applySafetySettings(g_settings);
+   g_settingsDirty = false;
+   g_settingsUiError = SETTINGS_VALID;
+ 
+@@ -359,6 +403,7 @@
+   g_settings = loaded;
+   g_editSettings = loaded;
+   g_motor.applySettings(g_settings);
++  applySafetySettings(g_settings);
+   g_settingsFault = false;
+   g_settingsDirty = false;
+   g_settingsUiState = SETTINGS_UI_LOADED;
+@@ -727,6 +772,7 @@
+     g_settingsUiState = SETTINGS_UI_LOADED;
+     g_settingsUiError = SETTINGS_VALID;
+     g_motor.applySettings(g_settings);
++    applySafetySettings(g_settings);
+     for (uint8_t i = 0; i < SENSOR_COUNT; ++i)
+     {
+       if (g_sensor[i].valid)
+@@ -804,6 +850,12 @@
+     Serial.print(g_safety.estopLatched() ? F("YES") : F("NO"));
+     Serial.print(F(" limits=0x"));
+     Serial.print(g_safety.limitMask(), HEX);
++    Serial.print(F(" estopMon="));
++    Serial.print(g_safety.estopEnabled() ? F("ON") : F("OFF"));
++    Serial.print(F(" limitMon="));
++    Serial.print(g_safety.limitsEnabled() ? F("ON") : F("OFF"));
++    Serial.print(F(" writes="));
++    Serial.print(VFD_WRITE_COMMANDS_ENABLED ? F("ON") : F("BLOCKED"));
+     Serial.print(F(" queue="));
+     Serial.println(g_motor.vfdHasPendingWork() ? F("BUSY") : F("IDLE"));
+     writePersistentHeaderToDwin();
+@@ -815,6 +867,38 @@
+     writePersistentHeaderToDwin();
+     break;
+ 
++  case CMD_SAFETY_TOGGLE_ESTOP:
++    if (!SAFETY_BENCH_MODE) {
++      Serial.println(F("SAFETY E-stop toggle rejected outside BENCH mode"));
++      break;
++    }
++    if (g_safety.estopEnabled()) g_settings.vfd.safetyDisableMask |= SAFETY_DISABLE_ESTOP;
++    else                         g_settings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_ESTOP;
++    g_editSettings = g_settings;
++    applySafetySettings(g_settings);
++    g_settingsDirty = true;
++    Serial.println(F("Safety setting changed in RAM; SAVE to persist"));
++    writeSettingsToDwin(g_settings);
++    updateErrorMask();
++    writePersistentHeaderToDwin();
++    break;
++
++  case CMD_SAFETY_TOGGLE_LIMITS:
++    if (!SAFETY_BENCH_MODE) {
++      Serial.println(F("SAFETY limits toggle rejected outside BENCH mode"));
++      break;
++    }
++    if (g_safety.limitsEnabled()) g_settings.vfd.safetyDisableMask |= SAFETY_DISABLE_LIMITS;
++    else                          g_settings.vfd.safetyDisableMask &= (uint8_t)~SAFETY_DISABLE_LIMITS;
++    g_editSettings = g_settings;
++    applySafetySettings(g_settings);
++    g_settingsDirty = true;
++    Serial.println(F("Safety setting changed in RAM; SAVE to persist"));
++    writeSettingsToDwin(g_settings);
++    updateErrorMask();
++    writePersistentHeaderToDwin();
++    break;
++
+   default:
+     Serial.println(F("Unknown command"));
+     break;
+@@ -823,6 +907,72 @@
+   g_dwin.clearCommand(VP_CMD);
+ }
+ 
++void printBenchConsoleHelp()
++{
++  Serial.println(F("USB console: help | clear | diag | estop on/off | limits on/off | save | test h1/h2/v1/v2/all"));
++}
++
++void setBenchSafetyFromConsole(bool estop, bool enabled)
++{
++  if (!SAFETY_BENCH_MODE && !enabled)
++  {
++    Serial.println(F("Console safety disable rejected outside BENCH mode"));
++    return;
++  }
++
++  const uint8_t bit = estop ? SAFETY_DISABLE_ESTOP : SAFETY_DISABLE_LIMITS;
++  if (enabled) g_settings.vfd.safetyDisableMask &= (uint8_t)~bit;
++  else         g_settings.vfd.safetyDisableMask |= bit;
++  g_editSettings = g_settings;
++  applySafetySettings(g_settings);
++  g_settingsDirty = true;
++  writeSettingsToDwin(g_settings);
++  updateErrorMask();
++  writePersistentHeaderToDwin();
++  Serial.println(F("Safety setting changed in RAM; type 'save' to persist"));
++}
++
++void serviceUsbConsole()
++{
++  static char line[40];
++  static uint8_t len = 0;
++
++  while (Serial.available())
++  {
++    const char c = (char)Serial.read();
++    if (c == '\r') continue;
++    if (c != '\n')
++    {
++      if (len + 1 < sizeof(line)) line[len++] = c;
++      continue;
++    }
++
++    line[len] = '\0';
++    len = 0;
++    if (line[0] == '\0') continue;
++
++    if (!strcmp(line, "help")) printBenchConsoleHelp();
++    else if (!strcmp(line, "clear")) handleCommand(CMD_SAFETY_CLEAR);
++    else if (!strcmp(line, "diag")) handleCommand(CMD_DIAG_SNAPSHOT);
++    else if (!strcmp(line, "save")) handleCommand(CMD_SAVE);
++    else if (!strcmp(line, "estop on")) setBenchSafetyFromConsole(true, true);
++    else if (!strcmp(line, "estop off")) setBenchSafetyFromConsole(true, false);
++    else if (!strcmp(line, "limits on")) setBenchSafetyFromConsole(false, true);
++    else if (!strcmp(line, "limits off")) setBenchSafetyFromConsole(false, false);
++    else if (!strcmp(line, "test h1")) handleCommand(CMD_VFD_TEST_H1);
++    else if (!strcmp(line, "test h2")) handleCommand(CMD_VFD_TEST_H2);
++    else if (!strcmp(line, "test v1")) handleCommand(CMD_VFD_TEST_V1);
++    else if (!strcmp(line, "test v2")) handleCommand(CMD_VFD_TEST_V2);
++    else if (!strcmp(line, "test all")) handleCommand(CMD_VFD_TEST_ALL);
++    else
++    {
++      Serial.print(F("Unknown USB console command: "));
++      Serial.println(line);
++      printBenchConsoleHelp();
++    }
++  }
++}
++
+ void setup()
+ {
+   Serial.begin(DBG_BAUD);
+@@ -853,6 +1003,7 @@
+   g_settingsUiState = SETTINGS_UI_IDLE;
+   g_settingsUiError = SETTINGS_VALID;
+ 
++  applySafetySettings(g_settings);
+   g_motor.begin(g_settings);
+   if (g_safety.estopActive() || g_safety.estopLatched())
+   {
+@@ -871,9 +1022,16 @@
+   Serial.println(F("Commands: 0x0001 MANUAL, 0x0002 AUTO, 0x0003 HOME, 0x0004 STOP, 0x0005 SETTINGS, 0x0006 CALIBRATION"));
+   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
+   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
++  Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
+   Serial.println(F("Manual jog: 0x0101..0x010C build NE200 RTU frames, 0x010F JOG STOP"));
+-  Serial.println(F("VFD layer: Step7B existing Modbus/Drives integration; exact frames printed, MAX485 TX disabled"));
++  if (!VFD_RS485_ENABLED)
++    Serial.println(F("VFD layer: DRY-RUN; exact frames printed, MAX485 disabled"));
++  else if (!VFD_WRITE_COMMANDS_ENABLED)
++    Serial.println(F("VFD layer: PHYSICAL RS485 READ-ONLY; all writes/motion blocked"));
++  else
++    Serial.println(F("VFD layer: PHYSICAL RS485 WRITE ENABLED"));
+   Serial.println(F("VFD settings: 0x0200 APPLY, 0x0201 SAVE, 0x0202 LOAD, 0x0203 DEFAULTS, 0x0204..0x0208 TEST"));
++  printBenchConsoleHelp();
+   Serial.print(F("Safety inputs: "));
+   Serial.print(SAFETY_BENCH_MODE ? F("BENCH active-low") : F("FIELD NC active-high"));
+   Serial.print(F(" E-stop="));
+@@ -892,6 +1050,7 @@
+   const uint32_t now = millis();
+ 
+   serviceSensorsFast();
++  serviceUsbConsole();
+ 
+   const bool safetyChanged = g_safety.service();
+   const bool estopBlocked = g_safety.estopActive() || g_safety.estopLatched();
+@@ -965,6 +1124,10 @@
+     Serial.print(g_safety.stateWord());
+     Serial.print(F(" lim=0x"));
+     Serial.print(g_safety.limitMask(), HEX);
++    Serial.print(F(" se="));
++    Serial.print(g_safety.estopEnabled() ? 1 : 0);
++    Serial.print(F(" sl="));
++    Serial.print(g_safety.limitsEnabled() ? 1 : 0);
+     Serial.print(F(" X1="));
+     Serial.print(g_sensor[SENSOR_X1].valueMm);
+     Serial.print(F(" a1="));
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/motor_control_v6.cpp telfer-control-system-v6-system-step8b/src/motor_control_v6.cpp
+--- step8a_src/telfer-control-system-v6-system-step8a/src/motor_control_v6.cpp	2026-08-01 14:13:52.000000000 +0000
++++ telfer-control-system-v6-system-step8b/src/motor_control_v6.cpp	2026-08-10 15:28:57.470276027 +0000
+@@ -6,7 +6,12 @@
+   _state = MotorStateV6::IDLE;
+   _lastManualCmdMs = 0;
+   _manualJogTimeoutMs = settings.vfd.manualJogTimeoutMs;
+-  Serial.println(F("MotorControlV6: safe control layer initialized, NE200 dry-run scheduler enabled"));
++  if (!VFD_RS485_ENABLED)
++    Serial.println(F("MotorControlV6: safe control layer initialized, NE200 dry-run scheduler enabled"));
++  else if (!VFD_WRITE_COMMANDS_ENABLED)
++    Serial.println(F("MotorControlV6: safe control layer initialized, physical RS485 READ-ONLY"));
++  else
++    Serial.println(F("MotorControlV6: safe control layer initialized, physical RS485 writes enabled"));
+   _vfd.begin(settings);
+ }
+ 
+@@ -111,6 +116,15 @@
+ 
+ bool MotorControlV6::requestManualMove(SystemModeV6 currentMode, MotorAxisV6 axis, MotorDirV6 dir)
+ {
++  if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED)
++  {
++    _motionActive = false;
++    _lastManualCmdMs = 0;
++    _state = MotorStateV6::BLOCKED;
++    Serial.println(F("MANUAL JOG BLOCKED: physical RS485 build is READ-ONLY"));
++    return false;
++  }
++
+   if (currentMode != SystemModeV6::MANUAL)
+   {
+     _motionActive = false;
+@@ -164,7 +178,12 @@
+   switch (mode)
+   {
+   case SystemModeV6::MANUAL:
+-    Serial.println(F("Manual mode selected. Jog commands build real NE200 RTU frames in dry-run."));
++    if (!VFD_RS485_ENABLED)
++      Serial.println(F("Manual mode selected. Jog commands build real NE200 RTU frames in dry-run."));
++    else if (!VFD_WRITE_COMMANDS_ENABLED)
++      Serial.println(F("Manual mode selected, but motion is blocked by physical RS485 READ-ONLY build."));
++    else
++      Serial.println(F("Manual mode selected. Physical NE200 write commands are enabled."));
+     break;
+   case SystemModeV6::AUTO:
+     Serial.println(F("Auto mode selected. Program runner is not connected yet."));
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/safety_v6.cpp telfer-control-system-v6-system-step8b/src/safety_v6.cpp
+--- step8a_src/telfer-control-system-v6-system-step8a/src/safety_v6.cpp	2026-08-10 12:40:15.000000000 +0000
++++ telfer-control-system-v6-system-step8b/src/safety_v6.cpp	2026-08-10 15:27:09.314076918 +0000
+@@ -6,7 +6,7 @@
+ }
+ 
+ uint8_t SafetyV6::readLimitMask() const {
+-  if (!ENABLE_LIMIT_SWITCHES) return 0;
++  if (!_limitsEnabled) return 0;
+   uint8_t m = 0;
+   if (readActive(PIN_LIM_H1_LEFT,  LIMIT_ACTIVE_LOW)) m |= LIM_H1_LEFT;
+   if (readActive(PIN_LIM_H1_RIGHT, LIMIT_ACTIVE_LOW)) m |= LIM_H1_RIGHT;
+@@ -15,6 +15,12 @@
+   return m;
+ }
+ 
++void SafetyV6::refreshInputs() {
++  _estopActive = _estopEnabled ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
++  if (_estopActive) _estopLatched = true;
++  _limitMask = readLimitMask();
++}
++
+ void SafetyV6::begin() {
+   if (ENABLE_ESTOP) pinMode(PIN_ESTOP, INPUT_PULLUP);
+   if (ENABLE_LIMIT_SWITCHES) {
+@@ -24,9 +30,10 @@
+     pinMode(PIN_LIM_H2_RIGHT, INPUT_PULLUP);
+   }
+ 
+-  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
+-  _estopLatched = _estopActive;
+-  _limitMask = readLimitMask();
++  _estopEnabled = ENABLE_ESTOP;
++  _limitsEnabled = ENABLE_LIMIT_SWITCHES;
++  _estopLatched = false;
++  refreshInputs();
+ 
+   Serial.print(F("SafetyV6: mode="));
+   Serial.print(SAFETY_BENCH_MODE ? F("BENCH") : F("FIELD/NC"));
+@@ -36,14 +43,41 @@
+   Serial.println(_limitMask, HEX);
+ }
+ 
++bool SafetyV6::setEstopEnabled(bool enabled) {
++  if (!enabled && !SAFETY_BENCH_MODE) {
++    Serial.println(F("SAFETY CONFIG rejected: E-stop cannot be disabled in FIELD mode"));
++    return false;
++  }
++  _estopEnabled = ENABLE_ESTOP && enabled;
++  if (!_estopEnabled) {
++    _estopActive = false;
++    _estopLatched = false;
++    Serial.println(F("SAFETY E-STOP monitoring DISABLED (BENCH)"));
++  } else {
++    refreshInputs();
++    Serial.println(F("SAFETY E-STOP monitoring ENABLED"));
++  }
++  return true;
++}
++
++bool SafetyV6::setLimitsEnabled(bool enabled) {
++  if (!enabled && !SAFETY_BENCH_MODE) {
++    Serial.println(F("SAFETY CONFIG rejected: limits cannot be disabled in FIELD mode"));
++    return false;
++  }
++  _limitsEnabled = ENABLE_LIMIT_SWITCHES && enabled;
++  _limitMask = readLimitMask();
++  Serial.print(F("SAFETY LIMIT monitoring "));
++  Serial.println(_limitsEnabled ? F("ENABLED") : F("DISABLED (BENCH)"));
++  return true;
++}
++
+ bool SafetyV6::service() {
+   const bool oldActive = _estopActive;
+   const bool oldLatched = _estopLatched;
+   const uint8_t oldLimits = _limitMask;
+ 
+-  _estopActive = ENABLE_ESTOP ? readActive(PIN_ESTOP, ESTOP_ACTIVE_LOW) : false;
+-  if (_estopActive) _estopLatched = true;
+-  _limitMask = readLimitMask();
++  refreshInputs();
+ 
+   if (_estopActive != oldActive) {
+     Serial.print(F("SAFETY E-STOP "));
+@@ -58,7 +92,7 @@
+ }
+ 
+ bool SafetyV6::clearEstopLatch() {
+-  if (_estopActive) {
++  if (_estopEnabled && _estopActive) {
+     Serial.println(F("SAFETY CLEAR rejected: E-stop is still active"));
+     return false;
+   }
+@@ -68,7 +102,8 @@
+ }
+ 
+ bool SafetyV6::blocksMotorState(uint16_t state) const {
+-  if (_estopActive || _estopLatched) return true;
++  if ((_estopEnabled && _estopActive) || _estopLatched) return true;
++  if (!_limitsEnabled) return false;
+ 
+   switch (state) {
+     case MOTOR_STATE_H1_FWD:     return (_limitMask & LIM_H1_RIGHT) != 0;
+@@ -77,13 +112,13 @@
+     case MOTOR_STATE_H2_BWD:     return (_limitMask & LIM_H2_LEFT) != 0;
+     case MOTOR_STATE_H_BOTH_FWD: return (_limitMask & (LIM_H1_RIGHT | LIM_H2_RIGHT)) != 0;
+     case MOTOR_STATE_H_BOTH_BWD: return (_limitMask & (LIM_H1_LEFT  | LIM_H2_LEFT)) != 0;
+-    default:                     return false; // no vertical limit switches in the legacy hardware
++    default:                     return false;
+   }
+ }
+ 
+ const __FlashStringHelper* SafetyV6::blockReason(uint16_t state) const {
+-  if (_estopActive) return F("E-STOP active");
++  if (_estopEnabled && _estopActive) return F("E-STOP active");
+   if (_estopLatched) return F("E-STOP latched");
+-  if (blocksMotorState(state)) return F("horizontal limit switch");
++  if (_limitsEnabled && blocksMotorState(state)) return F("horizontal limit switch");
+   return F("none");
+ }
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/settings_v6.cpp telfer-control-system-v6-system-step8b/src/settings_v6.cpp
+--- step8a_src/telfer-control-system-v6-system-step8a/src/settings_v6.cpp	2026-08-01 12:59:34.000000000 +0000
++++ telfer-control-system-v6-system-step8b/src/settings_v6.cpp	2026-08-10 15:27:09.194184773 +0000
+@@ -45,7 +45,7 @@
+   cfg.vfd.address[DRIVE_V1] = 3;
+   cfg.vfd.address[DRIVE_V2] = 4;
+   cfg.vfd.invertDirectionMask = 0;
+-  cfg.vfd.reserved0 = 0;
++  cfg.vfd.safetyDisableMask = SAFETY_DISABLE_NONE;
+   cfg.vfd.manualJogTimeoutMs = 2500;
+ 
+   cfg.drive[DRIVE_H1] = {20, 80, 10, 0, 500, 10};
+@@ -111,6 +111,10 @@
+     err |= SETTINGS_ERR_WATCHDOG;
+   }
+ 
++  if (cfg.vfd.safetyDisableMask & (uint8_t)~(SAFETY_DISABLE_ESTOP | SAFETY_DISABLE_LIMITS)) {
++    err |= SETTINGS_ERR_UNSAFE_MODE;
++  }
++
+   for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
+     const DriveProfileV6& p = cfg.drive[i];
+     if (p.manualPercent < 1 || p.manualPercent > 100 ||
+diff -ruN step8a_src/telfer-control-system-v6-system-step8a/src/vfd_driver_v6.cpp telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp
+--- step8a_src/telfer-control-system-v6-system-step8a/src/vfd_driver_v6.cpp	2026-08-10 12:40:15.000000000 +0000
++++ telfer-control-system-v6-system-step8b/src/vfd_driver_v6.cpp	2026-08-10 15:28:57.470132764 +0000
+@@ -26,7 +26,13 @@
+                 : VFD_STATUS_READY;
+ 
+   Serial.println(F("VfdDriverV6: existing Modbus/Drives layer connected"));
+-  Serial.println(F("VfdDriverV6: physical MAX485 TX disabled; exact NE200 frames will be printed"));
++  if (!VFD_RS485_ENABLED) {
++    Serial.println(F("VfdDriverV6: physical MAX485 disabled; exact NE200 frames will be printed"));
++  } else if (!VFD_WRITE_COMMANDS_ENABLED) {
++    Serial.println(F("VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked"));
++  } else {
++    Serial.println(F("VfdDriverV6: physical MAX485 enabled with WRITE commands"));
++  }
+   printConfiguration();
+ }
+ 
+@@ -126,6 +132,12 @@
+ }
+ 
+ void VfdDriverV6::startByMotorState(uint16_t motorStateCode) {
++  if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED) {
++    _status = VFD_STATUS_BLOCKED;
++    Serial.println(F("NE200 WRITE BLOCKED by read-only build: movement command not transmitted"));
++    return;
++  }
++
+   const int16_t h1 = manualPercent(DRIVE_H1);
+   const int16_t h2 = manualPercent(DRIVE_H2);
+   const int16_t v1 = manualPercent(DRIVE_V1);
+@@ -163,7 +175,9 @@
+ }
+ 
+ void VfdDriverV6::stopAll(const __FlashStringHelper* reason) {
+-  _drives.stopAll();
++  if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED) {
++    _drives.stopAll();
++  }
+   _status = VFD_STATUS_STOPPED;
+ 
+   Serial.print(F("NE200 STOP ALL queued"));
+@@ -171,11 +185,14 @@
+     Serial.print(F(" reason="));
+     Serial.print(reason);
+   }
+-  Serial.println(F("; each drive gets STOP then zero setpoint"));
++  if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED)
++    Serial.println(F("; each drive gets STOP then zero setpoint"));
++  else
++    Serial.println(F("; READ-ONLY build, no STOP/SETPOINT frame transmitted"));
+ }
+ 
+ void VfdDriverV6::block(const __FlashStringHelper* reason) {
+-  _drives.stopAll();
++  if (!VFD_RS485_ENABLED || VFD_WRITE_COMMANDS_ENABLED) _drives.stopAll();
+   _status = VFD_STATUS_BLOCKED;
+   Serial.print(F("VFD BLOCKED"));
+   if (reason) {
