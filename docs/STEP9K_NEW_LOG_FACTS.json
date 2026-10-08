@@ -1,0 +1,184 @@
+[
+  {
+    "file": "telfer-step9i-2026-10-08T11-17-44-548Z.txt",
+    "sha256": "ccad0ec194ae395d98de5debefcb98d5d48c4b2e7df5978b472b0b37fda82348",
+    "lines": 3820,
+    "undefined_commands": 28,
+    "run_commands": {
+      "H1 FWD": 4,
+      "H1 REV": 6,
+      "H2 FWD": 4,
+      "H2 REV": 5,
+      "V1 REV": 4,
+      "V1 FWD": 8,
+      "V2 REV": 3,
+      "V2 FWD": 9
+    },
+    "pulse_results": {
+      "mask=0x1 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x1 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 2,
+      "mask=0x2 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x2 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x4 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 3,
+      "mask=0x4 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x8 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 2,
+      "mask=0x8 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 2,
+      "mask=0x3 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x3 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0xC dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 7
+    },
+    "drives": {
+      "H1": {
+        "samples": 40,
+        "max_run001": 500,
+        "max_outV": 58,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "H2": {
+        "samples": 31,
+        "max_run001": 500,
+        "max_outV": 58,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "V1": {
+        "samples": 85,
+        "max_run001": 880,
+        "max_outV": 87,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "V2": {
+        "samples": 84,
+        "max_run001": 892,
+        "max_outV": 91,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      }
+    },
+    "evidence": [
+      {
+        "line": 13,
+        "text": "[15:10:40.756]    SAFETY LIMIT monitoring DISABLED (BENCH)"
+      },
+      {
+        "line": 163,
+        "text": "[15:10:49.840]    SAFETY LIMIT monitoring DISABLED (BENCH)"
+      },
+      {
+        "line": 199,
+        "text": "[15:10:51.626]    @GATE name=PREFLIGHT result=PASS reason=FOUR_DRIVES_STOPPED_SAFETY_OK"
+      },
+      {
+        "line": 414,
+        "text": "[15:11:05.945]    @SERVICE_PULSE state=DONE mask=0x1 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 517,
+        "text": "[15:11:10.153]    @SERVICE_PULSE state=DONE mask=0x1 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 614,
+        "text": "[15:11:13.911]    @SERVICE_PULSE state=DONE mask=0x2 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 713,
+        "text": "[15:11:17.521]    @SERVICE_PULSE state=DONE mask=0x2 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 829,
+        "text": "[15:11:25.490]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 923,
+        "text": "[15:11:28.725]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1023,
+        "text": "[15:11:53.664]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1120,
+        "text": "[15:11:57.394]    @SERVICE_PULSE state=DONE mask=0x4 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1220,
+        "text": "[15:12:01.546]    @SERVICE_PULSE state=DONE mask=0x8 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1321,
+        "text": "[15:12:05.019]    @SERVICE_PULSE state=DONE mask=0x8 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1472,
+        "text": "[15:12:21.782]    @SERVICE_PULSE state=DONE mask=0x8 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1565,
+        "text": "[15:12:28.745]    @SERVICE_PULSE state=DONE mask=0x8 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1669,
+        "text": "[15:12:41.029]    @SERVICE_PULSE state=DONE mask=0x1 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1796,
+        "text": "[15:13:00.117]    @SERVICE_PULSE state=DONE mask=0x3 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1931,
+        "text": "[15:13:03.895]    @SERVICE_PULSE state=DONE mask=0x3 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 2069,
+        "text": "[15:13:09.815]    @SERVICE_PULSE state=DONE mask=0xC dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 2204,
+        "text": "[15:13:15.716]    @SERVICE_PULSE state=DONE mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 2893,
+        "text": "[15:15:52.139]    @SERVICE_PULSE state=DONE mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 3020,
+        "text": "[15:15:54.467]    @SERVICE_PULSE state=DONE mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 3151,
+        "text": "[15:15:57.108]    @SERVICE_PULSE state=DONE mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 3286,
+        "text": "[15:16:00.249]    @SERVICE_PULSE state=DONE mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 3422,
+        "text": "[15:16:03.316]    @SERVICE_PULSE state=DONE mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 3557,
+        "text": "[15:16:06.221]    @SERVICE_PULSE state=DONE mask=0xC dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      }
+    ]
+  }
+]

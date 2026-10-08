@@ -20,13 +20,15 @@ enum ModbusErrorCode : uint8_t {
   MODBUS_ERROR_CRC = 2,
   MODBUS_ERROR_EXCEPTION = 3,
   MODBUS_ERROR_BAD_RESPONSE = 4,
-  MODBUS_ERROR_DRY_RUN = 5
+  MODBUS_ERROR_DRY_RUN = 5,
+  MODBUS_ERROR_WRITE_LOCKED = 6
 };
 
 struct ModbusResult {
   bool ok;
   uint8_t error;
   bool simulated;
+  uint8_t exception; // actual Modbus exception code; zero otherwise
 };
 
 class ModbusMasterRTU {

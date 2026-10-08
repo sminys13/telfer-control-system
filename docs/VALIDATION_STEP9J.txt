@@ -1,0 +1,41 @@
+Step9J diagnostic validation — 2026-10-08
+
+Scope: software only. No serial connection, flash upload, parameter write or motor movement was performed on the user's equipment.
+
+PlatformIO / Arduino Mega 2560, atmelavr 5.1.0, Arduino AVR 5.2.0, avr-gcc 7.3.0:
+  mega_v6_sensor_core_fast: SUCCESS, RAM 5013/8192, Flash 87308/253952
+  mega_v6_he200_waveshare_readonly: SUCCESS, RAM 5001/8192, Flash 86452/253952
+  mega_v6_he200_field_service: SUCCESS, RAM 4989/8192, Flash 88466/253952
+The release's physical FC06 lock applies to all three profiles. READ-ONLY is the default and the deployment profile for this investigation.
+Existing unrelated compiler warnings remain in legacy comparisons / Arduino framework code; this is not a warning-free project.
+
+Native C++ tests compile the actual src/modbus.cpp and src/he200_audit_v6.cpp with an in-memory fake HardwareSerial. The actual direction_calibration_v6.h is also exercised.
+  PASS: valid FC03, CRC rejection, wrong address/function, timeout.
+  PASS: five-byte Modbus exception remains exception=2, not timeout; no retry on exception.
+  PASS: physical writes to 1000H, 2000H (values 1..7), 2001H and F002H produce no transmitted frames.
+  PASS: full audit sends exactly 93 FC03 requests to EACH of addresses 1/2/3/4, total 372, zero other functions.
+  PASS: unsupported P4.39 on drive 3 is recorded as unknown; scan continues and reports one error.
+  PASS: duplicate-address rejection, cancellation, dry-run cannot produce successful audit.
+  PASS: FWD -20 mm and REV +20 mm result in plusCommand=REV only after both observations.
+  PASS: stale samples, small/noisy displacement, movement of another axis, missing electrical RUN, and invalid sample do not produce calibration.
+
+Headless Microsoft Edge / Playwright, actual HTML and JavaScript with a mocked serial writer:
+  PASS: a real DOM click invokes exactly one handler; no bubbling-generated undefined command.
+  PASS: malformed pulse, RUN, probe, reset and newline command injection blocked by diagnostic UI.
+  PASS: two clicks on audit button send only one audit command.
+  PASS: old firmware cannot enable audit; startup/reconnect clears previous gates.
+  PASS: errors retain null/unknown instead of zero; old scan rows are ignored; incomplete snapshot is not complete.
+  PASS: four-column differences, claimed parameter values, raw DI, and no-motion status displayed.
+  PASS: no browser page exceptions. Screenshot visually inspected (synthetic values, not hardware evidence).
+
+git diff --check: PASS.
+Patch application check against the user's unchanged Step9I directory is performed when packaging; result saved in PACKAGE_CHECK.txt.
+
+Reproduction from a repository root with a native C++ compiler:
+  c++ -std=c++17 -Itest/diagnostic -Iinclude test/diagnostic/test_diagnostic.cpp src/modbus.cpp src/he200_audit_v6.cpp -o test_diagnostic
+  ./test_diagnostic
+On Windows this run used Zig c++ with -nostdlib++ -fno-exceptions -fno-rtti and test_diagnostic.exe.
+Browser: install/use Playwright, then node test/diagnostic/test_browser.cjs (uses Microsoft Edge).
+Firmware: BUILD_STEP9J.bat, or platformio run with the three named environments.
+
+Limits: simulation cannot confirm exact HE200 hardware revision, physical DI encoding, E-STOP independence, limits, brake operation, or the cause of V1/V2 remaining stopped. The next required evidence is the physical read-only audit plus hardware verification. No movement release is included.

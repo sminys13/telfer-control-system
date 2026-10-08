@@ -1,5 +1,6 @@
 #include "vfd_driver_v6.h"
 #include <string.h>
+#include "web_control_policy_v6.h"
 
 void VfdDriverV6::begin(const SettingsV6& settings) {
   _comm = settings.vfd;
@@ -30,7 +31,9 @@ void VfdDriverV6::begin(const SettingsV6& settings) {
   Serial.print(F("VfdDriverV6: RS485 direction="));
   Serial.println(RS485_AUTO_DIRECTION ? F("AUTO (isolated Waveshare, pin 6 unused)")
                                        : F("MANUAL DE/RE (MAX485 pin 6)"));
-  if (!VFD_RS485_ENABLED) {
+  if (HE200_DIAGNOSTIC_LOCK && VFD_RS485_ENABLED) {
+    Serial.println(F("HE200 DIAGNOSTIC LOCK: all physical FC06 writes blocked, including software STOP"));
+  } else if (!VFD_RS485_ENABLED) {
     Serial.println(F("VfdDriverV6: physical MAX485 disabled; exact NE200 frames will be printed"));
   } else if (!VFD_WRITE_COMMANDS_ENABLED) {
     if (HE200_COMMISSIONING)
@@ -38,7 +41,7 @@ void VfdDriverV6::begin(const SettingsV6& settings) {
     else
       Serial.println(F("VfdDriverV6: physical MAX485 enabled READ-ONLY; all register writes are blocked"));
   } else {
-    Serial.println(HE200_FIELD_SERVICE ? F("VfdDriverV6: HE200 FIELD SERVICE writes enabled via isolated Waveshare; AUTO/HOME remain blocked") : F("VfdDriverV6: physical RS485 WRITE commands enabled"));
+    Serial.println(WEB_CONTROL_ENABLED ? F("VfdDriverV6: HE200 WEB CONTROL; motion requires runtime arm and measured directions") : HE200_FIELD_SERVICE ? F("VfdDriverV6: HE200 FIELD SERVICE writes enabled via isolated Waveshare; AUTO/HOME remain blocked") : F("VfdDriverV6: physical RS485 WRITE commands enabled"));
   }
   printConfiguration();
 }
@@ -64,7 +67,30 @@ void VfdDriverV6::applySettings(const SettingsV6& settings) {
 }
 
 bool VfdDriverV6::service(uint32_t nowMs) {
+  if (_audit.active()) return _audit.tick(nowMs);
   return _drives.tick(nowMs);
+}
+
+bool VfdDriverV6::setServiceRawTargets(const int16_t targets[4]) {
+  if (HE200_DIAGNOSTIC_LOCK || !HE200_FIELD_SERVICE || _audit.active()) return false;
+  if (WEB_CONTROL_ENABLED && !_webPermit) return false;
+  uint8_t moving=0;
+  for (uint8_t i=0;i<4;++i) { if (targets[i]) ++moving; if (targets[i]>20 || targets[i]<-20) return false; }
+  if (moving>1 && !WEB_CONTROL_ENABLED) return false;
+  for (uint8_t i=0;i<4;++i) {
+    // Cancel the legacy EEPROM drive inversion; this interface names actual FWD/REV.
+    _drives.setSpeed((DriveId)i,(_comm.invertDirectionMask & (1U<<i)) ? -targets[i] : targets[i]);
+  }
+  _autoTargetKnown=false;
+  return true;
+}
+
+bool VfdDriverV6::startHe200Audit() {
+  if (!_begun || !HE200_COMMISSIONING || _drives.hasPendingWork()) return false;
+  for (uint8_t i=0;i<4;++i) if (_drives.targetPct((DriveId)i)) return false;
+  uint8_t addresses[4];
+  for (uint8_t i=0;i<4;++i) addresses[i]=address(i);
+  return _audit.start(_modbus,addresses);
 }
 
 uint16_t VfdDriverV6::serialMode() const {
@@ -184,6 +210,16 @@ void VfdDriverV6::startByMotorState(uint16_t motorStateCode) {
 
 bool VfdDriverV6::setAutoLogicalTargets(int16_t h1RightPct, int16_t h2RightPct,
                                              int16_t v1UpPct, int16_t v2UpPct) {
+  if(WEB_CONTROL_ENABLED){
+    const int16_t logical[4]={h1RightPct,h2RightPct,v1UpPct,v2UpPct};
+    for(uint8_t i=0;i<4;i++)if(logical[i] && (!_webPermit || !_coordinateSigns[i]))return false;
+    for(uint8_t i=0;i<4;i++) {
+      int16_t raw=webCoordinatePercent(logical[i],_coordinateSigns[i],(_comm.invertDirectionMask&(1u<<i))!=0,_drive[i].maxPercent);
+      _drives.setSpeed((DriveId)i,raw);
+    }
+    _status=(logical[0]||logical[1]||logical[2]||logical[3])?VFD_STATUS_MOVING:VFD_STATUS_READY;
+    return true;
+  }
   if (VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED) {
     _status = VFD_STATUS_BLOCKED;
     if (h1RightPct || h2RightPct || v1UpPct || v2UpPct)
@@ -223,6 +259,15 @@ bool VfdDriverV6::setAutoLogicalTargets(int16_t h1RightPct, int16_t h2RightPct,
                 ? VFD_STATUS_DRY_RUN
                 : (moving ? VFD_STATUS_MOVING : VFD_STATUS_READY);
   return true;
+}
+
+ModbusResult VfdDriverV6::readParameter(uint8_t drive,uint16_t reg,uint16_t& value) {
+  if(drive>=4 || !_begun || _audit.active() || _drives.hasPendingWork())return {false,MODBUS_ERROR_BAD_RESPONSE,false,0};
+  return _modbus.readHoldingRegisters(address(drive),reg,1,&value);
+}
+ModbusResult VfdDriverV6::writeParameter(uint8_t drive,uint16_t reg,uint16_t value) {
+  if(!WEB_CONTROL_ENABLED || !_webPermit || drive>=4 || !_begun || _audit.active() || _drives.hasPendingWork())return {false,MODBUS_ERROR_WRITE_LOCKED,false,0};
+  return _modbus.writeSingleRegister(address(drive),reg,value);
 }
 
 void VfdDriverV6::stopAll(const __FlashStringHelper* reason) {

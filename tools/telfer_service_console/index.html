@@ -3,30 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Тельферы — Step9I Service Cockpit</title>
+  <title>Тельферы — Step9J2: диагностика HE200</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
 <header class="topbar">
   <div>
-    <h1>Тельферы — Service Cockpit</h1>
-    <p>Step9I · HE200 native Modbus · SEN0366 5 Гц / 1 мм · AUTO/HOME физически заблокирован</p>
+    <h1>Step9J2 READ-ONLY · Тельферы — Service Cockpit</h1>
+    <p>Step9J · Чтение HE200 · SEN0366 5 Гц / 1 мм · AUTO/HOME физически заблокирован</p>
   </div>
   <div class="connection-box">
     <span id="connectionPill" class="pill offline">ОТКЛЮЧЕНО</span>
     <button id="connectBtn" class="primary">Подключить COM</button>
     <button id="disconnectBtn" disabled>Отключить</button>
-    <button id="stopAllBtn" class="danger" disabled>■ ПЛАВНЫЙ STOP ВСЕХ</button>
+    <button id="stopAllBtn" class="danger" disabled>STOP недоступен в READ-ONLY</button>
   </div>
 </header>
 <div id="browserWarning" class="warning hidden">Web Serial недоступен. Запустите <b>OPEN_SERVICE_CONSOLE.bat</b> и используйте Chrome/Edge.</div>
 <div id="runtimeAlert" class="warning hidden"></div>
 <div class="safety-banner">
-  FIELD SERVICE может физически двигать механизмы только после последовательных ворот допуска. Аппаратный E‑STOP остаётся обязательным. Команда 0x2000=0005 (free/coast stop) интерфейсом не используется.
+  Диагностическая поставка: команды движения и записи заблокированы в прошивке и интерфейсе. Наличие связи и совпадение параметров не подтверждают работоспособность E-STOP, концевиков и тормозов.
 </div>
 
 <nav class="tabs">
-  <button class="tab active" data-tab="commission">Пусконаладка</button>
+  <button class="tab active" data-tab="commission">Диагностика</button>
   <button class="tab" data-tab="sensors">Датчики</button>
   <button class="tab" data-tab="program">Программа</button>
   <button class="tab" data-tab="logtab">Журнал</button>
@@ -34,9 +35,19 @@
 
 <main>
 <section id="commission" class="tabpage active">
+<section class="card" id="auditPanel">
+  <h2>Step9J · Диагностика четырёх HE200</h2>
+  <p>Только чтение FC03. RUN, изменение настроек, сброс ошибок, парные движения и AUTO заблокированы в этой поставке.</p>
+  <p>Программный STOP здесь не действует. Для остановки оборудования нужна независимая аппаратная цепь.</p>
+  <div class="button-row"><button id="auditAllBtn" disabled>Прочитать настройки H1/H2/V1/V2</button><button id="auditCancelBtn" disabled>Прервать чтение</button></div>
+  <p id="auditStatus">Ожидание подключения Step9J</p>
+  <p id="auditFindings">Неизвестное значение и ошибка чтения не считаются нормой. Состояния DI сохраняются как raw: кодирование битов требует проверки по панели.</p>
+  <div class="table-wrap audit-scroll"><table id="auditTable"><thead><tr><th>Параметр / регистр</th><th>H1 · 1</th><th>H2 · 2</th><th>V1 · 3</th><th>V2 · 4</th><th>Сопоставление</th></tr></thead><tbody></tbody></table></div>
+  <p id="calibrationResult">Калибровка знака сброшена. «+» всегда означает увеличение сырого лазерного расстояния. FWD/REV связываются со знаком только по измерениям двух направлений; подъём/спуск требуют отдельного подтверждения.</p>
+</section>
   <section class="card">
     <div class="section-title-row">
-      <div><h2>1. Общая готовность</h2><p class="subtle">Одна кнопка выполняет профиль связи, профиль лазеров, опрос 4 ПЧ и проверку ворот PRE-FLIGHT.</p></div>
+      <div><h2>1. Общая готовность</h2><p class="subtle">Результаты старых ворот Step9I не разрешают движение в диагностической поставке.</p></div>
       <button id="prepareBtn" class="accent">Подготовить систему</button>
     </div>
     <div class="gate-grid">
@@ -53,6 +64,7 @@
     </div>
   </section>
 
+  <div class="legacy-motion hidden" aria-hidden="true">
   <section class="card">
     <div class="section-title-row"><div><h2>2. Подтверждение Modbus-карты</h2><p class="subtle">ПЧ должны стоять. Проверяется 1000H → 701CH и 2000H=0006 без команды RUN. Пробное значение ограничено 5%.</p></div><button id="probeAllBtn" class="accent">Проверить все 4</button></div>
     <div id="protocolCards" class="drive-actions"></div>
@@ -60,14 +72,14 @@
 
   <section class="card source-card">
     <div class="section-title-row">
-      <div><h2>3. Переключение источника управления</h2><p class="subtle">Только после PASS протокола. На всех четырёх HE200 вручную установите <b>P0.02=2</b> (Communication control) и <b>P0.03=9</b> (Communication setting). Физические кнопки RUN/REV после этого не являются источником движения; аппаратный E‑STOP должен оставаться доступен.</p></div>
+      <div><h2>3. Переключение источника управления</h2><p class="subtle">Параметры только читаются и сравниваются с заявленными значениями. Изменения не предлагаются до разбора полного снимка.</p></div>
       <label class="source-confirm"><input id="sourceConfirm" type="checkbox"> Подтверждаю: P0.02=2 и P0.03=9 установлены на H1/H2/V1/V2</label>
     </div>
   </section>
 
   <section class="card">
     <h2>4. Низкоскоростные импульсные тесты</h2>
-    <p class="subtle">Каждый тест автоматически даёт малую скорость, проверяет факт вращения и сам отправляет плавный STOP. После PASS подтвердите глазами правильное направление.</p>
+    <p class="subtle">Каждый тест автоматически даёт малую скорость, проверяет факт вращения и сам отправляет плавный STOP. Знак подтверждается только измерением двух противоположных направлений; тесты сейчас заблокированы.</p>
     <div id="pulseCards" class="drive-actions"></div>
   </section>
 
@@ -89,6 +101,7 @@
     <div id="assistDetails" class="status-strip"><span>Возраст A: <b>—</b></span><span>Возраст B: <b>—</b></span><span>Текущая скорость: <b>—</b></span></div>
   </section>
 
+  </div>
   <section class="card">
     <div class="section-title-row"><h2>HE200 — текущая телеметрия</h2><button id="refreshDrivesBtn">Обновить 4 ПЧ</button></div>
     <div class="table-wrap"><table id="he200Table"><thead><tr><th>ПЧ</th><th>Связь</th><th>Раб., Гц</th><th>Зад., Гц</th><th>Ток, А</th><th>DI</th><th>Fault</th><th>State</th></tr></thead><tbody>
@@ -140,7 +153,9 @@
   </section>
 </section>
 </main>
-<footer>Step9I Service Cockpit · браузер — дополнительный сервисный интерфейс; аппаратные защиты не заменяет.</footer>
+<footer>Step9J Diagnostic Cockpit · браузер — дополнительный сервисный интерфейс; аппаратные защиты не заменяет.</footer>
+<script src="audit-map.js"></script>
+<script src="audit-ui.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

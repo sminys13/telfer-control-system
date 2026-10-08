@@ -4,6 +4,7 @@
  */
 #include "modbus.h"
 #include "utils.h"
+#include "config_v6_bringup.h"
 
 ModbusMasterRTU::ModbusMasterRTU()
 : _ser(nullptr),
@@ -155,10 +156,10 @@ ModbusResult ModbusMasterRTU::sendRequestOnce(const uint8_t* req, uint8_t reqLen
                                                uint8_t* resp, uint8_t respMax,
                                                uint8_t& respLen,
                                                uint8_t expectedMinLen) {
-  ModbusResult r{false, MODBUS_ERROR_NONE, false};
+  ModbusResult r{false, MODBUS_ERROR_NONE, false, 0};
   respLen = 0;
   if (!_ser || !_serialStarted || !req || reqLen < 4 ||
-      !resp || respMax < expectedMinLen) {
+      !resp || expectedMinLen < 5 || respMax < expectedMinLen) {
     r.error = MODBUS_ERROR_BAD_RESPONSE;
     return r;
   }
@@ -180,13 +181,14 @@ ModbusResult ModbusMasterRTU::sendRequestOnce(const uint8_t* req, uint8_t reqLen
       lastByteMs = millis();
       continue;
     }
-    if (respLen >= expectedMinLen &&
+    if (respLen >= ((respLen >= 2 && (resp[1] & 0x80)) ? 5 : expectedMinLen) &&
         (uint32_t)(millis() - lastByteMs) >= 3U) {
       break;
     }
   }
 
-  if (respLen < expectedMinLen) {
+  // An exception also needs address, function, exception code and two CRC bytes.
+  if (respLen < 5 || respLen < ((resp[1] & 0x80) ? 5 : expectedMinLen)) {
     r.error = MODBUS_ERROR_TIMEOUT;
     return r;
   }
@@ -199,7 +201,13 @@ ModbusResult ModbusMasterRTU::sendRequestOnce(const uint8_t* req, uint8_t reqLen
     return r;
   }
 
+  if (resp[0] != req[0] || (resp[1] & 0x7F) != req[1]) {
+    r.error = MODBUS_ERROR_BAD_RESPONSE;
+    return r;
+  }
   if (resp[1] & 0x80) {
+    if (respLen != 5) { r.error = MODBUS_ERROR_BAD_RESPONSE; return r; }
+    r.exception = resp[2];
     r.error = MODBUS_ERROR_EXCEPTION;
     return r;
   }
@@ -212,10 +220,10 @@ ModbusResult ModbusMasterRTU::sendRequest(const uint8_t* req, uint8_t reqLen,
                                            uint8_t* resp, uint8_t respMax,
                                            uint8_t& respLen,
                                            uint8_t expectedMinLen) {
-  ModbusResult last{false, MODBUS_ERROR_BAD_RESPONSE, false};
-  for (uint8_t attempt = 0; attempt <= _retries; ++attempt) {
+  ModbusResult last{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
+  for (uint16_t attempt = 0; attempt <= _retries; ++attempt) {
     last = sendRequestOnce(req, reqLen, resp, respMax, respLen, expectedMinLen);
-    if (last.ok) return last;
+    if (last.ok || last.error == MODBUS_ERROR_EXCEPTION) return last;
   }
   return last;
 }
@@ -223,14 +231,16 @@ ModbusResult ModbusMasterRTU::sendRequest(const uint8_t* req, uint8_t reqLen,
 ModbusResult ModbusMasterRTU::writeSingleRegister(uint8_t addr,
                                                    uint16_t reg,
                                                    uint16_t value) {
+  if (HE200_DIAGNOSTIC_LOCK && !isDryRun())
+    return ModbusResult{false, MODBUS_ERROR_WRITE_LOCKED, false, 0};
   uint8_t req[8];
   const uint8_t reqLen = buildWriteSingleRegisterFrame(addr, reg, value,
                                                         req, sizeof(req));
-  if (reqLen == 0) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+  if (reqLen == 0) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
 
   if (isDryRun()) {
     traceFrame(F("MODBUS DRY TX FC06: "), req, reqLen);
-    return ModbusResult{true, MODBUS_ERROR_NONE, true};
+    return ModbusResult{true, MODBUS_ERROR_NONE, true, 0};
   }
 
   traceFrame(F("MODBUS TX FC06: "), req, reqLen);
@@ -239,10 +249,10 @@ ModbusResult ModbusMasterRTU::writeSingleRegister(uint8_t addr,
   ModbusResult r = sendRequest(req, reqLen, resp, sizeof(resp), respLen, 8);
   if (!r.ok) return r;
 
-  if (respLen < 8) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+  if (respLen != 8) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
   for (uint8_t i = 0; i < 6; ++i) {
     if (resp[i] != req[i])
-      return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+      return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
   }
   return r;
 }
@@ -252,17 +262,17 @@ ModbusResult ModbusMasterRTU::readHoldingRegisters(uint8_t addr,
                                                     uint16_t count,
                                                     uint16_t* outValues) {
   if (count == 0 || count > 8 || !outValues)
-    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
 
   uint8_t req[8];
   const uint8_t reqLen = buildReadRegistersFrame(addr, 0x03, reg, count,
                                                   req, sizeof(req));
-  if (reqLen == 0) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+  if (reqLen == 0) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
 
   if (isDryRun()) {
     for (uint16_t i = 0; i < count; ++i) outValues[i] = 0;
     traceFrame(F("MODBUS DRY TX FC03: "), req, reqLen);
-    return ModbusResult{false, MODBUS_ERROR_DRY_RUN, true};
+    return ModbusResult{false, MODBUS_ERROR_DRY_RUN, true, 0};
   }
 
   traceFrame(F("MODBUS TX FC03: "), req, reqLen);
@@ -273,9 +283,9 @@ ModbusResult ModbusMasterRTU::readHoldingRegisters(uint8_t addr,
   if (!r.ok) return r;
 
   if (resp[0] != addr || resp[1] != 0x03 || resp[2] != count * 2)
-    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
-  if (respLen < (uint8_t)(3 + count * 2 + 2))
-    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
+  if (respLen != (uint8_t)(3 + count * 2 + 2))
+    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
 
   uint8_t pos = 3;
   for (uint16_t i = 0; i < count; ++i) {
@@ -290,17 +300,17 @@ ModbusResult ModbusMasterRTU::readInputRegisters(uint8_t addr,
                                                   uint16_t count,
                                                   uint16_t* outValues) {
   if (count == 0 || count > 8 || !outValues)
-    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
 
   uint8_t req[8];
   const uint8_t reqLen = buildReadRegistersFrame(addr, 0x04, reg, count,
                                                   req, sizeof(req));
-  if (reqLen == 0) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+  if (reqLen == 0) return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
 
   if (isDryRun()) {
     for (uint16_t i = 0; i < count; ++i) outValues[i] = 0;
     traceFrame(F("MODBUS DRY TX FC04: "), req, reqLen);
-    return ModbusResult{false, MODBUS_ERROR_DRY_RUN, true};
+    return ModbusResult{false, MODBUS_ERROR_DRY_RUN, true, 0};
   }
 
   traceFrame(F("MODBUS TX FC04: "), req, reqLen);
@@ -311,9 +321,9 @@ ModbusResult ModbusMasterRTU::readInputRegisters(uint8_t addr,
   if (!r.ok) return r;
 
   if (resp[0] != addr || resp[1] != 0x04 || resp[2] != count * 2)
-    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
-  if (respLen < (uint8_t)(3 + count * 2 + 2))
-    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false};
+    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
+  if (respLen != (uint8_t)(3 + count * 2 + 2))
+    return ModbusResult{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
 
   uint8_t pos = 3;
   for (uint16_t i = 0; i < count; ++i) {

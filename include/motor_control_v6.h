@@ -50,6 +50,15 @@ public:
 
   // Returns true when state/status changed and DWIN must be refreshed.
   bool service(uint32_t nowMs);
+  bool requestServiceRawTargets(int16_t h1, int16_t h2, int16_t v1, int16_t v2);
+  bool startHe200Audit() { return !_motionActive && _vfd.startHe200Audit(); }
+  bool auditActive() const { return _vfd.auditActive(); }
+  void webPermit(bool permit) { _vfd.webPermit(permit); }
+  void coordinateSigns(const int8_t signs[4]) { _vfd.coordinateSigns(signs); }
+  ModbusResult readParameter(uint8_t i,uint16_t reg,uint16_t& value) { return _vfd.readParameter(i,reg,value); }
+  ModbusResult writeParameter(uint8_t i,uint16_t reg,uint16_t value) { return _vfd.writeParameter(i,reg,value); }
+  bool protocolSnapshot(uint8_t i,He200ProtocolSnapshotV6& out) { return _vfd.readHe200ProtocolSnapshot(i,out); }
+  void cancelHe200Audit() { _vfd.cancelHe200Audit(); }
 
   void stopAll(const __FlashStringHelper* reason);
   void onModeChanged(SystemModeV6 mode);

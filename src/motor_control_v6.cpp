@@ -268,7 +268,7 @@ void MotorControlV6::testVfdConnection(uint8_t driveIndex)
 bool MotorControlV6::requestServiceTargets(int16_t h1RightPct, int16_t h2RightPct,
                                            int16_t v1UpPct, int16_t v2UpPct)
 {
-  if (!HE200_FIELD_SERVICE || !VFD_WRITE_COMMANDS_ENABLED || !HE200_NATIVE_PROTOCOL)
+  if (HE200_DIAGNOSTIC_LOCK || !HE200_FIELD_SERVICE || !VFD_WRITE_COMMANDS_ENABLED || !HE200_NATIVE_PROTOCOL)
   {
     Serial.println(F("SERVICE MOTION BLOCKED: dedicated HE200 FIELD SERVICE build required"));
     return false;
@@ -277,6 +277,15 @@ bool MotorControlV6::requestServiceTargets(int16_t h1RightPct, int16_t h2RightPc
   _motionActive = h1RightPct || h2RightPct || v1UpPct || v2UpPct;
   _state = stateForAutoTargets(h1RightPct, h2RightPct, v1UpPct, v2UpPct);
   return _vfd.setAutoLogicalTargets(h1RightPct, h2RightPct, v1UpPct, v2UpPct);
+}
+
+bool MotorControlV6::requestServiceRawTargets(int16_t h1,int16_t h2,int16_t v1,int16_t v2) {
+  if (HE200_DIAGNOSTIC_LOCK) return false;
+  const int16_t targets[4]={h1,h2,v1,v2};
+  if (!_vfd.setServiceRawTargets(targets)) return false;
+  _motionActive=h1 || h2 || v1 || v2;
+  _lastManualCmdMs=0;
+  return true;
 }
 
 void MotorControlV6::serviceDecelStop(const __FlashStringHelper* reason)

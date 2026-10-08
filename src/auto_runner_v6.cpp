@@ -6,6 +6,9 @@ static constexpr uint16_t AUTO_SIM_MM_PER_S_100_V6 = 4000;
 
 static inline int32_t abs32v6(int32_t v) { return v < 0 ? -v : v; }
 static inline uint8_t minU8v6(uint8_t a, uint8_t b) { return a < b ? a : b; }
+static inline int32_t clippedSimulation(int32_t before,int32_t after,int32_t target) {
+  return ((before<=target&&after>=target)||(before>=target&&after<=target))?target:after;
+}
 
 void AutoRunnerV6::begin(MotorControlV6& motor, const SettingsV6& settings) {
   _motor = &motor;
@@ -315,7 +318,8 @@ void AutoRunnerV6::integrateSimulation(uint32_t nowMs, int16_t h1, int16_t h2, i
 
 void AutoRunnerV6::commandTargets(int16_t h1, int16_t h2, int16_t v1Up, int16_t v2Up) {
   if (_simulation) return;
-  if (_motor) (void)_motor->requestAutoTargets(_motorMode, h1, h2, v1Up, v2Up);
+  if (_motor && !_motor->requestAutoTargets(_motorMode, h1, h2, v1Up, v2Up))
+    fail(AUTO_ERR_OUTPUT_DISABLED,F("runtime motion permit/direction missing"));
 }
 
 void AutoRunnerV6::stopMotion() {
@@ -337,7 +341,9 @@ bool AutoRunnerV6::moveHorizontal(uint32_t nowMs, const AutoSensorsV6& sensors,
     return false;
   }
 
+  const int32_t before1=_simPos[SENSOR_X1],before2=_simPos[SENSOR_X2];
   integrateSimulation(nowMs, h1, h2, 0, 0);
+  if(_simulation){_simPos[SENSOR_X1]=clippedSimulation(before1,_simPos[SENSOR_X1],x1);_simPos[SENSOR_X2]=clippedSimulation(before2,_simPos[SENSOR_X2],x2);}
   // Re-evaluate after the virtual movement so simulation cannot oscillate around the target.
   h1 = targetPct(SENSOR_X1, pos(sensors, SENSOR_X1), x1, capPct);
   h2 = targetPct(SENSOR_X2, pos(sensors, SENSOR_X2), x2, capPct);
@@ -350,7 +356,9 @@ bool AutoRunnerV6::moveVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
   if (checkMovementTimeout(nowMs)) return false;
   int16_t v1 = targetPct(SENSOR_Z1, pos(sensors, SENSOR_Z1), z1, capPct);
   int16_t v2 = targetPct(SENSOR_Z2, pos(sensors, SENSOR_Z2), z2, capPct);
+  const int32_t before1=_simPos[SENSOR_Z1],before2=_simPos[SENSOR_Z2];
   integrateSimulation(nowMs, 0, 0, v1, v2);
+  if(_simulation){_simPos[SENSOR_Z1]=clippedSimulation(before1,_simPos[SENSOR_Z1],z1);_simPos[SENSOR_Z2]=clippedSimulation(before2,_simPos[SENSOR_Z2],z2);}
   v1 = targetPct(SENSOR_Z1, pos(sensors, SENSOR_Z1), z1, capPct);
   v2 = targetPct(SENSOR_Z2, pos(sensors, SENSOR_Z2), z2, capPct);
   commandTargets(0, 0, v1, v2);
@@ -362,7 +370,9 @@ bool AutoRunnerV6::moveOneVertical(uint32_t nowMs, const AutoSensorsV6& sensors,
   if (checkMovementTimeout(nowMs)) return false;
   const SensorIndex idx = side == 0 ? SENSOR_Z1 : SENSOR_Z2;
   int16_t v = targetPct(idx, pos(sensors, idx), target, capPct);
+  const int32_t before=_simPos[idx];
   integrateSimulation(nowMs, 0, 0, side == 0 ? v : 0, side == 1 ? v : 0);
+  if(_simulation)_simPos[idx]=clippedSimulation(before,_simPos[idx],target);
   v = targetPct(idx, pos(sensors, idx), target, capPct);
   commandTargets(0, 0, side == 0 ? v : 0, side == 1 ? v : 0);
   return v == 0;

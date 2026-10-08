@@ -11,6 +11,7 @@ void He200ServiceV6::begin(MotorControlV6& motor) {
 }
 
 void He200ServiceV6::resetGates() {
+  _calibration.reset();
   _preflight = false;
   _protocolMask = 0;
   _pulsePositiveMask = 0;
@@ -53,11 +54,10 @@ void He200ServiceV6::markProtocol(uint8_t driveIndex, bool pass) {
 void He200ServiceV6::confirmDirection(uint8_t driveIndex, bool positive, bool pass) {
   const uint8_t bit = bitForDrive(driveIndex);
   if (!bit) return;
-  uint8_t& mask = positive ? _confirmPositiveMask : _confirmNegativeMask;
-  if (pass) mask |= bit; else mask &= (uint8_t)~bit;
+  (void)pass;
   Serial.print(F("@GATE name=DIRECTION drive=")); Serial.print(Drives::driveName((DriveId)driveIndex));
   Serial.print(F(" dir=")); Serial.print(positive ? F("POS") : F("NEG"));
-  Serial.print(F(" result=")); Serial.println(pass ? F("CONFIRMED") : F("REVOKED"));
+  Serial.println(F(" result=REJECTED reason=MEASURED_CALIBRATION_REQUIRED"));
 }
 
 void He200ServiceV6::printGateStatus() const {
@@ -84,19 +84,19 @@ bool He200ServiceV6::directionConfirmedForMask(uint8_t mask, bool positive) cons
 void He200ServiceV6::targetsForMask(uint8_t mask, bool positive, uint8_t pct,
                                     int16_t& h1, int16_t& h2, int16_t& v1, int16_t& v2) const {
   h1 = h2 = v1 = v2 = 0;
-  const int16_t signedPct = positive ? (int16_t)pct : (int16_t)-pct;
-  if (mask & BIT_H1) h1 = signedPct;
-  if (mask & BIT_H2) h2 = signedPct;
-  // V logical convention in MotorControl is +UP, -DOWN.
-  if (mask & BIT_V1) v1 = signedPct;
-  if (mask & BIT_V2) v2 = signedPct;
+  int16_t raw[4]={0,0,0,0};
+  for (uint8_t i=0;i<4;++i) if (mask & bitForDrive(i)) {
+    const int8_t sign=_pulse.rawCalibration ? (_pulse.forward ? 1 : -1) : _calibration.physicalSign(i,positive);
+    raw[i]=(int16_t)(sign*pct);
+  }
+  h1=raw[0]; h2=raw[1]; v1=raw[2]; v2=raw[3];
 }
 
 bool He200ServiceV6::requestMask(uint8_t mask, bool positive, uint8_t pct) {
   if (!_motor) return false;
   int16_t h1, h2, v1, v2;
   targetsForMask(mask, positive, pct, h1, h2, v1, v2);
-  return _motor->requestServiceTargets(h1, h2, v1, v2);
+  return _motor->requestServiceRawTargets(h1, h2, v1, v2);
 }
 
 void He200ServiceV6::pollMask(uint8_t mask) {
@@ -110,14 +110,18 @@ bool He200ServiceV6::maskStopped(uint8_t mask) const {
   for (uint8_t i = 0; i < DRIVE_COUNT_V6; ++i) {
     if (!(mask & bitForDrive(i))) continue;
     const DriveTelemetry& t = _motor->vfdTelemetry(i);
-    if (!t.connected || t.faultCode != 0 || t.runningFreq001Hz > 20 || t.statusWord != 0) return false;
+    if (!t.connected || (int32_t)(t.lastOkMs-_pulse.stopMs)<=0 || (uint32_t)(millis()-t.lastOkMs)>1000 || t.faultCode != 0 || t.runningFreq001Hz > 20 || t.statusWord != 0) return false;
   }
   return true;
 }
 
 bool He200ServiceV6::startPulse(uint8_t driveMask, bool positive, uint8_t pct,
-                                uint16_t durationMs, uint32_t nowMs) {
-  if (!_motor || _pulse.active || assistActive()) return false;
+                                uint16_t durationMs, uint32_t nowMs, bool rawCalibration) {
+  if (HE200_DIAGNOSTIC_LOCK) {
+    Serial.println(F("@SERVICE_PULSE result=FAIL reason=DIAGNOSTIC_LOCK"));
+    return false;
+  }
+  if (!_motor || _pulse.active || assistActive() || _motor->auditActive()) return false;
   if (!HE200_FIELD_SERVICE || !protocolReadyForMask(driveMask)) {
     Serial.println(F("@SERVICE_PULSE result=FAIL reason=GATE_NOT_READY"));
     return false;
@@ -126,7 +130,21 @@ bool He200ServiceV6::startPulse(uint8_t driveMask, bool positive, uint8_t pct,
     Serial.println(F("@SERVICE_PULSE result=FAIL reason=DIRECTION_NOT_CONFIRMED"));
     return false;
   }
+  if ((driveMask & ~MASK_ALL) || (!maskIsSingle(driveMask) &&
+      (rawCalibration || (driveMask!=MASK_H && driveMask!=MASK_V) || (calibratedMask()&driveMask)!=driveMask))) {
+    Serial.println(F("@SERVICE_PULSE result=FAIL reason=PAIRED_MOTION_LOCKED")); return false;
+  }
+  uint8_t drive=0; while (!(driveMask & bitForDrive(drive))) ++drive;
+  if (!rawCalibration && !_calibration.ready(drive)) {
+    Serial.println(F("@SERVICE_PULSE result=FAIL reason=CALIBRATION_REQUIRED")); return false;
+  }
+  if (maskIsSingle(driveMask) && !_calibration.begin(drive,nowMs)) {
+    Serial.println(F("@SERVICE_PULSE result=FAIL reason=STABLE_SENSORS_REQUIRED")); return false;
+  }
   _pulse = PulseState{};
+  _pulse.rawCalibration=rawCalibration;
+  _pulse.drive=drive;
+  _pulse.forward=rawCalibration ? positive : _calibration.physicalSign(drive,positive)>0;
   _pulse.active = true;
   _pulse.mask = driveMask;
   _pulse.positive = positive;
@@ -150,7 +168,22 @@ bool He200ServiceV6::startPulse(uint8_t driveMask, bool positive, uint8_t pct,
 void He200ServiceV6::finishPulse(bool pass, const __FlashStringHelper* reason) {
   const uint8_t mask = _pulse.mask;
   const bool positive = _pulse.positive;
-  if (pass) {
+  int32_t delta=0;
+  const bool measured=maskIsSingle(mask) ? _calibration.finish(_pulse.drive,_pulse.forward,millis(),_pulse.stopMs,pass,delta) : pass;
+  if (maskIsSingle(mask) && (!measured || (!_pulse.rawCalibration && (delta>0)!=positive))) {
+    _calibration.revoke(_pulse.drive);
+    _confirmPositiveMask &= (uint8_t)~mask; _confirmNegativeMask &= (uint8_t)~mask;
+  } else if (_calibration.ready(_pulse.drive)) {
+    _confirmPositiveMask |= mask; _confirmNegativeMask |= mask;
+  }
+  Serial.print(F("@CAL drive=")); Serial.print(Drives::driveName((DriveId)_pulse.drive));
+  Serial.print(F(" command=")); Serial.print(_pulse.forward ? F("FWD") : F("REV"));
+  Serial.print(F(" deltaMm=")); Serial.print(delta);
+  Serial.print(F(" measured=")); Serial.print(measured ? 1 : 0);
+  Serial.print(F(" ready=")); Serial.print(_calibration.ready(_pulse.drive) ? 1 : 0);
+  Serial.print(F(" plusCommand=")); Serial.println(_calibration.ready(_pulse.drive) ?
+      (_calibration.physicalSign(_pulse.drive,true)>0 ? F("FWD") : F("REV")) : F("UNKNOWN"));
+  if (pass && !_pulse.rawCalibration) {
     if (positive) _pulsePositiveMask |= mask; else _pulseNegativeMask |= mask;
     if (mask == MASK_H) _pairPassMask |= 0x01;
     if (mask == MASK_V) _pairPassMask |= 0x02;
@@ -181,7 +214,7 @@ void He200ServiceV6::servicePulse(uint32_t nowMs, bool safetyBlocked) {
     const uint8_t bit = bitForDrive(i);
     if (!(_pulse.mask & bit)) continue;
     const DriveTelemetry& t = _motor->vfdTelemetry(i);
-    if (t.connected && t.runningFreq001Hz > 50 && t.statusWord != 0) _pulse.sawRunningMask |= bit;
+    if (t.connected && (int32_t)(t.lastOkMs-_pulse.startMs)>0 && (uint32_t)(nowMs-t.lastOkMs)<=1000 && t.runningFreq001Hz > 50 && t.statusWord != 0) _pulse.sawRunningMask |= bit;
   }
 
   if (!_pulse.stopIssued && (uint32_t)(nowMs - _pulse.startMs) >= _pulse.durationMs) {
@@ -286,7 +319,11 @@ void He200ServiceV6::applyAssistPct(uint8_t pct, uint32_t nowMs,
 bool He200ServiceV6::startAssist(AssistAxis axis, bool positive, uint8_t basePct,
                                  uint32_t nowMs, const uint32_t ageMs[4],
                                  const uint32_t lastSampleMs[4]) {
-  if (!_motor || _pulse.active || assistActive()) return false;
+  if (HE200_DIAGNOSTIC_LOCK) {
+    Serial.println(F("@SERVICE_PULSE result=FAIL reason=DIAGNOSTIC_LOCK"));
+    return false;
+  }
+  if (!_motor || _pulse.active || assistActive() || _motor->auditActive()) return false;
   _assist = AssistRuntime{};
   _assist.axis = axis;
   _assist.positive = positive;
@@ -429,4 +466,8 @@ void He200ServiceV6::clearAssistFault() {
     _assist = AssistRuntime{};
     Serial.println(F("@ASSIST state=OFF reason=FAULT_CLEARED"));
   }
+}
+
+void He200ServiceV6::observeSensors(const int32_t rawMm[4], const uint32_t sampleMs[4]) {
+  for (uint8_t i=0;i<4;++i) _calibration.samples[i].add(rawMm[i],sampleMs[i]);
 }

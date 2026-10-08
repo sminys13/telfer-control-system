@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "config_v6_bringup.h"
 #include "motor_control_v6.h"
+#include "direction_calibration_v6.h"
 
 // Step9I service-cockpit runtime gate. It intentionally sits outside AutoRunner:
 // commissioning/manual recovery can be proven without enabling physical AUTO/HOME.
@@ -24,19 +25,25 @@ public:
 
   void begin(MotorControlV6& motor);
   void resetGates();
+  uint8_t calibratedMask() const { uint8_t mask=0; for(uint8_t i=0;i<4;i++)if(_calibration.ready(i))mask|=1u<<i; return mask; }
+  int8_t forwardSensorSign(uint8_t i) const { return _calibration.physicalSign(i,true); }
+  void restoreDirection(uint8_t i,int8_t sign) { _calibration.restore(i,sign); if(_calibration.ready(i)){_confirmPositiveMask|=1u<<i;_confirmNegativeMask|=1u<<i;} }
+  bool calibrationSamplesReady(uint32_t now) const { for(uint8_t i=0;i<4;i++)if(!_calibration.samples[i].stable(now))return false;return true; }
   void setPreflight(bool pass, const __FlashStringHelper* reason = nullptr);
   void markProtocol(uint8_t driveIndex, bool pass);
   void confirmDirection(uint8_t driveIndex, bool positive, bool pass = true);
   void printGateStatus() const;
 
-  bool startPulse(uint8_t driveMask, bool positive, uint8_t pct, uint16_t durationMs, uint32_t nowMs);
+  bool startPulse(uint8_t driveMask, bool positive, uint8_t pct, uint16_t durationMs, uint32_t nowMs, bool rawCalibration = false);
+  void observeSensors(const int32_t rawMm[4], const uint32_t sampleMs[4]);
   bool startAssist(AssistAxis axis, bool positive, uint8_t basePct, uint32_t nowMs,
                    const uint32_t ageMs[4], const uint32_t lastSampleMs[4]);
   void stopAll(const __FlashStringHelper* reason);
   void stopAssist(const __FlashStringHelper* reason);
   void clearAssistFault();
 
-  // Call every loop. safetyBlocked must reflect the independent physical safety chain.
+  // MCU input state cannot prove independence of the external safety chain.
+  // The diagnostic release keeps all physical writes locked separately.
   void service(uint32_t nowMs, bool safetyBlocked,
                const uint32_t ageMs[4], const uint32_t lastSampleMs[4]);
 
@@ -60,6 +67,9 @@ private:
     uint32_t lastPollMs = 0;
     bool stopIssued = false;
     uint8_t sawRunningMask = 0;
+    bool rawCalibration = false;
+    bool forward = false;
+    uint8_t drive = 0;
   };
 
   struct AssistRuntime {
@@ -88,6 +98,7 @@ private:
   uint8_t _confirmPositiveMask = 0;
   uint8_t _confirmNegativeMask = 0;
   uint8_t _pairPassMask = 0; // bit0=X, bit1=Z
+  DirectionCalibrationV6 _calibration;
   PulseState _pulse;
   AssistRuntime _assist;
 

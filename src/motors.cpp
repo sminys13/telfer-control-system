@@ -280,7 +280,7 @@ bool Drives::processActiveDrive(uint32_t nowMs) {
                                    : TxPhase::WRITE_SETPOINT;
   }
 
-  ModbusResult r{false, MODBUS_ERROR_BAD_RESPONSE, false};
+  ModbusResult r{false, MODBUS_ERROR_BAD_RESPONSE, false, 0};
   switch (st.phase) {
     case TxPhase::WRITE_SETPOINT: {
       st.transactionPct = st.targetPct;

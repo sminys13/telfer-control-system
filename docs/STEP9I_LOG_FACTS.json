@@ -1,0 +1,304 @@
+[
+  {
+    "file": "telfer-step9i-2026-09-14T11-27-37-767Z.txt",
+    "sha256": "da53fd860ea661b06737c421f73dc3078d358aebd4269e3da6874cc4b5c77c6a",
+    "lines": 2603,
+    "undefined_commands": 69,
+    "run_commands": {
+      "H1 FWD": 1,
+      "H1 REV": 1,
+      "H2 FWD": 1,
+      "H2 REV": 1,
+      "V1 REV": 5,
+      "V1 FWD": 5,
+      "V2 REV": 2,
+      "V2 FWD": 3
+    },
+    "pulse_results": {
+      "mask=0x1 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x1 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x2 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x2 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN": 5,
+      "mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN": 5,
+      "mask=0x8 dir=POS result=FAIL reason=NO_CONFIRMED_RUN": 2,
+      "mask=0x8 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN": 3
+    },
+    "drives": {
+      "H1": {
+        "samples": 20,
+        "max_run001": 500,
+        "max_outV": 58,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "H2": {
+        "samples": 20,
+        "max_run001": 500,
+        "max_outV": 58,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "V1": {
+        "samples": 92,
+        "max_run001": 0,
+        "max_outV": 0,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "V2": {
+        "samples": 47,
+        "max_run001": 0,
+        "max_outV": 0,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      }
+    },
+    "evidence": [
+      {
+        "line": 197,
+        "text": "[15:15:24.329]    @GATE name=PREFLIGHT result=FAIL reason=LIMIT_INPUT_ACTIVE"
+      },
+      {
+        "line": 247,
+        "text": "[15:21:36.164]    SAFETY LIMIT monitoring DISABLED (BENCH)"
+      },
+      {
+        "line": 389,
+        "text": "[15:21:39.984]    SAFETY LIMIT monitoring DISABLED (BENCH)"
+      },
+      {
+        "line": 426,
+        "text": "[15:21:41.770]    @GATE name=PREFLIGHT result=PASS reason=FOUR_DRIVES_STOPPED_SAFETY_OK"
+      },
+      {
+        "line": 646,
+        "text": "[15:23:49.354]    @SERVICE_PULSE state=DONE mask=0x1 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 743,
+        "text": "[15:24:05.713]    @SERVICE_PULSE state=DONE mask=0x1 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 850,
+        "text": "[15:24:22.895]    @SERVICE_PULSE state=DONE mask=0x2 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 943,
+        "text": "[15:24:27.539]    @SERVICE_PULSE state=DONE mask=0x2 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1047,
+        "text": "[15:24:42.807]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1145,
+        "text": "[15:24:51.807]    @SERVICE_PULSE state=DONE mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1245,
+        "text": "[15:24:55.754]    @SERVICE_PULSE state=DONE mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1350,
+        "text": "[15:25:09.513]    @SERVICE_PULSE state=DONE mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1448,
+        "text": "[15:25:12.307]    @SERVICE_PULSE state=DONE mask=0x8 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1548,
+        "text": "[15:25:16.096]    @SERVICE_PULSE state=DONE mask=0x8 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1670,
+        "text": "[15:25:24.947]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1803,
+        "text": "[15:25:28.497]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1906,
+        "text": "[15:25:30.824]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 2022,
+        "text": "[15:25:33.585]    @SERVICE_PULSE state=DONE mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 2129,
+        "text": "[15:25:39.607]    @SERVICE_PULSE state=DONE mask=0x8 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 2257,
+        "text": "[15:25:42.800]    @SERVICE_PULSE state=DONE mask=0x8 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 2383,
+        "text": "[15:27:16.488]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 2487,
+        "text": "[15:27:19.555]    @SERVICE_PULSE state=DONE mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 2596,
+        "text": "[15:27:22.570]    @SERVICE_PULSE state=DONE mask=0x8 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      }
+    ]
+  },
+  {
+    "file": "telfer-step9i-2026-10-08T08-09-33-561Z.txt",
+    "sha256": "95d09d9eeb66061dc9dec86bf8e798095e81051439acbbf1688cbeabffba0018",
+    "lines": 2146,
+    "undefined_commands": 47,
+    "run_commands": {
+      "H1 FWD": 1,
+      "H1 REV": 1,
+      "H2 FWD": 1,
+      "H2 REV": 1,
+      "V1 REV": 5,
+      "V1 FWD": 1,
+      "V2 REV": 3
+    },
+    "pulse_results": {
+      "mask=0x1 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x1 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x2 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x2 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED": 1,
+      "mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN": 5,
+      "mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN": 1,
+      "mask=0x8 dir=POS result=FAIL reason=NO_CONFIRMED_RUN": 3
+    },
+    "drives": {
+      "H1": {
+        "samples": 19,
+        "max_run001": 500,
+        "max_outV": 58,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "H2": {
+        "samples": 19,
+        "max_run001": 500,
+        "max_outV": 58,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "V1": {
+        "samples": 54,
+        "max_run001": 0,
+        "max_outV": 0,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      },
+      "V2": {
+        "samples": 28,
+        "max_run001": 0,
+        "max_outV": 0,
+        "DI": [
+          "0x4030"
+        ],
+        "faults": [
+          "0x0"
+        ]
+      }
+    },
+    "evidence": [
+      {
+        "line": 13,
+        "text": "[12:05:03.439]    SAFETY LIMIT monitoring DISABLED (BENCH)"
+      },
+      {
+        "line": 166,
+        "text": "[12:05:12.679]    SAFETY LIMIT monitoring DISABLED (BENCH)"
+      },
+      {
+        "line": 204,
+        "text": "[12:05:14.445]    @GATE name=PREFLIGHT result=PASS reason=FOUR_DRIVES_STOPPED_SAFETY_OK"
+      },
+      {
+        "line": 688,
+        "text": "[12:07:59.243]    @SERVICE_PULSE state=DONE mask=0x1 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 796,
+        "text": "[12:08:04.167]    @SERVICE_PULSE state=DONE mask=0x1 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 921,
+        "text": "[12:08:14.570]    @SERVICE_PULSE state=DONE mask=0x2 dir=POS result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1030,
+        "text": "[12:08:18.635]    @SERVICE_PULSE state=DONE mask=0x2 dir=NEG result=PASS reason=RUN_AND_STOP_VERIFIED"
+      },
+      {
+        "line": 1128,
+        "text": "[12:08:24.780]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1240,
+        "text": "[12:08:28.318]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1343,
+        "text": "[12:08:31.678]    @SERVICE_PULSE state=DONE mask=0x4 dir=NEG result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1454,
+        "text": "[12:08:33.976]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1567,
+        "text": "[12:08:36.775]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1683,
+        "text": "[12:08:39.473]    @SERVICE_PULSE state=DONE mask=0x8 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1802,
+        "text": "[12:08:42.960]    @SERVICE_PULSE state=DONE mask=0x8 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 1988,
+        "text": "[12:09:13.760]    @SERVICE_PULSE state=DONE mask=0x4 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      },
+      {
+        "line": 2119,
+        "text": "[12:09:16.380]    @SERVICE_PULSE state=DONE mask=0x8 dir=POS result=FAIL reason=NO_CONFIRMED_RUN"
+      }
+    ]
+  }
+]

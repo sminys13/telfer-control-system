@@ -6,6 +6,7 @@
 #include "modbus.h"
 #include "motors.h"
 #include "settings_v6.h"
+#include "he200_audit_v6.h"
 
 
 struct He200ProtocolSnapshotV6 {
@@ -28,6 +29,14 @@ public:
   void begin(const SettingsV6& settings);
   void applySettings(const SettingsV6& settings);
   bool service(uint32_t nowMs);
+  bool startHe200Audit();
+  bool setServiceRawTargets(const int16_t targets[4]);
+  void cancelHe200Audit() { _audit.cancel(); }
+  bool auditActive() const { return _audit.active(); }
+  void webPermit(bool permit) { _webPermit=permit; }
+  void coordinateSigns(const int8_t signs[4]) { for(uint8_t i=0;i<4;i++)_coordinateSigns[i]=signs[i]; }
+  ModbusResult readParameter(uint8_t drive,uint16_t reg,uint16_t& value);
+  ModbusResult writeParameter(uint8_t drive,uint16_t reg,uint16_t value);
 
   void startByMotorState(uint16_t motorStateCode);
   // Automatic controller uses logical coordinates: H positive=right, V positive=UP.
@@ -65,8 +74,11 @@ private:
   VfdCommSettingsV6 _comm{};
   DriveProfileV6 _drive[DRIVE_COUNT_V6]{};
   ModbusMasterRTU _modbus;
+  He200AuditV6 _audit;
   Drives _drives;
   int16_t _lastAutoLogical[DRIVE_COUNT_V6] = {0,0,0,0};
   bool _autoTargetKnown = false;
   bool _begun = false;
+  bool _webPermit = false;
+  int8_t _coordinateSigns[4] = {};
 };

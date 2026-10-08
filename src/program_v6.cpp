@@ -197,7 +197,9 @@ uint8_t ProgramStorageV6::loadActiveSlot() const {
 
 void ProgramStorageV6::saveActiveSlot(uint8_t slot) const {
   if (slot >= AUTO_PROGRAM_SLOTS_V6) return;
-  AutoMetaV6 m{};
+  AutoMetaV6 m;
+  // CRC covers bytes; explicitly initialize every byte, including padding.
+  memset(&m, 0, sizeof(m));
   m.magic = AUTO_META_MAGIC_V6;
   m.activeSlot = slot;
   m.crc = metaCrc(m);

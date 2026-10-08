@@ -1,3 +1,13 @@
+# Active release: Step9K web control
+
+Начните с [START_HERE_STEP9K_RU.md](START_HERE_STEP9K_RU.md). Профиль управления: `mega_v6_he200_web_control`.
+
+Ниже сохранены документы предыдущих выпусков.
+
+# Архив выпуска Step9J READ-ONLY diagnostics
+
+Сначала прочитайте [START_HERE_STEP9J_RU.md](START_HERE_STEP9J_RU.md). В диагностической сборке Step9J все физические записи и движения заблокированы. Документы Step9I ниже также относятся к предыдущему выпуску.
+
 # Telfer Control System — V6 Step9I Service Cockpit
 
 Step9I объединяет несколько следующих этапов пусконаладки в одну управляемую последовательность. Основной сервисный интерфейс — браузерная Web Serial консоль; DWIN в этом шаге не нужен для движения и не участвует в разрешении физических команд.

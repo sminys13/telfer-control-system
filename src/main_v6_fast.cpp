@@ -2248,10 +2248,10 @@ uint8_t serviceDriveMask(const char* token)
 bool serviceDirectionPositive(const char* token, bool& positive)
 {
   if (!token) return false;
-  if (!strcmp(token, "pos") || !strcmp(token, "fwd") || !strcmp(token, "right") || !strcmp(token, "up")) {
+  if (!strcmp(token, "pos")) {
     positive = true; return true;
   }
-  if (!strcmp(token, "neg") || !strcmp(token, "rev") || !strcmp(token, "left") || !strcmp(token, "down")) {
+  if (!strcmp(token, "neg")) {
     positive = false; return true;
   }
   return false;
@@ -2293,6 +2293,7 @@ void printStep9IServiceInfo()
   if (HE200_FIELD_SERVICE) Serial.print(F("FIELD"));
   else if (HE200_COMMISSIONING && VFD_RS485_ENABLED && !VFD_WRITE_COMMANDS_ENABLED) Serial.print(F("READONLY"));
   else Serial.print(F("BENCH"));
+  Serial.print(F(" audit=1 diagnosticLock=")); Serial.print(HE200_DIAGNOSTIC_LOCK ? 1 : 0);
   Serial.print(F(" native=")); Serial.print(HE200_NATIVE_PROTOCOL ? 1 : 0);
   Serial.print(F(" auto=")); Serial.print(AUTO_PHYSICAL_ENABLED ? 1 : 0);
   Serial.print(F(" dwinMotion=")); Serial.print(DWIN_MOTION_ENABLED ? 1 : 0);
@@ -2304,16 +2305,20 @@ void printStep9IServiceHelp()
   Serial.println(F("Step9I service cockpit commands:"));
   Serial.println(F("  service info"));
   Serial.println(F("  service preflight | service gate status | service gate reset | service stop  (all 4 drives)"));
-  Serial.println(F("  he200 probe h1/h2/v1/v2/all"));
+  Serial.println(F("  he200 audit all | he200 audit cancel (FC03 only, all four drives)"));
+  Serial.println(F("  he200 probe h1/h2/v1/v2/all (BLOCKED in diagnostic release)"));
   Serial.println(F("  service pulse h1/h2/v1/v2/h/z pos/neg [pct 5..20] [ms 500..3000]"));
   Serial.println(F("  service confirm h1/h2/v1/v2 pos/neg"));
   Serial.println(F("  assist x/z pos/neg [basePct] | assist stop  (active pair) | assist clear"));
 }
 
+#include "web_control_v6.inc"
+
 void serviceUsbConsole()
 {
-  static char line[96];
+  static char line[160];
   static uint8_t len = 0;
+  static bool overflow=false;
 
   while (Serial.available())
   {
@@ -2322,19 +2327,41 @@ void serviceUsbConsole()
     if (c != '\n')
     {
       if ((size_t)len + 1U < sizeof(line)) line[len++] = c;
+      else overflow=true;
       continue;
     }
 
     line[len] = '\0';
     len = 0;
+    if(overflow){overflow=false;Serial.println(F("@WEB_ACK ok=0 reason=LINE_TOO_LONG"));continue;}
     if (line[0] == '\0') continue;
 
-    if (!strcmp(line, "help")) printBenchConsoleHelp();
+    if(webCommand(line))continue;
+    if(WEB_CONTROL_ENABLED && strcmp(line,"service info") && strcmp(line,"prog show") &&
+       strcmp(line,"laser status") && strcmp(line,"service gate status") &&
+       strcmp(line,"he200 audit all") && strcmp(line,"he200 audit cancel") &&
+       strcmp(line,"log quiet") && strcmp(line,"log normal") && strcmp(line,"log verbose")) {
+      Serial.println(F("@WEB_ACK ok=0 reason=USE_WEB_PROTOCOL"));continue;
+    }
+
+    if (g_motor.auditActive() && strcmp(line,"he200 audit cancel") &&
+        strcmp(line,"service info") && strcmp(line,"service gate status") &&
+        strcmp(line,"service stop")) {
+      Serial.println(F("@AUDIT state=BUSY reason=READ_SCAN_ACTIVE"));
+      continue;
+    }
+    if (!strcmp(line,"he200 audit all")) {
+      if (g_he200Service.pulseActive() || g_he200Service.assistActive() || !g_motor.startHe200Audit())
+        Serial.println(F("@AUDIT state=REJECTED reason=BUSY_OR_BUILD_OR_ADDRESS"));
+    }
+    else if (!strcmp(line,"he200 audit cancel")) g_motor.cancelHe200Audit();
+    else if (!strcmp(line, "help")) printBenchConsoleHelp();
     else if (!strcmp(line, "service info")) printStep9IServiceInfo();
     else if (!strcmp(line, "service gate status")) g_he200Service.printGateStatus();
     else if (!strcmp(line, "service gate reset")) g_he200Service.resetGates();
     else if (!strcmp(line, "service preflight")) (void)runServicePreflight();
     else if (!strcmp(line, "service stop")) {
+      g_motor.cancelHe200Audit();
       g_he200Service.stopAll(F("browser global STOP"));
       g_systemMode = SystemModeV6::STOP;
       writeMotorStateToDwin();
@@ -2345,7 +2372,7 @@ void serviceUsbConsole()
     }
     else if (!strcmp(line, "assist clear")) g_he200Service.clearAssistFault();
     else if (!strncmp(line, "he200 probe ", 12)) {
-      if (!g_he200Service.preflightPassed()) {
+      if (HE200_DIAGNOSTIC_LOCK || !g_he200Service.preflightPassed()) {
         Serial.println(F("@GATE name=PROTOCOL result=FAIL reason=PREFLIGHT_REQUIRED"));
         continue;
       }
@@ -2378,10 +2405,18 @@ void serviceUsbConsole()
         else Serial.println(F("Confirm only individual h1/h2/v1/v2"));
       } else Serial.println(F("Use: service confirm h1/h2/v1/v2 pos/neg"));
     }
+    else if (!strncmp(line,"service calibrate ",18)) {
+      char target[8]={0}, dir[8]={0}, extra[8]={0};
+      if (sscanf(line,"service calibrate %7s %7s %7s",target,dir,extra)==2 &&
+          (!strcmp(dir,"fwd") || !strcmp(dir,"rev"))) {
+        const int8_t di=serviceDriveIndex(target);
+        if (di>=0) (void)g_he200Service.startPulse((uint8_t)(1U<<di),!strcmp(dir,"fwd"),10,1200,millis(),true);
+      } else Serial.println(F("Use: service calibrate h1/h2/v1/v2 fwd/rev (locked)"));
+    }
     else if (!strncmp(line, "service pulse ", 14)) {
-      char target[8] = {0}, dir[8] = {0}; int pct = 10, ms = 1200; bool positive = true;
-      const int fields = sscanf(line, "service pulse %7s %7s %d %d", target, dir, &pct, &ms);
-      if (fields >= 2 && serviceDirectionPositive(dir, positive)) {
+      char target[8] = {0}, dir[8] = {0}, extra[8] = {0}; int pct = 10, ms = 1200; bool positive = true;
+      const int fields = sscanf(line, "service pulse %7s %7s %d %d %7s", target, dir, &pct, &ms, extra);
+      if (fields == 4 && pct>=5 && pct<=20 && ms>=500 && ms<=3000 && serviceDirectionPositive(dir, positive)) {
         const uint8_t mask = serviceDriveMask(target);
         if (!mask) Serial.println(F("Use target h1/h2/v1/v2/h/z"));
         else (void)g_he200Service.startPulse(mask, positive, (uint8_t)pct, (uint16_t)ms, millis());
@@ -2711,7 +2746,8 @@ void setup()
   Serial.println(F("Calibration: 0x0021-0x0024 ZERO, 0x0030 SAVE, 0x0031 LOAD, 0x0032 RESET CAL"));
   Serial.println(F("Service: 0x0044 CLEAR STATUS, 0x0045 SENSOR REINIT, 0x0046 DIAG, 0x0047 SAFETY CLEAR"));
   Serial.println(F("Laser profile: SEN0366-compatible continuous 5Hz / 1mm / 10m"));
-  if (HE200_FIELD_SERVICE) Serial.println(F("Step9I service cockpit: native HE200 0x1000/0x2000/0x3000 writes runtime-gated; physical AUTO/HOME BLOCKED"));
+  if (WEB_CONTROL_ENABLED) Serial.println(F("Step9K web control: boots DISARMED; measured directions required; program starts by operator button"));
+  else if (HE200_FIELD_SERVICE) Serial.println(F("Step9I service cockpit: native HE200 0x1000/0x2000/0x3000 writes runtime-gated; physical AUTO/HOME BLOCKED"));
   printStep9IServiceInfo();
   Serial.println(F("Bench safety: 0x0048 TOGGLE E-STOP monitor, 0x0049 TOGGLE LIMIT monitor; SAVE persists"));
   Serial.println(F("Manual jog legacy: 0x0101..0x010C, 0x010F JOG STOP"));
@@ -2738,6 +2774,7 @@ void setup()
   printBenchConsoleHelp();
   printProgramSummary();
   printAllSensorGuardStatus();
+  webBegin();
 
   Serial.print(F("Safety inputs: "));
   Serial.print(SAFETY_BENCH_MODE ? F("BENCH active-low") : F("FIELD NC active-high"));
@@ -2764,6 +2801,7 @@ void loop()
   const uint32_t now = millis();
 
   const bool safetyChanged = g_safety.service();
+  webService(millis());
   const bool estopBlocked = g_safety.estopActive() || g_safety.estopLatched();
   if (estopBlocked && (g_auto.running() || g_motor.isMotionActive() || g_systemMode != SystemModeV6::STOP))
   {
@@ -2823,7 +2861,11 @@ void loop()
       ages[i] = g_sensor[i].lastValidMs ? (uint32_t)(now - g_sensor[i].lastValidMs) : UINT32_MAX;
       lastSamples[i] = g_sensor[i].lastValidMs;
     }
-    const bool serviceSafetyBlocked = g_safety.estopActive() || g_safety.estopLatched();
+    int32_t rawMm[4];
+    for (uint8_t i=0;i<4;++i) rawMm[i]=g_sensor[i].valid ? g_sensor[i].rawMm : -1;
+    g_he200Service.observeSensors(rawMm,lastSamples);
+    const bool serviceSafetyBlocked = g_safety.estopActive() || g_safety.estopLatched() ||
+        (g_safety.limitsEnabled() && g_safety.limitMask()!=0);
     g_he200Service.service(now, serviceSafetyBlocked, ages, lastSamples);
   }
 
@@ -2838,6 +2880,7 @@ void loop()
   while (dwinFrames < 8 && g_dwin.pollWriteU16(rxVp, rxValue))
   {
     ++dwinFrames;
+    if(WEB_CONTROL_ENABLED)continue; // Web owns mutation; DWIN remains a status mirror.
     if (rxVp == VP_CMD)
       handleCommand(rxValue);
     else if (rxVp == VP_JOG_HOLD_BITS)
